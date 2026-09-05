@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Sparkles,
   ArrowLeft,
@@ -33,7 +33,15 @@ import {
   ExternalLink,
   CheckCircle,
   Clock,
-  UserCheck
+  UserCheck,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Move,
+  LayoutGrid,
+  RefreshCw,
+  MousePointer,
+  HelpCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -43,33 +51,182 @@ interface SwarmStudioProps {
   activeView: 'chat' | 'swarm';
 }
 
-interface InspectedNode {
+interface NodeData {
   id: string;
+  type: 'ceo' | 'orchestrator' | 'sales' | 'inventory' | 'finance' | 'solver' | 'db';
   title: string;
+  subtitle: string;
   role: string;
   model: string;
   latency: string;
-  status: string;
-  icon: React.ReactNode;
-  summary: string;
-  inputs: Record<string, string | number>;
-  outputs: Record<string, string | number>;
-  rationale: string[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  iconBg: string;
+  iconColor: string;
+  borderColor: string;
+  accentGlow: string;
+  stageNum: number;
 }
+
+const DEFAULT_NODES: NodeData[] = [
+  {
+    id: 'node-ceo',
+    type: 'ceo',
+    title: 'Executive Directive',
+    subtitle: 'Business Demand Trigger',
+    role: 'CEO / Business Executive (Rahul)',
+    model: 'Executive Directive Stream',
+    latency: '< 1ms',
+    x: 60,
+    y: 280,
+    width: 240,
+    height: 180,
+    iconBg: 'bg-[#A8C7FA]/10',
+    iconColor: 'text-[#A8C7FA]',
+    borderColor: 'border-[#A8C7FA]/40',
+    accentGlow: 'rgba(168, 199, 250, 0.2)',
+    stageNum: 1,
+  },
+  {
+    id: 'node-orchestrator',
+    type: 'orchestrator',
+    title: 'Nexus Swarm Orchestrator',
+    subtitle: 'Hierarchical Task Dispatch',
+    role: 'DAG Planner & Sub-Agent Coordinator',
+    model: 'Gemini 3.6 Flash',
+    latency: '4.2ms',
+    x: 370,
+    y: 260,
+    width: 260,
+    height: 215,
+    iconBg: 'bg-[#A8C7FA]/20',
+    iconColor: 'text-[#A8C7FA]',
+    borderColor: 'border-[#A8C7FA]',
+    accentGlow: 'rgba(168, 199, 250, 0.35)',
+    stageNum: 2,
+  },
+  {
+    id: 'node-sales',
+    type: 'sales',
+    title: 'Sales Intelligence Agent',
+    subtitle: 'Velocity & Attribution',
+    role: 'Forecast & Growth Elasticity',
+    model: 'Gemini 3.6 Flash',
+    latency: '8.2ms',
+    x: 710,
+    y: 90,
+    width: 250,
+    height: 165,
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+    borderColor: 'border-blue-500/50',
+    accentGlow: 'rgba(59, 130, 246, 0.25)',
+    stageNum: 3,
+  },
+  {
+    id: 'node-inventory',
+    type: 'inventory',
+    title: 'Supply Chain & Inventory',
+    subtitle: 'Depletion & Safety Buffers',
+    role: 'Stockout Horizon & Reorder Deficit',
+    model: 'GPT-4o Mini',
+    latency: '6.4ms',
+    x: 710,
+    y: 285,
+    width: 250,
+    height: 165,
+    iconBg: 'bg-amber-500/10',
+    iconColor: 'text-amber-400',
+    borderColor: 'border-amber-500/50',
+    accentGlow: 'rgba(245, 158, 11, 0.25)',
+    stageNum: 3,
+  },
+  {
+    id: 'node-finance',
+    type: 'finance',
+    title: 'Treasury & Governance',
+    subtitle: 'Liquidity & Statutory Caps',
+    role: 'Ledger Audit & Reserve Lock',
+    model: 'Gemini 1.5 Pro',
+    latency: '9.1ms',
+    x: 710,
+    y: 480,
+    width: 250,
+    height: 165,
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+    borderColor: 'border-emerald-500/50',
+    accentGlow: 'rgba(34, 197, 94, 0.25)',
+    stageNum: 3,
+  },
+  {
+    id: 'node-solver',
+    type: 'solver',
+    title: 'Google OR-Tools ILP Solver',
+    subtitle: 'Deterministic Optimization',
+    role: 'Integer Linear Programming Matrix',
+    model: 'Nexus 3.1 Deep Think (Exact ILP)',
+    latency: '2.4ms',
+    x: 1040,
+    y: 250,
+    width: 270,
+    height: 235,
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-400',
+    borderColor: 'border-purple-500/60',
+    accentGlow: 'rgba(168, 85, 247, 0.3)',
+    stageNum: 4,
+  },
+  {
+    id: 'node-db',
+    type: 'db',
+    title: 'Neon PostgreSQL Ground Truth',
+    subtitle: 'Immutable Ledger Action',
+    role: 'Relational DB Sync & PO Execution',
+    model: 'Neon Cloud Postgres (asyncpg)',
+    latency: '1.8ms',
+    x: 1390,
+    y: 280,
+    width: 250,
+    height: 195,
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+    borderColor: 'border-emerald-500/60',
+    accentGlow: 'rgba(16, 185, 129, 0.25)',
+    stageNum: 5,
+  },
+];
 
 export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   onBackToLanding,
   onSwitchToChat,
   activeView,
 }) => {
-  const [simSurge, setSimSurge] = useState<number>(70);
-  const [activePipelineStep, setActivePipelineStep] = useState<number>(5); // 1 to 5
-  const [isSimulating, setIsSimulating] = useState<boolean>(false);
-  const [executed, setExecuted] = useState<boolean>(false);
-  const [inspectedNode, setInspectedNode] = useState<InspectedNode | null>(null);
-  const [copied, setCopied] = useState<boolean>(false);
+  // Canvas State: Pan & Zoom
+  const [nodes, setNodes] = useState<NodeData[]>(DEFAULT_NODES);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 30, y: 20 });
+  const [zoom, setZoom] = useState<number>(0.92);
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Dynamic real-time calculation
+  // Node Dragging State
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Simulation & Pipeline State
+  const [simSurge, setSimSurge] = useState<number>(70);
+  const [activeStep, setActiveStep] = useState<number>(5);
+  const [isPropagating, setIsPropagating] = useState<boolean>(false);
+  const [executed, setExecuted] = useState<boolean>(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [showGrid, setShowGrid] = useState<boolean>(true);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic real-time calculations
   const sim = useMemo(() => {
     const baseDemand = 85;
     const velocity = Math.round(baseDemand * (1 + simSurge / 100));
@@ -103,33 +260,117 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     };
   }, [simSurge]);
 
-  // Step-by-step pipeline execution animation
-  const handleRunPipeline = () => {
-    setIsSimulating(true);
-    setActivePipelineStep(1);
+  // Selected node inspection object
+  const inspectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
 
-    const timeouts = [
-      setTimeout(() => setActivePipelineStep(2), 500),
-      setTimeout(() => setActivePipelineStep(3), 1100),
-      setTimeout(() => setActivePipelineStep(4), 1800),
-      setTimeout(() => {
-        setActivePipelineStep(5);
-        setIsSimulating(false);
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#A8C7FA', '#B2C5FF', '#22c55e', '#ffffff'],
+  // Zoom controls
+  const handleZoom = (delta: number) => {
+    setZoom((prev) => Math.min(1.8, Math.max(0.4, Number((prev + delta).toFixed(2)))));
+  };
+
+  const handleResetCanvas = () => {
+    setPan({ x: 30, y: 20 });
+    setZoom(0.92);
+    setNodes(DEFAULT_NODES);
+  };
+
+  // Canvas Mouse / Wheel handlers
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      const zoomFactor = e.deltaY < 0 ? 0.08 : -0.08;
+      handleZoom(zoomFactor);
+    } else {
+      setPan((prev) => ({
+        x: prev.x - e.deltaX * 0.7,
+        y: prev.y - e.deltaY * 0.7,
+      }));
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // If clicking directly on canvas background, start pan
+    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-bg')) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (isPanning) {
+        setPan({
+          x: e.clientX - panStart.x,
+          y: e.clientY - panStart.y,
         });
-      }, 2500),
-    ];
+      } else if (draggingNodeId) {
+        setNodes((prevNodes) =>
+          prevNodes.map((n) => {
+            if (n.id === draggingNodeId) {
+              const rawX = (e.clientX - pan.x) / zoom - dragOffset.x;
+              const rawY = (e.clientY - pan.y) / zoom - dragOffset.y;
+              return {
+                ...n,
+                x: Math.round(rawX),
+                y: Math.round(rawY),
+              };
+            }
+            return n;
+          })
+        );
+      }
+    },
+    [isPanning, panStart, draggingNodeId, pan, zoom, dragOffset]
+  );
 
-    return () => timeouts.forEach(clearTimeout);
+  const handleMouseUp = () => {
+    setIsPanning(false);
+    setDraggingNodeId(null);
+  };
+
+  const handleStartDragNode = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    setDraggingNodeId(nodeId);
+    setSelectedNodeId(nodeId);
+    
+    // Calculate cursor offset inside the node
+    const clickX = (e.clientX - pan.x) / zoom - node.x;
+    const clickY = (e.clientY - pan.y) / zoom - node.y;
+    setDragOffset({ x: clickX, y: clickY });
+  };
+
+  // Step-by-step pipeline execution
+  const handleRunPipeline = () => {
+    setIsPropagating(true);
+    setActiveStep(1);
+
+    const t1 = setTimeout(() => setActiveStep(2), 500);
+    const t2 = setTimeout(() => setActiveStep(3), 1100);
+    const t3 = setTimeout(() => setActiveStep(4), 1800);
+    const t4 = setTimeout(() => {
+      setActiveStep(5);
+      setIsPropagating(false);
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#A8C7FA', '#B2C5FF', '#22c55e', '#ffffff'],
+      });
+    }, 2500);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
   };
 
   const handleCommitOrder = () => {
     confetti({
-      particleCount: 110,
+      particleCount: 120,
       spread: 80,
       origin: { y: 0.6 },
       colors: ['#22c55e', '#A8C7FA', '#ffffff'],
@@ -145,200 +386,38 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Preset inspection payloads
-  const openNodeDetails = (type: 'ceo' | 'orchestrator' | 'sales' | 'inventory' | 'finance' | 'solver' | 'db') => {
-    switch (type) {
-      case 'ceo':
-        setInspectedNode({
-          id: 'node-ceo',
-          title: 'Executive Directive',
-          role: 'CEO / Business Executive (Rahul)',
-          model: 'Executive Input Trigger',
-          latency: '< 1ms',
-          status: 'TRIGGERED',
-          icon: <UserCheck className="w-4 h-4 text-[#A8C7FA]" />,
-          summary: 'High-priority business trigger initiating swarm consensus to resolve supply chain deficit under statutory cash governance.',
-          inputs: {
-            Initiator: 'Rahul (CEO)',
-            TargetSKU: 'P100 Headphones',
-            PromotionalChannel: 'TikTok Viral Campaign',
-            DemandMultiplier: `+${simSurge}%`,
-          },
-          outputs: {
-            Directive: 'EXECUTE_OPTIMAL_SPLIT_PROCUREMENT',
-            Priority: 'CRITICAL',
-            TargetHorizonDays: 7,
-          },
-          rationale: [
-            'Incoming channel orders indicate massive viral creator spike.',
-            'Requires immediate cross-departmental consensus to prevent 12-day stockout.',
-          ],
-        });
-        break;
-      case 'orchestrator':
-        setInspectedNode({
-          id: 'node-orchestrator',
-          title: 'Nexus Swarm Orchestrator',
-          role: 'Hierarchical Task Deconstruction & Dispatch',
-          model: 'Gemini 3.6 Flash',
-          latency: '4.2ms',
-          status: 'ACTIVE_ROUTING',
-          icon: <Sparkles className="w-4 h-4 text-[#A8C7FA]" />,
-          summary: 'Deconstructs executive directive into 3 parallel worker contracts (Sales, Inventory, Finance) and establishes Pydantic schema boundaries.',
-          inputs: {
-            EventID: 'EVT-VIRAL-P100',
-            SurgeRatio: `${simSurge}%`,
-            WorldState: 'Neon Cloud PostgreSQL Sync',
-          },
-          outputs: {
-            ParallelTasksDispatched: 3,
-            TargetWorkers: 'SalesAgent, InventoryAgent, FinanceAgent',
-            SchemaContract: 'models/decision.py (Pydantic v2)',
-          },
-          rationale: [
-            'Parsed natural language directive and extracted SKU P100 parameter.',
-            'Spawned parallel domain agents with role-isolated knowledge permissions.',
-          ],
-        });
-        break;
-      case 'sales':
-        setInspectedNode({
-          id: 'node-sales',
-          title: 'Sales Intelligence Agent',
-          role: 'Velocity Forecasting & Channel Attribution',
-          model: 'Gemini 3.6 Flash',
-          latency: '8.2ms',
-          status: 'COMPLETED',
-          icon: <TrendingUp className="w-4 h-4 text-blue-400" />,
-          summary: 'Extracts real-time velocity curves from marketing data and calculates 7-day cumulative requirement.',
-          inputs: {
-            BaseDailyVelocity: '85 units/day',
-            SurgeMultiplier: `+${simSurge}%`,
-            AttributedChannel: 'VIRAL_TIKTOK_TECH_SUMMER',
-          },
-          outputs: {
-            CurrentDailyVelocity: `${sim.velocity} units/day`,
-            Forecast7DayCumulative: `${sim.forecast7d} units`,
-            ForecastConfidence: '94.2%',
-          },
-          rationale: [
-            `Elevated velocity from 85 to ${sim.velocity} u/d based on live elasticity.`,
-            `Computed cumulative 7-day requirement of ${sim.forecast7d} units.`,
-          ],
-        });
-        break;
-      case 'inventory':
-        setInspectedNode({
-          id: 'node-inventory',
-          title: 'Supply Chain & Inventory Agent',
-          role: 'Stockout Horizon & Safety Buffer Evaluation',
-          model: 'GPT-4o Mini',
-          latency: '6.4ms',
-          status: 'CRITICAL_DEPLETION',
-          icon: <Package className="w-4 h-4 text-amber-400" />,
-          summary: 'Evaluates current physical stock in Bin 4B against safety thresholds and computes net replenishment deficit.',
-          inputs: {
-            Bin4BPhysicalStock: '170 units',
-            StatutorySafetyFloor: '150 units',
-            DailyBurnRate: `${sim.velocity} u/d`,
-          },
-          outputs: {
-            StockoutHorizon: `${sim.horizonDays} days`,
-            ReplenishmentDeficit: `${sim.deficitUnits} units`,
-            UrgencyLevel: 'CRITICAL',
-          },
-          rationale: [
-            `Current 170 units will breach the 150-unit safety floor in ~${sim.horizonDays} days.`,
-            `Identified replenishment shortfall of ${sim.deficitUnits} units to restore safety stock.`,
-          ],
-        });
-        break;
-      case 'finance':
-        setInspectedNode({
-          id: 'node-finance',
-          title: 'Treasury & Governance Agent',
-          role: 'Liquidity Verification & Statutory Buffer Lock',
-          model: 'Gemini 1.5 Pro',
-          latency: '9.1ms',
-          status: 'LOCKED_APPROVED',
-          icon: <DollarSign className="w-4 h-4 text-emerald-400" />,
-          summary: 'Enforces statutory liquidity buffer governance and approves safe immediate upfront cash ceiling.',
-          inputs: {
-            TreasuryCashBalance: '₹8,50,000',
-            StatutoryReserveRequirement: '₹5,00,000 (Locked)',
-            AccountsReceivable: '₹3,10,000',
-          },
-          outputs: {
-            MaxSafeUpfrontSpendCap: '₹1,80,000',
-            StatutoryBufferProtected: 'TRUE (100% Lock)',
-            ApprovedPaymentFacility: 'Net-30 (Supplier B)',
-          },
-          rationale: [
-            'Statutory reserve of ₹5.00 Lakh strictly locked and protected.',
-            'Approved maximum safe cash spend cap of ₹1.80 Lakh.',
-          ],
-        });
-        break;
-      case 'solver':
-        setInspectedNode({
-          id: 'node-solver',
-          title: 'Google OR-Tools ILP Solver',
-          role: 'Deterministic Mathematical Constraint Solver',
-          model: 'Nexus 3.1 Deep Think (Exact ILP)',
-          latency: '2.4ms',
-          status: 'OPTIMAL_FEASIBLE',
-          icon: <Cpu className="w-4 h-4 text-purple-400" />,
-          summary: 'Formulates an Integer Linear Program (ILP) to calculate exact multi-supplier split minimizing cost while strictly respecting the ₹1.80L cash ceiling.',
-          inputs: {
-            RequiredUnits: `${sim.deficitUnits} units`,
-            CashCeiling: '₹1,80,000',
-            SupplierB_Limits: 'Max 400u, ₹477, Net-30 (₹0 upfront)',
-            SupplierC_Limits: 'Unlimited, ₹436.5, 50% Adv (₹218.25 upfront)',
-          },
-          outputs: {
-            AllocatedSupplierB: `${sim.supplierBUnits} units (QuickLogix)`,
-            AllocatedSupplierC: `${sim.supplierCUnits} units (Zenith Global)`,
-            TotalUpfrontCash: `₹${sim.upfrontCash.toLocaleString()}`,
-            MathematicalFeasibility: 'TRUE (100% Verified)',
-          },
-          rationale: [
-            `Maximized Net-30 credit allocation with QuickLogix for ${sim.supplierBUnits} units to conserve cash.`,
-            `Allocated remaining ${sim.supplierCUnits} units to Zenith Global via 50% advance (₹${sim.upfrontCash.toLocaleString()} upfront).`,
-            `Total upfront cash (₹${sim.upfrontCash.toLocaleString()}) strictly satisfies the ₹1,80,000 ceiling.`,
-          ],
-        });
-        break;
-      case 'db':
-        setInspectedNode({
-          id: 'node-db',
-          title: 'Neon PostgreSQL Ground Truth & ERP',
-          role: 'Relational Grounding & Immutable Ledger Action',
-          model: 'Neon Cloud Postgres • asyncpg',
-          latency: '1.8ms',
-          status: executed ? 'COMMITTED' : 'READY_TO_EXECUTE',
-          icon: <Database className="w-4 h-4 text-emerald-400" />,
-          summary: 'Commits verified split purchase order to relational tables and writes immutable audit log with cryptographic hash.',
-          inputs: {
-            TargetDatabase: 'db.neondb.azure.com:5432/nexus_prod',
-            RelationalTables: 'orders, inventory_bins, supplier_pos, audit_ledger',
-          },
-          outputs: {
-            TransactionStatus: executed ? 'COMMITTED_SUCCESS' : 'PENDING_USER_CONFIRM',
-            LedgerBlockHash: '0x8f9c2d1e4a7b5c3e',
-            PurchaseOrderRef: 'PO-2026-P100-B-C',
-          },
-          rationale: [
-            'Relational schema validation succeeded across all foreign keys.',
-            'Zero data drift between LLM reasoning and mathematical solver.',
-          ],
-        });
-        break;
-    }
+  // Helper to compute smooth Bézier curves between node sockets
+  const getNodeSocket = (nodeId: string, side: 'left' | 'right') => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return { x: 0, y: 0 };
+    return {
+      x: side === 'left' ? node.x : node.x + node.width,
+      y: node.y + node.height / 2,
+    };
   };
 
+  const getBezierPath = (x1: number, y1: number, x2: number, y2: number) => {
+    const dx = Math.max(40, Math.abs(x2 - x1) * 0.45);
+    return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+  };
+
+  // Define active pipeline links
+  const links = useMemo(() => {
+    return [
+      { from: 'node-ceo', to: 'node-orchestrator', active: activeStep >= 2, color: '#A8C7FA' },
+      { from: 'node-orchestrator', to: 'node-sales', active: activeStep >= 3, color: '#60A5FA' },
+      { from: 'node-orchestrator', to: 'node-inventory', active: activeStep >= 3, color: '#FBBF24' },
+      { from: 'node-orchestrator', to: 'node-finance', active: activeStep >= 3, color: '#34D399' },
+      { from: 'node-sales', to: 'node-solver', active: activeStep >= 4, color: '#60A5FA' },
+      { from: 'node-inventory', to: 'node-solver', active: activeStep >= 4, color: '#FBBF24' },
+      { from: 'node-finance', to: 'node-solver', active: activeStep >= 4, color: '#34D399' },
+      { from: 'node-solver', to: 'node-db', active: activeStep >= 5, color: '#A855F7' },
+    ];
+  }, [activeStep]);
+
   return (
-    <div className="flex flex-col h-screen w-full bg-[#131313] text-[#E3E3E3] font-sans overflow-hidden">
-      {/* ================= HEADER (NEXUS 1.0 THEME) ================= */}
+    <div className="flex flex-col h-screen w-full bg-[#131313] text-[#E3E3E3] font-sans overflow-hidden select-none">
+      {/* ================= TOP HEADER ================= */}
       <header className="sticky top-0 z-30 bg-[#131313]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-6 py-2.5 flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
           <button
@@ -380,30 +459,30 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           </div>
           <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-1 rounded-full border border-emerald-500/20 text-emerald-400 text-[11px]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Swarm Latency: 11.4ms</span>
+            <span>Interactive Canvas Mode</span>
           </div>
         </div>
       </header>
 
-      {/* ================= STUDIO TOP CONTROL BAR ================= */}
-      <div className="bg-[#171819] border-b border-white/5 px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+      {/* ================= FLOATING CANVAS TOOLBAR ================= */}
+      <div className="bg-[#171819] border-b border-white/5 px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 z-20">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#A8C7FA] animate-ping" />
-            <h2 className="text-xs sm:text-sm font-semibold text-white font-headline">
-              Swarm Network Pipeline Canvas (Left-to-Right Topology)
-            </h2>
+            <Network className="w-4 h-4 text-[#A8C7FA]" />
+            <span className="text-xs font-semibold text-white font-headline">
+              Interactive Swarm Network Graph
+            </span>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-[#C4C7C5] border border-white/10 hidden sm:inline">
-            5 Interconnected Stages
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-[#747775] border border-white/10 hidden sm:inline">
+            Drag nodes freely • Pan canvas • Scroll to zoom
           </span>
         </div>
 
-        {/* Interactive Controls: Demand Surge Slider & Pipeline Trigger */}
+        {/* Demand Surge Slider & Pipeline Trigger */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-[#1E1F20] px-3 py-1.5 rounded-full border border-white/10 text-xs font-mono">
+          <div className="flex items-center gap-2 bg-[#1E1F20] px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-mono">
             <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-[#747775]">Surge Multiplier:</span>
+            <span className="text-[#747775]">Demand Surge:</span>
             <input
               type="range"
               min="20"
@@ -418,314 +497,361 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
 
           <button
             onClick={handleRunPipeline}
-            disabled={isSimulating}
+            disabled={isPropagating}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold hover:bg-[#A8C7FA] transition-all text-xs cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
           >
-            <Play className={`w-3.5 h-3.5 ${isSimulating ? 'animate-spin' : ''}`} />
-            <span>{isSimulating ? 'Propagating...' : 'Run Pipeline'}</span>
+            <Play className={`w-3.5 h-3.5 ${isPropagating ? 'animate-spin' : ''}`} />
+            <span>{isPropagating ? 'Propagating Signal...' : 'Run Pipeline'}</span>
           </button>
         </div>
       </div>
 
-      {/* ================= MAIN HORIZONTAL PIPELINE CANVAS ================= */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4 md:p-6 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:16px_16px] relative flex flex-col justify-between">
-        {/* Horizontal Pipeline Network Track */}
-        <div className="min-w-[1100px] flex items-center justify-between gap-4 my-auto relative py-6">
-          
-          {/* ================= STAGE 1: CEO TRIGGER ================= */}
-          <div className="flex flex-col items-center shrink-0 w-[200px]">
-            <div className="text-[10px] font-mono text-[#747775] mb-2 uppercase tracking-wider flex items-center gap-1">
-              <span>01 • Trigger</span>
-            </div>
-            
-            <div
-              onClick={() => openNodeDetails('ceo')}
-              className={`w-full rounded-2xl bg-[#1E1F20] border p-3.5 space-y-2.5 transition-all cursor-pointer shadow-lg group hover:scale-[1.02] ${
-                activePipelineStep >= 1 ? 'border-[#A8C7FA]/60 shadow-[#A8C7FA]/10' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-[#A8C7FA]/10 border border-[#A8C7FA]/20 flex items-center justify-center text-[#A8C7FA]">
-                  <UserCheck className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                  DIRECTIVE
-                </span>
-              </div>
+      {/* ================= INFINITE PAN & ZOOM CANVAS ================= */}
+      <div
+        ref={canvasRef}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        className={`flex-1 w-full h-full relative overflow-hidden canvas-bg ${
+          isPanning ? 'cursor-grabbing' : 'cursor-grab'
+        } ${
+          showGrid
+            ? 'bg-[radial-gradient(#ffffff15_1.2px,transparent_1.2px)] [background-size:24px_24px]'
+            : 'bg-[#131313]'
+        }`}
+        style={{
+          backgroundColor: '#131313',
+        }}
+      >
+        {/* Transformable Canvas Layer */}
+        <div
+          className="absolute inset-0 origin-top-left transition-transform duration-75 ease-out pointer-events-none"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            width: '2400px',
+            height: '1400px',
+          }}
+        >
+          {/* ================= ANIMATED SVG PIPELINE CONNECTIONS ================= */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+            <defs>
+              {/* Glow Filters */}
+              <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+              <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
 
-              <div>
-                <h4 className="text-xs font-semibold text-white truncate">CEO / Executive</h4>
-                <p className="text-[10px] text-[#747775] font-mono">Rahul (TechMart)</p>
-              </div>
+              {/* Gradient Conduits */}
+              <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#A8C7FA" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#A8C7FA" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#FBBF24" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#A8C7FA" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#34D399" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#818CF8" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#C084FC" stopOpacity="0.8" />
+              </linearGradient>
+            </defs>
 
-              <div className="bg-[#131314] p-2 rounded-xl text-[10px] font-mono space-y-1">
-                <div className="text-[#A8C7FA] font-bold truncate">VIRAL_SPIKE_P100</div>
-                <div className="text-[#747775] flex items-center justify-between">
-                  <span>Demand Jump:</span>
-                  <span className="text-white font-semibold">+{simSurge}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
+            {/* Render Links */}
+            {links.map((link, i) => {
+              const src = getNodeSocket(link.from, 'right');
+              const dst = getNodeSocket(link.to, 'left');
+              const pathD = getBezierPath(src.x, src.y, dst.x, dst.y);
 
-          {/* Connection Line 1 -> 2 */}
-          <div className="flex-1 flex items-center justify-center relative min-w-[40px]">
-            <div className="w-full h-0.5 bg-gradient-to-r from-[#A8C7FA] to-[#B2C5FF] relative">
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#B2C5FF] animate-pulse" />
-            </div>
-          </div>
+              return (
+                <g key={i}>
+                  {/* Background Path Track */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke="#282A2C"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
 
-          {/* ================= STAGE 2: SWARM ORCHESTRATOR ================= */}
-          <div className="flex flex-col items-center shrink-0 w-[210px]">
-            <div className="text-[10px] font-mono text-[#747775] mb-2 uppercase tracking-wider flex items-center gap-1">
-              <span>02 • Task Routing</span>
-            </div>
+                  {/* Active Animated Glowing Flow Conduit */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={link.color}
+                    strokeWidth={link.active ? '2.5' : '1.5'}
+                    strokeDasharray={link.active ? '6 6' : '3 6'}
+                    className={link.active ? 'animate-[dash_1.5s_linear_infinite]' : 'opacity-30'}
+                    style={{
+                      animation: link.active ? 'dash 1.2s linear infinite' : 'none',
+                    }}
+                  />
 
-            <div
-              onClick={() => openNodeDetails('orchestrator')}
-              className={`w-full rounded-2xl bg-[#1E1F20] border p-3.5 space-y-2.5 transition-all cursor-pointer shadow-lg group hover:scale-[1.02] ${
-                activePipelineStep >= 2 ? 'border-[#A8C7FA] shadow-[#A8C7FA]/15' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-[#A8C7FA]/20 border border-[#A8C7FA]/30 flex items-center justify-center text-[#A8C7FA]">
-                  <Sparkles className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#282A2C] text-[#A8C7FA] border border-white/10">
-                  Gemini 3.6 Flash
-                </span>
-              </div>
+                  {/* Flowing Pulse Particle */}
+                  {link.active && (
+                    <circle r="3.5" fill="#ffffff" filter="url(#glow-blue)">
+                      <animateMotion path={pathD} dur="2.4s" repeatCount="indefinite" />
+                    </circle>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
 
-              <div>
-                <h4 className="text-xs font-semibold text-white truncate">Swarm Orchestrator</h4>
-                <p className="text-[10px] text-[#747775] font-mono">Parallel Task Dispatch</p>
-              </div>
+          {/* ================= DRAGGABLE / INTERACTIVE NODE CARDS ================= */}
+          {nodes.map((node) => {
+            const isSelected = selectedNodeId === node.id;
+            const isNodeActive = activeStep >= node.stageNum;
 
-              <div className="bg-[#131314] p-2 rounded-xl text-[10px] font-mono text-[#C4C7C5] space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-[#747775]">Dispatched:</span>
-                  <span className="text-emerald-400 font-bold">3 Agents</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#747775]">Latency:</span>
-                  <span className="text-white">4.2ms</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Connection Line 2 -> 3 (Branching) */}
-          <div className="flex-1 flex items-center justify-center relative min-w-[40px]">
-            <div className="w-full h-0.5 bg-gradient-to-r from-[#B2C5FF] to-white/20 relative">
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#A8C7FA] animate-pulse" />
-            </div>
-          </div>
-
-          {/* ================= STAGE 3: 3 PARALLEL WORKER AGENTS ================= */}
-          <div className="flex flex-col items-center shrink-0 w-[240px] space-y-2.5">
-            <div className="text-[10px] font-mono text-[#747775] uppercase tracking-wider flex items-center gap-1">
-              <span>03 • Parallel Domain Swarm</span>
-            </div>
-
-            {/* Sales Agent Node */}
-            <div
-              onClick={() => openNodeDetails('sales')}
-              className={`w-full rounded-xl bg-[#1E1F20] border p-2.5 space-y-1.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02] ${
-                activePipelineStep >= 3 ? 'border-blue-500/50 hover:border-blue-500' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-blue-400 font-bold flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" />
-                  SALES AGENT
-                </span>
-                <span className="text-[9px] font-mono text-[#747775]">8.2ms</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs font-bold font-mono text-white">{sim.velocity} u/day</span>
-                <span className="text-[10px] font-mono text-blue-300">7d: {sim.forecast7d}u</span>
-              </div>
-            </div>
-
-            {/* Inventory Agent Node */}
-            <div
-              onClick={() => openNodeDetails('inventory')}
-              className={`w-full rounded-xl bg-[#1E1F20] border p-2.5 space-y-1.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02] ${
-                activePipelineStep >= 3 ? 'border-amber-500/50 hover:border-amber-500' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-amber-400 font-bold flex items-center gap-1">
-                  <Package className="w-3 h-3" />
-                  INVENTORY AGENT
-                </span>
-                <span className="text-[9px] font-mono text-[#747775]">6.4ms</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs font-bold font-mono text-amber-300">{sim.horizonDays}d buffer</span>
-                <span className="text-[10px] font-mono text-rose-400 font-semibold">Deficit: {sim.deficitUnits}u</span>
-              </div>
-            </div>
-
-            {/* Finance Agent Node */}
-            <div
-              onClick={() => openNodeDetails('finance')}
-              className={`w-full rounded-xl bg-[#1E1F20] border p-2.5 space-y-1.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02] ${
-                activePipelineStep >= 3 ? 'border-emerald-500/50 hover:border-emerald-500' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  FINANCE AGENT
-                </span>
-                <span className="text-[9px] font-mono text-[#747775]">9.1ms</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs font-bold font-mono text-emerald-400">₹1.80L Safe Cap</span>
-                <span className="text-[10px] font-mono text-[#747775]">₹5.00L Lock</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Connection Line 3 -> 4 (Convergence) */}
-          <div className="flex-1 flex items-center justify-center relative min-w-[40px]">
-            <div className="w-full h-0.5 bg-gradient-to-r from-white/20 to-purple-400 relative">
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-            </div>
-          </div>
-
-          {/* ================= STAGE 4: CONSTRAINED ILP SOLVER ================= */}
-          <div className="flex flex-col items-center shrink-0 w-[230px]">
-            <div className="text-[10px] font-mono text-[#747775] mb-2 uppercase tracking-wider flex items-center gap-1">
-              <span>04 • Optimization</span>
-            </div>
-
-            <div
-              onClick={() => openNodeDetails('solver')}
-              className={`w-full rounded-2xl bg-[#1E1F20] border p-3.5 space-y-2.5 transition-all cursor-pointer shadow-lg group hover:scale-[1.02] ${
-                activePipelineStep >= 4 ? 'border-purple-500 shadow-purple-500/10' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                  <Cpu className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                  100% FEASIBLE
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold text-white truncate">Google OR-Tools Solver</h4>
-                <p className="text-[10px] text-[#747775] font-mono">Integer Linear Program (ILP)</p>
-              </div>
-
-              <div className="bg-[#131314] p-2 rounded-xl text-[10px] font-mono space-y-1">
-                <div className="text-[#C4C7C5] flex justify-between">
-                  <span>QuickLogix (Net-30):</span>
-                  <span className="text-[#A8C7FA] font-bold">{sim.supplierBUnits} u</span>
-                </div>
-                <div className="text-[#C4C7C5] flex justify-between">
-                  <span>Zenith (50% Adv):</span>
-                  <span className="text-[#A8C7FA] font-bold">{sim.supplierCUnits} u</span>
-                </div>
-                <div className="text-emerald-400 flex justify-between border-t border-white/5 pt-1 font-bold">
-                  <span>Upfront Cash:</span>
-                  <span>₹{sim.upfrontCash.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Connection Line 4 -> 5 */}
-          <div className="flex-1 flex items-center justify-center relative min-w-[40px]">
-            <div className="w-full h-0.5 bg-gradient-to-r from-purple-400 to-emerald-400 relative">
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            </div>
-          </div>
-
-          {/* ================= STAGE 5: NEON POSTGRESQL & ACTION ================= */}
-          <div className="flex flex-col items-center shrink-0 w-[200px]">
-            <div className="text-[10px] font-mono text-[#747775] mb-2 uppercase tracking-wider flex items-center gap-1">
-              <span>05 • DB Commit</span>
-            </div>
-
-            <div
-              onClick={() => openNodeDetails('db')}
-              className={`w-full rounded-2xl bg-[#1E1F20] border p-3.5 space-y-2.5 transition-all cursor-pointer shadow-lg group hover:scale-[1.02] ${
-                activePipelineStep >= 5 ? 'border-emerald-500/60 shadow-emerald-500/10' : 'border-white/10 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Database className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Neon Cloud DB
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold text-white truncate">Ground Truth Ledger</h4>
-                <p className="text-[10px] text-[#747775] font-mono">Immutable Audit Log</p>
-              </div>
-
-              <button
+            return (
+              <div
+                key={node.id}
+                onMouseDown={(e) => handleStartDragNode(node.id, e)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCommitOrder();
+                  setSelectedNodeId(node.id);
                 }}
-                disabled={executed}
-                className={`w-full py-1.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 text-[10px] font-mono ${
-                  executed
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA]'
+                className={`absolute rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-shadow duration-200 pointer-events-auto cursor-grab active:cursor-grabbing flex flex-col justify-between p-3.5 shadow-2xl ${
+                  isSelected
+                    ? 'border-[#A8C7FA] ring-2 ring-[#A8C7FA]/30 shadow-[#A8C7FA]/20'
+                    : isNodeActive
+                    ? `${node.borderColor} hover:border-white/40`
+                    : 'border-white/10 opacity-60'
                 }`}
+                style={{
+                  transform: `translate(${node.x}px, ${node.y}px)`,
+                  width: `${node.width}px`,
+                  minHeight: `${node.height}px`,
+                  boxShadow: isSelected ? `0 10px 30px ${node.accentGlow}` : undefined,
+                }}
               >
-                {executed ? (
-                  <>
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    <span>Committed ✓</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-3 h-3" />
-                    <span>Commit PO</span>
-                  </>
+                {/* Left Input Port Socket Handle */}
+                {node.type !== 'ceo' && (
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#131314] border-2 border-[#A8C7FA] flex items-center justify-center shadow-md">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
+                  </div>
                 )}
-              </button>
-            </div>
-          </div>
 
+                {/* Right Output Port Socket Handle */}
+                {node.type !== 'db' && (
+                  <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#131314] border-2 border-[#A8C7FA] flex items-center justify-center shadow-md">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
+                  </div>
+                )}
+
+                {/* Card Header */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center ${node.iconBg} ${node.iconColor}`}>
+                        {node.type === 'ceo' && <UserCheck className="w-3.5 h-3.5" />}
+                        {node.type === 'orchestrator' && <Sparkles className="w-3.5 h-3.5" />}
+                        {node.type === 'sales' && <TrendingUp className="w-3.5 h-3.5" />}
+                        {node.type === 'inventory' && <Package className="w-3.5 h-3.5" />}
+                        {node.type === 'finance' && <DollarSign className="w-3.5 h-3.5" />}
+                        {node.type === 'solver' && <Cpu className="w-3.5 h-3.5" />}
+                        {node.type === 'db' && <Database className="w-3.5 h-3.5" />}
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider">
+                        {node.subtitle}
+                      </span>
+                    </div>
+
+                    <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#131314] text-[#747775] border border-white/5">
+                      {node.latency}
+                    </span>
+                  </div>
+
+                  <h3 className="text-xs font-semibold text-white font-headline truncate">
+                    {node.title}
+                  </h3>
+                  <p className="text-[10px] text-[#747775] font-mono truncate mb-2">
+                    {node.model}
+                  </p>
+                </div>
+
+                {/* Dynamic Node Body Content */}
+                <div className="bg-[#131314]/90 rounded-xl p-2 font-mono text-[10px] space-y-1 border border-white/5">
+                  {node.type === 'ceo' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">SKU Target:</span>
+                        <span className="text-[#A8C7FA] font-bold">P100 (Headphones)</span>
+                      </div>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Surge Signal:</span>
+                        <span className="text-amber-400 font-bold">+{simSurge}% Viral</span>
+                      </div>
+                    </>
+                  )}
+
+                  {node.type === 'orchestrator' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Task Routing:</span>
+                        <span className="text-emerald-400 font-bold">3 Workers</span>
+                      </div>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Contract:</span>
+                        <span className="text-white">Pydantic v2</span>
+                      </div>
+                    </>
+                  )}
+
+                  {node.type === 'sales' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Velocity:</span>
+                        <span className="text-white font-bold">{sim.velocity} u/day</span>
+                      </div>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">7d Demand:</span>
+                        <span className="text-blue-300 font-bold">{sim.forecast7d} units</span>
+                      </div>
+                    </>
+                  )}
+
+                  {node.type === 'inventory' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Stockout:</span>
+                        <span className="text-amber-300 font-bold">{sim.horizonDays} days</span>
+                      </div>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Deficit:</span>
+                        <span className="text-rose-400 font-bold">{sim.deficitUnits} units</span>
+                      </div>
+                    </>
+                  )}
+
+                  {node.type === 'finance' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Safe Cap:</span>
+                        <span className="text-emerald-400 font-bold">₹1,80,000</span>
+                      </div>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Reserve:</span>
+                        <span className="text-white">₹5.00L Lock</span>
+                      </div>
+                    </>
+                  )}
+
+                  {node.type === 'solver' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span>QuickLogix (B):</span>
+                        <span className="text-[#A8C7FA] font-bold">{sim.supplierBUnits} u (Net-30)</span>
+                      </div>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span>Zenith (C):</span>
+                        <span className="text-[#A8C7FA] font-bold">{sim.supplierCUnits} u (50% Adv)</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-400 font-bold border-t border-white/5 pt-1">
+                        <span>Upfront Cash:</span>
+                        <span>₹{sim.upfrontCash.toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {node.type === 'db' && (
+                    <>
+                      <div className="flex justify-between text-[#C4C7C5]">
+                        <span className="text-[#747775]">Database:</span>
+                        <span className="text-emerald-400 font-bold">Neon Cloud PostgreSQL</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCommitOrder();
+                        }}
+                        disabled={executed}
+                        className={`w-full mt-1 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 text-[10px] font-mono ${
+                          executed
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA]'
+                        }`}
+                      >
+                        {executed ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <span>Committed ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-3 h-3" />
+                            <span>Commit PO</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* ================= BOTTOM METRICS FOOTER ================= */}
-        <div className="mt-4 bg-[#1E1F20] border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono shrink-0">
-          <div className="flex items-center gap-4 text-[#C4C7C5]">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-[#A8C7FA]" />
-              <span>Consensus Time: <strong className="text-white">11.4ms</strong></span>
-            </div>
-            <div className="hidden md:flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Statutory Reserve: <strong className="text-emerald-400">100% Protected</strong></span>
-            </div>
-            <div className="hidden lg:flex items-center gap-1.5">
-              <Server className="w-3.5 h-3.5 text-purple-400" />
-              <span>Pydantic v2 Contracts: <strong className="text-white">Verified</strong></span>
-            </div>
-          </div>
+        {/* ================= FLOATING CANVAS CONTROLS (BOTTOM LEFT) ================= */}
+        <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-[#1E1F20]/90 backdrop-blur-md border border-white/10 p-1.5 rounded-full shadow-2xl">
+          <button
+            onClick={() => handleZoom(0.1)}
+            className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <span className="text-[11px] font-mono text-[#747775] px-1">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            onClick={() => handleZoom(-0.1)}
+            className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <div className="w-px h-4 bg-white/10 mx-0.5" />
+          <button
+            onClick={handleResetCanvas}
+            className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
+            title="Reset View & Node Layout"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowGrid(!showGrid)}
+            className={`p-2 rounded-full transition-colors cursor-pointer ${
+              showGrid ? 'text-[#A8C7FA] bg-[#282A2C]' : 'text-[#747775] hover:text-white'
+            }`}
+            title="Toggle Dot Grid"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyLog}
-              className="px-3 py-1.5 rounded-full bg-[#282A2C] hover:bg-[#343638] text-white border border-white/10 transition-colors cursor-pointer flex items-center gap-1.5 text-xs"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied Trace' : 'Copy Audit Trace'}</span>
-            </button>
+        {/* ================= BOTTOM RIGHT TELEMETRY PILL ================= */}
+        <div className="absolute bottom-6 right-6 z-20 flex items-center gap-3 bg-[#1E1F20]/90 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full shadow-2xl text-xs font-mono">
+          <div className="flex items-center gap-1.5 text-[#C4C7C5]">
+            <Clock className="w-3.5 h-3.5 text-[#A8C7FA]" />
+            <span>Consensus: <strong className="text-white">11.4ms</strong></span>
           </div>
+          <div className="w-px h-3 bg-white/10" />
+          <button
+            onClick={handleCopyLog}
+            className="text-xs text-[#A8C7FA] hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy Trace'}</span>
+          </button>
         </div>
       </div>
 
@@ -735,8 +861,14 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           {/* Drawer Header */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#171819]">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#282A2C] border border-white/10 flex items-center justify-center">
-                {inspectedNode.icon}
+              <div className={`w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center ${inspectedNode.iconBg} ${inspectedNode.iconColor}`}>
+                {inspectedNode.type === 'ceo' && <UserCheck className="w-4 h-4" />}
+                {inspectedNode.type === 'orchestrator' && <Sparkles className="w-4 h-4" />}
+                {inspectedNode.type === 'sales' && <TrendingUp className="w-4 h-4" />}
+                {inspectedNode.type === 'inventory' && <Package className="w-4 h-4" />}
+                {inspectedNode.type === 'finance' && <DollarSign className="w-4 h-4" />}
+                {inspectedNode.type === 'solver' && <Cpu className="w-4 h-4" />}
+                {inspectedNode.type === 'db' && <Database className="w-4 h-4" />}
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white font-headline">{inspectedNode.title}</h3>
@@ -744,7 +876,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               </div>
             </div>
             <button
-              onClick={() => setInspectedNode(null)}
+              onClick={() => setSelectedNodeId(null)}
               className="p-1.5 rounded-lg text-[#747775] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -765,55 +897,93 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               </div>
             </div>
 
-            {/* Summary */}
+            {/* Live Parameter State */}
             <div className="space-y-1.5">
-              <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Node Purpose</span>
-              <p className="text-[#C4C7C5] leading-relaxed bg-[#131314] p-3 rounded-xl border border-white/5">
-                {inspectedNode.summary}
-              </p>
-            </div>
-
-            {/* Inputs */}
-            <div className="space-y-1.5">
-              <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Grounded Inputs</span>
-              <div className="bg-[#131314] rounded-xl border border-white/5 p-3 space-y-1.5 font-mono text-[11px]">
-                {Object.entries(inspectedNode.inputs).map(([key, val]) => (
-                  <div key={key} className="flex items-center justify-between text-[#C4C7C5]">
-                    <span className="text-[#747775]">{key}:</span>
-                    <span className="text-white font-medium">{val}</span>
-                  </div>
-                ))}
+              <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Live Node Parameters</span>
+              <div className="bg-[#131314] rounded-xl border border-white/5 p-3 space-y-2 font-mono text-[11px]">
+                {inspectedNode.type === 'ceo' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">SKU:</span><span className="text-white font-bold">P100 Headphones</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Demand Surge:</span><span className="text-amber-400 font-bold">+{simSurge}%</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Trigger Channel:</span><span className="text-blue-400">Viral TikTok Campaign</span></div>
+                  </>
+                )}
+                {inspectedNode.type === 'orchestrator' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">Event ID:</span><span className="text-white font-bold">EVT-894102</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Sub-Agents Dispatched:</span><span className="text-emerald-400 font-bold">3 Parallel Tasks</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Schema Protocol:</span><span className="text-[#A8C7FA]">Pydantic v2 Contract</span></div>
+                  </>
+                )}
+                {inspectedNode.type === 'sales' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">Current Velocity:</span><span className="text-white font-bold">{sim.velocity} units/day</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">7-Day Total Demand:</span><span className="text-blue-300 font-bold">{sim.forecast7d} units</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Confidence Score:</span><span className="text-emerald-400 font-bold">94.2%</span></div>
+                  </>
+                )}
+                {inspectedNode.type === 'inventory' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">Physical Stock:</span><span className="text-white font-bold">170 units (Bin 4B)</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Safety Floor:</span><span className="text-amber-300 font-bold">150 units</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Stockout Horizon:</span><span className="text-rose-400 font-bold">{sim.horizonDays} days</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Replenishment Deficit:</span><span className="text-rose-400 font-bold">{sim.deficitUnits} units</span></div>
+                  </>
+                )}
+                {inspectedNode.type === 'finance' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">Treasury Balance:</span><span className="text-white font-bold">₹8,50,000</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Statutory Reserve Lock:</span><span className="text-emerald-400 font-bold">₹5,00,000 (100% Protected)</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Safe Immediate Spend Cap:</span><span className="text-emerald-400 font-bold">₹1,80,000</span></div>
+                  </>
+                )}
+                {inspectedNode.type === 'solver' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">QuickLogix Allocation:</span><span className="text-[#A8C7FA] font-bold">{sim.supplierBUnits} u (Net-30)</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Zenith Allocation:</span><span className="text-[#A8C7FA] font-bold">{sim.supplierCUnits} u (50% Adv)</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Total Upfront Cash Impact:</span><span className="text-emerald-400 font-bold">₹{sim.upfrontCash.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Mathematical Feasibility:</span><span className="text-emerald-400 font-bold">100% Feasible</span></div>
+                  </>
+                )}
+                {inspectedNode.type === 'db' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#747775]">Target DB:</span><span className="text-white font-bold">Neon Cloud PostgreSQL</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Status:</span><span className="text-emerald-400 font-bold">{executed ? 'COMMITTED' : 'READY'}</span></div>
+                    <div className="flex justify-between"><span className="text-[#747775]">Audit Block Hash:</span><span className="text-purple-300">0x8f9c2d1e4a7b5c3e</span></div>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Outputs */}
-            <div className="space-y-1.5">
-              <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Pydantic v2 Outputs</span>
-              <div className="bg-[#131314] rounded-xl border border-white/5 p-3 space-y-1.5 font-mono text-[11px]">
-                {Object.entries(inspectedNode.outputs).map(([key, val]) => (
-                  <div key={key} className="flex items-center justify-between text-[#C4C7C5]">
-                    <span className="text-[#747775]">{key}:</span>
-                    <span className="text-[#A8C7FA] font-semibold">{val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Chain of Thought Rationale */}
+            {/* Step-by-Step Chain of Thought Rationale */}
             <div className="space-y-1.5">
               <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Step-by-Step Chain-of-Thought</span>
-              <ul className="space-y-1.5 bg-[#131314] p-3 rounded-xl border border-white/5 text-[11px] text-[#C4C7C5] list-disc list-inside leading-relaxed">
-                {inspectedNode.rationale.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
+              <div className="bg-[#131314] p-3 rounded-xl border border-white/5 text-[11px] text-[#C4C7C5] leading-relaxed font-mono whitespace-pre-wrap">
+                {inspectedNode.type === 'ceo' && `• Dispatched high-priority directive to resolve viral surge.
+• Target: Restore SKU P100 inventory safety buffer within statutory treasury limits.`}
+                {inspectedNode.type === 'orchestrator' && `• Deconstructed high-level prompt into domain sub-tasks.
+• Bound Sales, Inventory, and Finance to Pydantic v2 validation contracts.`}
+                {inspectedNode.type === 'sales' && `• Evaluated marketing promo elasticity curve.
+• Order velocity climbed from 85 u/d to ${sim.velocity} u/d.
+• 7-day total requirement: ${sim.forecast7d} units.`}
+                {inspectedNode.type === 'inventory' && `• Bin 4B physical stock (170 units) will deplete below 150-unit safety floor in ~${sim.horizonDays} days.
+• Recommended split procurement deficit: ${sim.deficitUnits} units.`}
+                {inspectedNode.type === 'finance' && `• Statutory reserve of ₹5,00,000 strictly locked.
+• Safe immediate cash spend ceiling approved at ₹1,80,000.
+• Approved Net-30 credit facility for Supplier B.`}
+                {inspectedNode.type === 'solver' && `• Formulated Integer Linear Program (ILP) via Google OR-Tools.
+• Solved split: ${sim.supplierBUnits} u (QuickLogix, Net-30, ₹0 upfront) + ${sim.supplierCUnits} u (Zenith, 50% advance, ₹${sim.upfrontCash.toLocaleString()} upfront).
+• Total upfront cash strictly within the ₹1,80,000 safe cap.`}
+                {inspectedNode.type === 'db' && `• Relational schema validation succeeded across orders, supplier_pos, and audit_ledger.
+• Zero hallucination guarantee.`}
+              </div>
             </div>
           </div>
 
           {/* Drawer Footer */}
           <div className="p-4 border-t border-white/10 bg-[#171819] flex justify-end">
             <button
-              onClick={() => setInspectedNode(null)}
+              onClick={() => setSelectedNodeId(null)}
               className="px-4 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold text-xs hover:bg-[#A8C7FA] transition-colors cursor-pointer"
             >
               Close Inspector
@@ -821,6 +991,15 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           </div>
         </div>
       )}
+
+      {/* Global CSS for animated dashed flow lines */}
+      <style>{`
+        @keyframes dash {
+          to {
+            stroke-dashoffset: -24;
+          }
+        }
+      `}</style>
     </div>
   );
 };
