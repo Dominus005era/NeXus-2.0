@@ -10,18 +10,18 @@ NEXUS 2.0 is the next-generation multi-agent operational decision engine connect
 
 ```text
 .
-+-- Nexus 1.0/          # Archive of v1 baseline
-+-- Nexus 2.0/          # Active v2 production architecture
-    +-- frontend/       # React 19 + Vite + TypeScript + Tailwind CSS
++-- frontend/           # React 19 + Vite + TypeScript + Tailwind CSS
++-- vercel.json         # Single-Page Application (SPA) routing rules
++-- README.md
 ```
 
 ---
 
 ## ?? Live Vercel Deployment Configuration
 
-When importing this repository into **Vercel**:
+When importing this repository into **[Vercel](https://vercel.com)**:
 * **Framework Preset**: `Vite`
-* **Root Directory**: `Nexus 2.0/frontend`
+* **Root Directory**: `frontend` (or `./`)
 * **Build Command**: `npm run build`
 * **Output Directory**: `dist`
 * **Install Command**: `npm install`
