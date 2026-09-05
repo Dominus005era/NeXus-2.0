@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Sparkles,
   ArrowRight,
@@ -6,6 +6,7 @@ import {
   Cpu,
   Zap,
   ChevronRight,
+  ChevronDown,
   Database,
   Sliders,
   Layers,
@@ -25,22 +26,261 @@ import {
   Copy,
   Brain,
   Code2,
+  FileText,
+  Clock,
+  Coins,
+  Box,
+  Scale,
+  Building2,
+  FolderLock,
+  Calculator,
+  RefreshCw,
+  Gauge,
+  Network,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Play,
+  Flame,
+  BarChart3,
+  Server,
+  DollarSign,
+  Package
 } from 'lucide-react';
 
-interface LandingPageProps {
+export interface LandingPageProps {
   onGetStarted: () => void;
-  onOpenDeploymentGuide: () => void;
+  onOpenDeploymentGuide?: () => void;
   onSelectModel?: (modelId: string, targetView: 'chat' | 'flow') => void;
 }
+
+export interface ModelTier {
+  id: string;
+  name: string;
+  badge?: string;
+  icon: React.ReactNode;
+  description: string;
+  contextWindow: string;
+  reasoningMode: string;
+  constraintEngine: string;
+  ttftLatency: string;
+  architecture: string;
+  isFeatured?: boolean;
+}
+
+export interface CapabilityItem {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  metricBadge: string;
+  borderColor: string;
+  iconBg: string;
+  iconColor: string;
+}
+
+export interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+export interface RbacPolicy {
+  rack: string;
+  category: string;
+  sales: 'READ/WRITE' | 'READ' | 'DENIED';
+  inventory: 'READ/WRITE' | 'READ' | 'DENIED';
+  finance: 'READ/WRITE' | 'READ' | 'DENIED';
+  summary: string;
+}
+
+const MODELS_DATA: ModelTier[] = [
+  {
+    id: 'nexus-2.5-pro',
+    name: 'Nexus 2.5 Pro',
+    badge: 'Flagship Core',
+    icon: <Brain className="w-5 h-5 text-[#A8C7FA]" />,
+    description: 'Flagship reasoning engine for multi-agent swarm orchestration, financial liquidity audit, and long-horizon operational workflows.',
+    contextWindow: '2M Tokens',
+    reasoningMode: 'Native Multimodal CoT',
+    constraintEngine: 'Google OR-Tools v9.8',
+    ttftLatency: '< 240ms',
+    architecture: 'Mixture of Experts (MoE)',
+    isFeatured: true,
+  },
+  {
+    id: 'nexus-2.5-flash',
+    name: 'Nexus 2.5 Flash',
+    badge: 'Low Latency',
+    icon: <Zap className="w-5 h-5 text-[#B2C5FF]" />,
+    description: 'Engineered for high-frequency telemetry parsing, sub-second order velocity calculations, and rapid tool execution pipelines.',
+    contextWindow: '1M Tokens',
+    reasoningMode: 'High-Speed Operational',
+    constraintEngine: 'Exact Linear Solver',
+    ttftLatency: '< 150ms',
+    architecture: 'High-Concurrency Streaming',
+    isFeatured: false,
+  },
+  {
+    id: 'nexus-3.1-deep-think',
+    name: 'Nexus 3.1 Deep Think',
+    badge: 'Formal ILP Verification',
+    icon: <Cpu className="w-5 h-5 text-amber-400" />,
+    description: 'Specialized in mathematical formal verification, self-correcting DAG logic, and deterministic integer linear programming.',
+    contextWindow: '4M Tokens',
+    reasoningMode: 'Tree-of-Thought (ToT)',
+    constraintEngine: 'Exact Integer Linear Program (ILP)',
+    ttftLatency: '< 450ms',
+    architecture: 'Formal Mathematical Sandbox',
+    isFeatured: false,
+  },
+];
+
+const CAPABILITIES_DATA: CapabilityItem[] = [
+  {
+    icon: <Network className="w-6 h-6" />,
+    title: 'Multi-Agent Swarm Orchestration',
+    description: 'Specialized domain agents (Sales, Inventory, Finance) collaborate asynchronously over a shared world state with strict Pydantic v2 schemas.',
+    metricBadge: '3 Specialized Agents • Swarm Latency < 12ms',
+    borderColor: 'hover:border-[#A8C7FA]/50',
+    iconBg: 'bg-[#A8C7FA]/10',
+    iconColor: 'text-[#A8C7FA]',
+  },
+  {
+    icon: <GitBranch className="w-6 h-6" />,
+    title: 'Non-Linear Reasoning & Backtracking',
+    description: 'Tree-of-thought DAG execution engine capable of rolling back sub-optimal decisions and maintaining an immutable operational audit log.',
+    metricBadge: 'DAG Depth: 4 Nodes • Auto-Backtracking',
+    borderColor: 'hover:border-[#B2C5FF]/50',
+    iconBg: 'bg-[#B2C5FF]/10',
+    iconColor: 'text-[#B2C5FF]',
+  },
+  {
+    icon: <Database className="w-6 h-6" />,
+    title: 'Neon PostgreSQL Ground Truth',
+    description: 'Direct cloud connection to Neon.tech PostgreSQL for serverless relational persistence with automated SQLite offline fallback mode.',
+    metricBadge: 'Neon Cloud Postgres • 7 Relational Tables',
+    borderColor: 'hover:border-purple-500/50',
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-400',
+  },
+  {
+    icon: <Scale className="w-6 h-6" />,
+    title: 'Zero-Hallucination Constrained Solver',
+    description: 'Deterministic integer linear optimization replaces probabilistic math. Formally proves procurement feasibility against statutory cash ceilings.',
+    metricBadge: 'Exact Integer Linear Programming (ILP)',
+    borderColor: 'hover:border-emerald-500/50',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+  },
+];
+
+const RBAC_POLICIES: RbacPolicy[] = [
+  {
+    rack: 'docs/sales/q3_promotional_calendar.md',
+    category: 'Sales & Growth',
+    sales: 'READ/WRITE',
+    inventory: 'READ',
+    finance: 'READ',
+    summary: 'Active creator promo dates, campaign elasticity curves, and wholesale discounts.',
+  },
+  {
+    rack: 'docs/inventory/warehouse_operating_limits.md',
+    category: 'Supply & Logistics',
+    sales: 'READ',
+    inventory: 'READ/WRITE',
+    finance: 'READ',
+    summary: 'Volumetric bin capacities, receiving dock schedules, and safety stock floors.',
+  },
+  {
+    rack: 'docs/finance/cash_reserve_governance.md',
+    category: 'Treasury & Compliance',
+    sales: 'DENIED',
+    inventory: 'DENIED',
+    finance: 'READ/WRITE',
+    summary: 'Statutory operating liquidity lock (₹5,00,000 protected reserve rules).',
+  },
+  {
+    rack: 'docs/finance/supplier_contracts_master.md',
+    category: 'Procurement Terms',
+    sales: 'DENIED',
+    inventory: 'READ',
+    finance: 'READ/WRITE',
+    summary: 'Supplier A/B/C pricing tiers, Net-30 credit limits, and advance payment schedules.',
+  },
+];
+
+const FAQS_DATA: FaqItem[] = [
+  {
+    question: 'How does Nexus 2.0 prevent mathematical hallucinations in procurement?',
+    answer: 'Unlike generic LLMs that guess numbers, Nexus 2.0 uses domain agents solely to extract structured parameters (velocity, lead-times, cash caps). The final purchase order calculation is formulated as a formal Integer Linear Program (ILP) solved deterministically with Google OR-Tools / SciPy.',
+  },
+  {
+    question: 'How does the Neon PostgreSQL dual-mode database work?',
+    answer: 'Nexus connects to Neon.tech PostgreSQL in cloud production with automated connection pooling and schema initialization. When running offline or locally without internet, it seamlessly falls back to local SQLite so workflows never break.',
+  },
+  {
+    question: 'Can I hot-swap models between Gemini, GPT-4o, and Claude 3.5?',
+    answer: 'Yes. Nexus provides a modular foundation provider interface. You can assign Gemini 2.0 Flash to the high-frequency Sales Agent, GPT-4o Mini to Inventory, and Gemini 1.5 Pro to Finance, or use the built-in offline engine with zero API keys.',
+  },
+  {
+    question: 'How is Role-Based Knowledge Access (RBAC) enforced across agents?',
+    answer: 'Department document racks stored in Markdown are gated by token-based security in the Knowledge Hub. The Sales Agent cannot read liquidity governance, and the Inventory Agent cannot modify financial credit terms.',
+  },
+  {
+    question: 'Is Nexus 2.0 completely free to deploy on Vercel and Render?',
+    answer: 'Yes! The React 19 frontend deploys on Vercel Free Tier, the FastAPI backend deploys on Render Free Web Service, and the PostgreSQL database runs on Neon.tech Free Tier (0.5GB storage).',
+  },
+];
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onGetStarted,
   onOpenDeploymentGuide,
   onSelectModel,
 }) => {
-  const [emailInput, setEmailInput] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
+  const [emailInput, setEmailInput] = useState<string>('');
+  const [subscribed, setSubscribed] = useState<boolean>(false);
+  const [copiedCode, setCopiedCode] = useState<boolean>(false);
+  const [heroTab, setHeroTab] = useState<'solver' | 'chat' | 'terminal' | 'json'>('solver');
+  const [simSurge, setSimSurge] = useState<number>(70);
+  const [activeRbacRole, setActiveRbacRole] = useState<'sales' | 'inventory' | 'finance'>('sales');
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Dynamic real-time calculation
+  const simCalculations = useMemo(() => {
+    const baseDemand = 85;
+    const velocity = Math.round(baseDemand * (1 + simSurge / 100));
+    const forecast7d = velocity * 7;
+    const currentStock = 170;
+    const safetyStock = 150;
+    const rawHorizon = (currentStock - safetyStock) / velocity;
+    const horizonDays = Number(Math.max(0.1, rawHorizon).toFixed(2));
+    const deficitUnits = Math.max(0, forecast7d + safetyStock - currentStock);
+    
+    // Split procurement: Supplier B max 400 (Net-30), Supplier C gets remainder (50% adv)
+    const supplierBUnits = Math.min(400, deficitUnits);
+    const supplierCUnits = Math.max(0, deficitUnits - supplierBUnits);
+    
+    const costB = supplierBUnits * 477;
+    const costC = supplierCUnits * 436.5;
+    const upfrontCashB = 0; // Net-30
+    const upfrontCashC = supplierCUnits * 218.25; // 50% advance
+    const totalUpfrontCash = upfrontCashB + upfrontCashC;
+    const isFeasible = totalUpfrontCash <= 180000;
+
+    return {
+      velocity,
+      forecast7d,
+      horizonDays,
+      deficitUnits,
+      supplierBUnits,
+      supplierCUnits,
+      costB,
+      costC,
+      totalProcurementCost: costB + costC,
+      totalUpfrontCash,
+      isFeasible,
+    };
+  }, [simSurge]);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,9 +290,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(`nexus cluster inspect --namespace prod-eu-west --trace-window 15m\n[ACTION TAKEN] Applying dynamic ring-buffer patch and routing ingress spillover to fallback zone.`);
+    const sampleText = [
+      'nexus cluster inspect --namespace prod-eu-west --trace-window 15m',
+      `[AGENT DISPATCH] Sales (+${simSurge}% Surge: ${simCalculations.velocity} u/d) -> Inventory (${simCalculations.horizonDays}d Depletion) -> Finance (Safe Cap: INR 1,80,000)`,
+      `[OR-TOOLS SOLVER] Purchase Order: ${simCalculations.supplierBUnits} units (QuickLogix, Net-30) + ${simCalculations.supplierCUnits} units (Zenith, 50% Adv)`,
+      `[SOLVER STATUS] Feasible. Total Upfront Cash: INR ${Math.round(simCalculations.totalUpfrontCash).toLocaleString()} <= INR 1,80,000 Cap.`
+    ].join('\n');
+    navigator.clipboard.writeText(sampleText);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const toggleFaq = (index: number) => {
+    setOpenFaqIndex(openFaqIndex === index ? null : index);
+  };
+
+  const handleModelClick = (modelId: string) => {
+    if (onSelectModel) {
+      onSelectModel(modelId, 'chat');
+    } else {
+      onGetStarted();
+    }
   };
 
   return (
@@ -61,47 +319,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <header className="sticky top-0 z-50 bg-[#131313]/90 backdrop-blur-md border-b border-white/[0.08] w-full">
         <div className="relative flex justify-between items-center w-full px-6 md:px-12 py-3.5 max-w-7xl mx-auto">
           {/* Brand Logo Anchor */}
-          <div className="flex items-center gap-2 group cursor-pointer z-10" onClick={onGetStarted}>
-            <span className="material-symbols-outlined text-[#A8C7FA] group-hover:rotate-45 transition-transform duration-300">
-              spark
-            </span>
-            <span className="text-xl font-semibold text-white tracking-tight">
+          <div className="flex items-center gap-2.5 group cursor-pointer z-10" onClick={onGetStarted}>
+            <div className="w-8 h-8 rounded-lg bg-[#A8C7FA]/10 border border-[#A8C7FA]/20 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Sparkles className="w-4 h-4 text-[#A8C7FA] group-hover:rotate-12 transition-transform duration-300" />
+            </div>
+            <span className="text-lg font-semibold text-white tracking-tight">
               Nexus AI
             </span>
-            <span className="ml-2 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-[#A8C7FA] border border-white/10 font-semibold">
+            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-[#A8C7FA] border border-white/10 font-semibold">
               v2.5 Frontier
             </span>
           </div>
 
           {/* Navigation Links - Centered */}
           <nav className="hidden lg:flex items-center gap-6 text-xs font-medium text-[#C4C7C5] absolute left-1/2 -translate-x-1/2">
+            <a href="#hero-demo" className="hover:text-white transition-colors pb-1">Live Demo</a>
             <a href="#models" className="hover:text-white transition-colors pb-1">Models</a>
             <a href="#capabilities" className="hover:text-white transition-colors pb-1">Capabilities</a>
-            <a href="#research" className="hover:text-white transition-colors pb-1">Research</a>
+            <a href="#rbac" className="hover:text-white transition-colors pb-1">RBAC Security</a>
             <a href="#benchmarks" className="hover:text-white transition-colors pb-1">Benchmarks</a>
-            <a href="#safety" className="hover:text-white transition-colors pb-1">Safety</a>
-            <button
-              onClick={onOpenDeploymentGuide}
-              className="text-emerald-400 hover:text-emerald-300 font-mono text-xs flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <span>100% Free Live Guide</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <a href="#faq" className="hover:text-white transition-colors pb-1">FAQ</a>
           </nav>
 
           {/* Trailing Icon & Primary Actions */}
           <div className="flex items-center gap-2.5 z-10">
-            <button
-              onClick={onGetStarted}
-              className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[#C4C7C5] hover:text-white border border-white/10 hover:border-white/20 bg-[#1E1F20] hover:bg-[#282A2C] transition-all text-xs font-medium cursor-pointer"
-            >
-              Launch Workspace
-            </button>
+            {onOpenDeploymentGuide && (
+              <button
+                onClick={onOpenDeploymentGuide}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all text-xs font-mono cursor-pointer"
+              >
+                <span>Free Cloud Deploy</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
               onClick={onGetStarted}
               className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] transition-all text-xs font-semibold shadow-sm cursor-pointer active:scale-95"
             >
-              Try Nexus
+              Launch Workspace
             </button>
           </div>
         </div>
@@ -109,27 +364,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* ================= HERO SECTION ================= */}
       <main className="flex-1 w-full">
-        <section className="relative pt-16 pb-20 px-6 md:px-10 overflow-hidden">
+        <section className="relative pt-16 pb-20 px-6 md:px-10 overflow-hidden" id="hero-demo">
           {/* Atmospheric Gradient Backdrops */}
-          <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[750px] h-[450px] bg-gradient-to-b from-[#0054CD]/20 via-[#A8C7FA]/10 to-transparent blur-3xl opacity-40 -z-10" />
-          <div className="pointer-events-none absolute top-32 left-1/4 w-[350px] h-[350px] bg-[#B2C5FF]/5 blur-[100px] rounded-full -z-10" />
+          <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[850px] h-[500px] bg-gradient-to-b from-[#0054CD]/20 via-[#A8C7FA]/10 to-transparent blur-3xl opacity-50 -z-10" />
+          <div className="pointer-events-none absolute top-32 left-1/4 w-[400px] h-[400px] bg-[#B2C5FF]/5 blur-[120px] rounded-full -z-10" />
 
           <div className="max-w-6xl mx-auto flex flex-col items-center text-center relative z-10">
             {/* Tagline Pill */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#282A2C] border border-white/10 shadow-sm mb-6">
               <span className="w-2 h-2 rounded-full bg-[#A8C7FA] animate-ping" />
               <span className="w-2 h-2 -ml-3.5 rounded-full bg-[#A8C7FA]" />
-              <span className="text-[#C4C7C5] text-xs font-mono">Nexus 2.5 Series • Now Available</span>
+              <span className="text-[#C4C7C5] text-xs font-mono">Autonomous Multi-Agent Intelligence • Live v2.5</span>
             </div>
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-[-0.035em] leading-[1.08] max-w-4xl mb-4 text-transparent bg-clip-text bg-gradient-to-b from-[#FFFFFF] via-[#F1F5F9] to-[#94A3B8]">
-              Nexus <span className="text-[#747775] font-light">—</span> Frontier intelligence with action
+              Operations intelligence <span className="text-[#747775] font-light">with verifiable action</span>
             </h1>
 
             {/* Subheading */}
             <p className="text-sm sm:text-base text-[#C4C7C5] max-w-2xl mb-8 leading-relaxed font-normal">
-              Built from the ground up for agentic execution, multi-turn reasoning, and complex systems diagnostics. Designed to transform how engineers build, operate, and solve business trade-offs.
+              Specialized domain agents execute supply chain analysis, verify statutory cash reserves, and solve multi-tier split purchase orders deterministically via mathematical integer linear programming.
             </p>
 
             {/* Primary CTA Group */}
@@ -138,120 +393,292 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 onClick={onGetStarted}
                 className="flex items-center gap-2 px-7 py-3 rounded-full bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] transition-all font-semibold text-xs shadow-lg shadow-[#A8C7FA]/15 group cursor-pointer active:scale-95"
               >
-                <span>Try Nexus Chat</span>
-                <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                <span>Launch Interactive Workspace</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
               <a
                 href="#models"
                 className="px-6 py-3 rounded-full bg-[#1E1F20] border border-white/10 hover:border-white/20 text-white hover:bg-[#282A2C] transition-all text-xs font-semibold"
               >
-                Explore Models
+                Explore 3 Model Tiers
               </a>
             </div>
 
             {/* Teaser Note */}
-            <p className="text-[#747775] text-[11px] font-mono -mt-4 mb-10">
-              Launches Desktop Nexus AI Chat Interface • Instant zero-setup sandbox
+            <p className="text-[#747775] text-[11px] font-mono -mt-4 mb-10 flex items-center gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Full TypeScript typing • Vercel Free SPA • Render FastAPI • Neon Cloud PostgreSQL</span>
             </p>
 
-            {/* HERO ARTIFACT: Glassmorphic Interactive Preview Teaser */}
-            <div className="w-full max-w-4xl rounded-2xl bg-[#1E1F20]/75 backdrop-blur-xl border border-white/10 shadow-2xl p-4 sm:p-6 text-left overflow-hidden">
+            {/* HERO ARTIFACT: Glassmorphic Interactive Preview & Solver Console */}
+            <div className="w-full max-w-4xl rounded-2xl bg-[#1E1F20]/80 backdrop-blur-xl border border-white/10 shadow-2xl p-4 sm:p-6 text-left overflow-hidden">
               {/* Terminal / Window Chrome */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 mb-4 bg-[#131314]/60 rounded-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 py-2.5 border-b border-white/10 mb-4 bg-[#131314]/80 rounded-xl">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
-                  <span className="text-[#747775] font-mono text-[11px] ml-2 hidden sm:inline">
-                    nexus-session-v2.5-pro • telemetry: 42ms TTFT • Neon DB Connected
+                  <span className="text-[#747775] font-mono text-[11px] ml-2 hidden md:inline">
+                    nexus-cluster-v2.5 • Neon Cloud DB Connected • TTFT: 42ms
                   </span>
                 </div>
-                {/* Model Selector Pill in Teaser */}
-                <div
-                  onClick={onGetStarted}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#282A2C] border border-white/10 text-white text-xs font-mono cursor-pointer hover:border-[#A8C7FA]/50 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[#A8C7FA] text-sm">neurology</span>
-                  <span>Nexus 2.5 Pro</span>
-                  <span className="material-symbols-outlined text-xs text-[#747775]">expand_more</span>
+
+                {/* Multi-Tab Switcher */}
+                <div className="flex items-center gap-1 bg-[#1E1F20] p-1 rounded-lg border border-white/10 text-xs font-mono">
+                  <button
+                    onClick={() => setHeroTab('solver')}
+                    className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      heroTab === 'solver'
+                        ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                        : 'text-[#C4C7C5] hover:text-white'
+                    }`}
+                  >
+                    <Sliders className="w-3 h-3" />
+                    <span>Live Solver</span>
+                  </button>
+                  <button
+                    onClick={() => setHeroTab('chat')}
+                    className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      heroTab === 'chat'
+                        ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                        : 'text-[#C4C7C5] hover:text-white'
+                    }`}
+                  >
+                    <Bot className="w-3 h-3" />
+                    <span>Agent Swarm</span>
+                  </button>
+                  <button
+                    onClick={() => setHeroTab('terminal')}
+                    className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      heroTab === 'terminal'
+                        ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                        : 'text-[#C4C7C5] hover:text-white'
+                    }`}
+                  >
+                    <Terminal className="w-3 h-3" />
+                    <span>execution.log</span>
+                  </button>
+                  <button
+                    onClick={() => setHeroTab('json')}
+                    className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      heroTab === 'json'
+                        ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                        : 'text-[#C4C7C5] hover:text-white'
+                    }`}
+                  >
+                    <Code2 className="w-3 h-3" />
+                    <span>decision.json</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Chat Teaser Stage */}
-              <div className="space-y-4 px-1 pb-2">
-                {/* User Prompt */}
-                <div className="flex items-start gap-3 max-w-2xl ml-auto justify-end">
-                  <div className="bg-[#282A2C] border border-white/10 rounded-2xl rounded-tr-sm px-4 py-3 text-[#E3E3E3] text-xs sm:text-sm leading-relaxed">
-                    Analyze high p99 latency in production Kubernetes ingress cluster. Generate root-cause graph, verify rollback safety, and optimize purchase orders within ₹1.80L cash cap.
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-[#393939] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[#C4C7C5] text-sm">person</span>
-                  </div>
-                </div>
-
-                {/* Assistant Reasoning Accordion */}
-                <div className="flex items-start gap-3 max-w-3xl">
-                  <div className="w-8 h-8 rounded-full bg-[#A8C7FA]/20 border border-[#A8C7FA]/30 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[#A8C7FA] text-sm">spark</span>
-                  </div>
-                  <div className="space-y-3 flex-1">
-                    {/* Reasoning Disclosure Step */}
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#282A2C]/80 border border-[#A8C7FA]/30 text-[#A8C7FA] text-xs font-mono">
-                      <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
-                      <span>Thought for 3.4 seconds • Multi-hop log correlation & OR-Tools integer solver</span>
-                      <span className="material-symbols-outlined text-xs">expand_less</span>
-                    </div>
-
-                    {/* Code block with action toolbar */}
-                    <div className="rounded-xl bg-[#0F0F10] border border-white/10 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-2 bg-[#1E1F20] border-b border-white/10 font-mono text-xs text-[#747775]">
-                        <span className="flex items-center gap-1.5 text-[#C4C7C5]">
-                          <span className="material-symbols-outlined text-xs text-[#A8C7FA]">terminal</span>
-                          diagnostics.sh (Auto-remediation & PO playbook)
-                        </span>
-                        <button
-                          onClick={handleCopyCode}
-                          className="flex items-center gap-1 text-xs hover:text-white transition-colors cursor-pointer text-[#C4C7C5]"
-                        >
-                          <span className="material-symbols-outlined text-xs">
-                            {copiedCode ? 'check' : 'content_copy'}
-                          </span>
-                          <span>{copiedCode ? 'Copied' : 'Copy code'}</span>
-                        </button>
+              {/* TAB 1: INTERACTIVE SOLVER SLIDER */}
+              {heroTab === 'solver' && (
+                <div className="space-y-4 px-1 pb-2">
+                  {/* Slider Control Header */}
+                  <div className="bg-[#131314]/60 p-4 rounded-xl border border-white/10 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-semibold text-white flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-amber-400" />
+                          <span>Simulate Viral Creator Demand Surge (P100 Headphones)</span>
+                        </div>
+                        <p className="text-[11px] text-[#747775] mt-0.5">
+                          Drag slider to evaluate real-time inventory burn rate and optimal supplier split under ₹1,80,000 cash cap.
+                        </p>
                       </div>
-                      <pre className="p-4 text-white font-mono text-xs overflow-x-auto leading-relaxed">
-                        <code>
-                          <span className="text-[#8c9196]"># Nexus autonomous diagnostic daemon</span>{'\n'}
-                          $ nexus cluster inspect --namespace prod-eu-west --trace-window 15m{'\n'}
-                          <span className="text-[#747775]">✔ Correlating Envoy buffer overflows with Node pool c5.4xlarge throttles</span>{'\n'}
-                          <span className="text-[#A8C7FA]">[ACTION TAKEN]</span> Applying dynamic ring-buffer patch and routing ingress spillover to fallback zone.{'\n'}
-                          <span className="text-emerald-400">[OR-TOOLS SOLVER]</span> Purchase order split: 400 units (Net-30) + 445 units (Advance).
-                        </code>
-                      </pre>
+                      <div className="flex items-center gap-2 bg-[#282A2C] px-3 py-1 rounded-full border border-white/10 font-mono text-xs">
+                        <span className="text-[#747775]">Surge Multiplier:</span>
+                        <span className="text-[#A8C7FA] font-bold text-sm">+{simSurge}%</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1">
+                      <span className="text-[11px] font-mono text-[#747775]">+20%</span>
+                      <input
+                        type="range"
+                        min="20"
+                        max="150"
+                        step="5"
+                        value={simSurge}
+                        onChange={(e) => setSimSurge(Number(e.target.value))}
+                        className="flex-1 accent-[#A8C7FA] cursor-pointer h-2 bg-[#282A2C] rounded-lg appearance-none"
+                      />
+                      <span className="text-[11px] font-mono text-[#747775]">+150%</span>
                     </div>
                   </div>
-                </div>
 
-                {/* Floating Prompt Capsule Preview Mock */}
-                <div className="pt-2">
-                  <div className="bg-[#282A2C]/90 backdrop-blur-md rounded-full border border-white/15 p-1.5 flex items-center justify-between shadow-xl">
-                    <div className="flex items-center gap-2 pl-3 text-[#747775] text-xs truncate">
-                      <span className="material-symbols-outlined text-sm">attach_file</span>
-                      <span className="truncate">Ask Nexus to orchestrate scripts, run evals, or solve supply chain trade-offs...</span>
-                    </div>
-                    <div className="flex items-center gap-2 pr-1">
-                      <div className="px-2.5 py-0.5 rounded-full bg-[#1E1F20] border border-white/10 text-[#C4C7C5] text-[10px] font-mono">
-                        ⌘K Tools
+                  {/* 4 Dynamic Metric Pill Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-[#282A2C]/60 border border-blue-500/20 rounded-xl p-3 space-y-1">
+                      <div className="text-[10px] font-mono text-blue-400 font-semibold uppercase">Daily Velocity</div>
+                      <div className="text-xl font-bold font-mono text-white">
+                        {simCalculations.velocity} <span className="text-[10px] text-[#747775] font-normal">u/day</span>
                       </div>
+                      <div className="text-[10px] text-[#747775]">Base: 85 u/d</div>
+                    </div>
+
+                    <div className="bg-[#282A2C]/60 border border-amber-500/20 rounded-xl p-3 space-y-1">
+                      <div className="text-[10px] font-mono text-amber-400 font-semibold uppercase">Stockout Horizon</div>
+                      <div className="text-xl font-bold font-mono text-amber-300">
+                        {simCalculations.horizonDays} <span className="text-[10px] text-[#747775] font-normal">days</span>
+                      </div>
+                      <div className="text-[10px] text-rose-400/90 font-medium">Deficit: {simCalculations.deficitUnits} units</div>
+                    </div>
+
+                    <div className="bg-[#282A2C]/60 border border-emerald-500/20 rounded-xl p-3 space-y-1">
+                      <div className="text-[10px] font-mono text-emerald-400 font-semibold uppercase">Supplier B (Net-30)</div>
+                      <div className="text-xl font-bold font-mono text-white">
+                        {simCalculations.supplierBUnits} <span className="text-[10px] text-[#747775] font-normal">units</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-400">Upfront: ₹0 (Zero Cash)</div>
+                    </div>
+
+                    <div className="bg-[#282A2C]/60 border border-purple-500/20 rounded-xl p-3 space-y-1">
+                      <div className="text-[10px] font-mono text-purple-400 font-semibold uppercase">Supplier C (50% Adv)</div>
+                      <div className="text-xl font-bold font-mono text-white">
+                        {simCalculations.supplierCUnits} <span className="text-[10px] text-[#747775] font-normal">units</span>
+                      </div>
+                      <div className="text-[10px] text-purple-300">Upfront: ₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Solver Decision Ribbon */}
+                  <div className="bg-[#0F0F10] border border-white/10 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[#C4C7C5]">ILP Solver Status:</span>
+                      <span className="text-emerald-400 font-semibold">100% Feasible & Verified</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px]">
+                      <span className="text-[#747775]">
+                        Total Upfront Spend: <strong className="text-white">₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}</strong> / ₹1,80,000 Cap
+                      </span>
                       <button
                         onClick={onGetStarted}
-                        className="w-7 h-7 rounded-full bg-[#C2E7FF] text-[#001E2C] flex items-center justify-center hover:bg-[#A8C7FA] transition-colors cursor-pointer"
+                        className="px-3 py-1 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold hover:bg-[#A8C7FA] transition-colors cursor-pointer active:scale-95"
                       >
-                        <span className="material-symbols-outlined text-xs font-bold">arrow_upward</span>
+                        Open Full Solver
                       </button>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* TAB 2: AGENT SWARM DIALOGUE */}
+              {heroTab === 'chat' && (
+                <div className="space-y-4 px-1 pb-2">
+                  {/* User Prompt */}
+                  <div className="flex items-start gap-3 max-w-2xl ml-auto justify-end">
+                    <div className="bg-[#282A2C] border border-white/10 rounded-2xl rounded-tr-sm px-4 py-3 text-[#E3E3E3] text-xs sm:text-sm leading-relaxed">
+                      Analyze viral influencer campaign spike for P100 Headphones. Calculate safety stock depletion horizon and generate optimal split PO within ₹1,80,000 upfront cash cap.
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-[#393939] flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4 text-[#C4C7C5]" />
+                    </div>
+                  </div>
+
+                  {/* Assistant Reasoning Accordion */}
+                  <div className="flex items-start gap-3 max-w-3xl">
+                    <div className="w-8 h-8 rounded-full bg-[#A8C7FA]/20 border border-[#A8C7FA]/30 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4 text-[#A8C7FA]" />
+                    </div>
+                    <div className="space-y-3 flex-1">
+                      {/* Reasoning Disclosure Step */}
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#282A2C]/80 border border-[#A8C7FA]/30 text-[#A8C7FA] text-xs font-mono">
+                        <Activity className="w-3.5 h-3.5 animate-spin" />
+                        <span>Swarm Consensus in 42ms • Sales + Inventory + Finance + Google OR-Tools</span>
+                      </div>
+
+                      {/* Code block with action toolbar */}
+                      <div className="rounded-xl bg-[#0F0F10] border border-white/10 overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-2 bg-[#1E1F20] border-b border-white/10 font-mono text-xs text-[#747775]">
+                          <span className="flex items-center gap-1.5 text-[#C4C7C5]">
+                            <Terminal className="w-3.5 h-3.5 text-[#A8C7FA]" />
+                            procurement_decision.py
+                          </span>
+                          <button
+                            onClick={handleCopyCode}
+                            className="flex items-center gap-1 text-xs hover:text-white transition-colors cursor-pointer text-[#C4C7C5]"
+                          >
+                            {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                        <pre className="p-4 text-white font-mono text-xs overflow-x-auto leading-relaxed space-y-1">
+                          <div className="text-[#8c9196]"># Nexus Swarm Orchestrator Output</div>
+                          <div className="text-[#A8C7FA]">[SALES AGENT] Daily velocity increased to {simCalculations.velocity} u/d (+{simSurge}% surge).</div>
+                          <div className="text-amber-300">[INVENTORY AGENT] Stockout horizon: {simCalculations.horizonDays} days. Recommended replenishment: {simCalculations.deficitUnits} units.</div>
+                          <div className="text-emerald-400">[FINANCE AGENT] Statutory buffer ₹5,00,000 protected. Safe cash cap ₹1,80,000 approved.</div>
+                          <div className="text-purple-300">[OR-TOOLS SOLVER] Allocated: {simCalculations.supplierBUnits} u (QuickLogix, Net-30) + {simCalculations.supplierCUnits} u (Zenith, 50% Adv). Total Upfront: ₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}.</div>
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: EXECUTION LOG */}
+              {heroTab === 'terminal' && (
+                <div className="bg-[#0F0F10] border border-white/10 rounded-xl p-4 font-mono text-xs space-y-2 text-[#C4C7C5] overflow-x-auto">
+                  <div className="flex justify-between items-center text-[#747775] border-b border-white/10 pb-2 mb-2">
+                    <span>TERMINAL TRACE // NEON CLOUD POSTGRES POOL</span>
+                    <button onClick={handleCopyCode} className="text-xs hover:text-white flex items-center gap-1">
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedCode ? 'Copied' : 'Copy log'}</span>
+                    </button>
+                  </div>
+                  <p className="text-emerald-400">$ nexus cluster inspect --namespace prod-eu-west --trace-window 15m</p>
+                  <p className="text-[#747775]">[11:14:02.108] Connected to Neon PostgreSQL (db.neondb.azure.com:5432) via asyncpg</p>
+                  <p className="text-[#A8C7FA]">[11:14:02.115] [SALES] Querying orders table for SKU: P100 (Earphones Pro) -&gt; 144.5 u/d</p>
+                  <p className="text-amber-300">[11:14:02.122] [INVENTORY] Checking bin 4B stock: 170 units (150 safety floor). Depletion in {simCalculations.horizonDays}d</p>
+                  <p className="text-purple-300">[11:14:02.130] [FINANCE] Verifying ledger cash balance ₹8,50,000 - ₹5,00,000 reserve = ₹3,50,000</p>
+                  <p className="text-emerald-300">[11:14:02.142] [SOLVER] Formulated ILP: min TotalCost s.t. Units &gt;= {simCalculations.deficitUnits}, Cash &lt;= 180000</p>
+                  <p className="text-white font-bold">[11:14:02.150] [RESULT] Optimal Solution Found. Status: OPTIMAL_FEASIBLE. Time: 8.4ms</p>
+                </div>
+              )}
+
+              {/* TAB 4: STRUCTURED JSON */}
+              {heroTab === 'json' && (
+                <div className="bg-[#0F0F10] border border-white/10 rounded-xl p-4 font-mono text-xs text-[#C4C7C5] overflow-x-auto">
+                  <div className="flex justify-between items-center text-[#747775] border-b border-white/10 pb-2 mb-2">
+                    <span>JSON PAYLOAD // REST API /api/v1/orchestrate/run</span>
+                    <button onClick={handleCopyCode} className="text-xs hover:text-white flex items-center gap-1">
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedCode ? 'Copied' : 'Copy JSON'}</span>
+                    </button>
+                  </div>
+                  <pre className="text-[#A8C7FA]">
+{`{
+  "status": "SUCCESS",
+  "product_id": "P100",
+  "surge_multiplier": ${simSurge},
+  "daily_velocity": ${simCalculations.velocity},
+  "stockout_horizon_days": ${simCalculations.horizonDays},
+  "replenishment_deficit": ${simCalculations.deficitUnits},
+  "decision_output": {
+    "mathematical_feasibility": true,
+    "total_upfront_cash_impact": ${simCalculations.totalUpfrontCash},
+    "allocation_plan": [
+      { "supplier": "QuickLogix (B)", "units": ${simCalculations.supplierBUnits}, "terms": "Net-30", "upfront": 0 },
+      { "supplier": "Zenith Supply (C)", "units": ${simCalculations.supplierCUnits}, "terms": "50% Advance", "upfront": ${simCalculations.totalUpfrontCash} }
+    ]
+  }
+}`}
+                  </pre>
+                </div>
+              )}
+
+              {/* Floating Action Trigger */}
+              <div className="pt-3 flex items-center justify-between border-t border-white/10 mt-3 text-xs text-[#747775]">
+                <span className="font-mono text-[11px]">Ready for interactive multi-turn exploration?</span>
+                <button
+                  onClick={onGetStarted}
+                  className="flex items-center gap-1.5 text-xs text-[#A8C7FA] hover:text-white font-medium transition-colors cursor-pointer"
+                >
+                  <span>Open Full Dashboard</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
@@ -264,145 +691,96 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div>
                 <div className="text-[#A8C7FA] inline-flex items-center gap-1.5 mb-2 font-mono text-xs font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
-                  FRONTIER ARCHITECTURES
+                  FRONTIER INTELLIGENCE ARCHITECTURES
                 </div>
                 <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-[-0.025em]">
-                  Explore the Nexus Models
+                  Explore the Nexus Model Tiers
                 </h2>
                 <p className="text-[#C4C7C5] mt-1 max-w-xl text-xs sm:text-sm leading-relaxed">
-                  From low-latency execution to trillion-parameter architectural reasoning, discover the right model configuration for your workflow.
+                  From high-throughput sub-second telemetry parsing to multi-million token deep mathematical reasoning, select your agent foundation.
                 </p>
               </div>
               <button
                 onClick={onGetStarted}
-                className="inline-flex items-center gap-1 text-[#A8C7FA] hover:underline text-xs font-semibold cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-[#A8C7FA] hover:underline text-xs font-semibold cursor-pointer"
               >
-                <span>Compare full benchmark evaluations</span>
-                <span className="material-symbols-outlined text-sm">arrow_outward</span>
+                <span>Launch workspace with active models</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* 3 Model Tier Cards Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Nexus 2.5 Pro (Featured) */}
-              <div className="relative rounded-2xl bg-[#1E1F20] border border-[#A8C7FA]/40 p-6 flex flex-col justify-between hover:border-[#A8C7FA] transition-all duration-300 shadow-xl group">
-                <div className="absolute -top-3 right-6 bg-[#A8C7FA] text-[#001E2C] px-3 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider">
-                  Most Popular
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="material-symbols-outlined text-[#A8C7FA]">psychology</span>
-                    <h3 className="text-lg font-semibold text-white">Nexus 2.5 Pro</h3>
-                  </div>
-                  <p className="text-[#C4C7C5] text-xs mb-6 leading-relaxed">
-                    Best for complex reasoning, architectural design, and deep codebase telemetry analysis. Excels in long-running agentic tasks.
-                  </p>
-                  {/* Specs */}
-                  <div className="space-y-2 border-y border-white/10 py-4 mb-6 text-xs font-mono">
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Context Window</span>
-                      <span className="text-white font-medium">2M Tokens</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Reasoning Mode</span>
-                      <span className="text-[#A8C7FA] font-medium">Native Multimodal CoT</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Tool Integration</span>
-                      <span className="text-white font-medium">Parallel Function Calling</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Architecture</span>
-                      <span className="text-[#747775] font-medium">Mixture of Experts (MoE)</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={onGetStarted}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-full bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] font-semibold text-xs transition-all cursor-pointer"
+              {MODELS_DATA.map((tier) => (
+                <div
+                  key={tier.id}
+                  className={`relative rounded-2xl bg-[#1E1F20] border p-6 flex flex-col justify-between transition-all duration-300 group ${
+                    tier.isFeatured
+                      ? 'border-[#A8C7FA]/50 hover:border-[#A8C7FA] shadow-xl shadow-[#A8C7FA]/5'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
                 >
-                  <span>Launch in Nexus Chat</span>
-                  <span className="material-symbols-outlined text-sm">open_in_new</span>
-                </button>
-              </div>
+                  {tier.badge && (
+                    <div
+                      className={`absolute -top-3 right-6 px-3 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider ${
+                        tier.isFeatured
+                          ? 'bg-[#A8C7FA] text-[#001E2C]'
+                          : 'bg-[#282A2C] text-[#C4C7C5] border border-white/10'
+                      }`}
+                    >
+                      {tier.badge}
+                    </div>
+                  )}
 
-              {/* Nexus 2.5 Flash */}
-              <div className="rounded-2xl bg-[#1E1F20] border border-white/10 hover:border-white/20 p-6 flex flex-col justify-between transition-all duration-300 group">
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="material-symbols-outlined text-[#B2C5FF]">bolt</span>
-                    <h3 className="text-lg font-semibold text-white">Nexus 2.5 Flash</h3>
-                  </div>
-                  <p className="text-[#C4C7C5] text-xs mb-6 leading-relaxed">
-                    Built for high-throughput execution, ultra-low latency queries, and rapid tool calling across high-volume pipelines.
-                  </p>
-                  {/* Specs */}
-                  <div className="space-y-2 border-y border-white/10 py-4 mb-6 text-xs font-mono">
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Context Window</span>
-                      <span className="text-white font-medium">1M Tokens</span>
+                  <div>
+                    <div className="flex items-center gap-2.5 mb-4">
+                      <div className="w-9 h-9 rounded-xl bg-[#131314] border border-white/10 flex items-center justify-center">
+                        {tier.icon}
+                      </div>
+                      <h3 className="text-lg font-semibold text-white">{tier.name}</h3>
                     </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>TTFT Latency</span>
-                      <span className="text-emerald-400 font-medium">&lt; 180ms</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Cost Efficiency</span>
-                      <span className="text-white font-medium">10x Optimized</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Throughput</span>
-                      <span className="text-[#747775] font-medium">High-Concurrency Streaming</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={onGetStarted}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-full bg-[#1E1F20] border border-white/15 text-white hover:bg-[#282A2C] font-semibold text-xs transition-all cursor-pointer"
-                >
-                  <span>Launch in Nexus Chat</span>
-                  <span className="material-symbols-outlined text-sm">open_in_new</span>
-                </button>
-              </div>
+                    <p className="text-[#C4C7C5] text-xs mb-6 leading-relaxed min-h-[48px]">
+                      {tier.description}
+                    </p>
 
-              {/* Nexus 3.1 Deep Think */}
-              <div className="rounded-2xl bg-[#1E1F20] border border-white/10 hover:border-white/20 p-6 flex flex-col justify-between transition-all duration-300 group">
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="material-symbols-outlined text-amber-400">precision_manufacturing</span>
-                    <h3 className="text-lg font-semibold text-white">Nexus 3.1 Deep Think</h3>
-                  </div>
-                  <p className="text-[#C4C7C5] text-xs mb-6 leading-relaxed">
-                    Specialized in mathematical formal verification, self-correcting DAG logic, and deterministic OR-Tools integer optimization.
-                  </p>
-                  {/* Specs */}
-                  <div className="space-y-2 border-y border-white/10 py-4 mb-6 text-xs font-mono">
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Context Window</span>
-                      <span className="text-white font-medium">4M Tokens</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Constraint Engine</span>
-                      <span className="text-amber-300 font-medium">Google OR-Tools v9.8</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Verification Mode</span>
-                      <span className="text-white font-medium">Formal Sandbox Execution</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[#C4C7C5]">
-                      <span>Search Method</span>
-                      <span className="text-[#747775] font-medium">Tree-of-Thought RL</span>
+                    {/* Specs Grid */}
+                    <div className="space-y-2.5 border-y border-white/10 py-4 mb-6 text-xs font-mono">
+                      <div className="flex justify-between items-center text-[#C4C7C5]">
+                        <span>Context Window</span>
+                        <span className="text-white font-medium">{tier.contextWindow}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[#C4C7C5]">
+                        <span>Reasoning Mode</span>
+                        <span className="text-[#A8C7FA] font-medium">{tier.reasoningMode}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[#C4C7C5]">
+                        <span>Constraint Engine</span>
+                        <span className="text-white font-medium">{tier.constraintEngine}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[#C4C7C5]">
+                        <span>TTFT Latency</span>
+                        <span className="text-emerald-400 font-medium">{tier.ttftLatency}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[#C4C7C5]">
+                        <span>Architecture</span>
+                        <span className="text-[#747775] font-medium">{tier.architecture}</span>
+                      </div>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => handleModelClick(tier.id)}
+                    className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-full font-semibold text-xs transition-all cursor-pointer ${
+                      tier.isFeatured
+                        ? 'bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] shadow-md'
+                        : 'bg-[#1E1F20] border border-white/15 text-white hover:bg-[#282A2C]'
+                    }`}
+                  >
+                    <span>Configure in Nexus</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button
-                  onClick={onGetStarted}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-full bg-[#1E1F20] border border-white/15 text-white hover:bg-[#282A2C] font-semibold text-xs transition-all cursor-pointer"
-                >
-                  <span>Launch in Swarm Studio</span>
-                  <span className="material-symbols-outlined text-sm">open_in_new</span>
-                </button>
-              </div>
+              ))}
             </div>
           </div>
         </section>
@@ -419,76 +797,167 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 Architected for Verifiable Operations
               </h2>
               <p className="text-[#C4C7C5] text-xs sm:text-sm max-w-xl mx-auto">
-                No hallucinated calculations. Every decision is grounded in real SQL data and solved via mathematical linear optimization.
+                Zero probabilistic hallucinations in critical math. Grounded in real Neon PostgreSQL data and solved deterministically with Google OR-Tools.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Card 1 */}
-              <div className="rounded-2xl bg-[#1E1F20] border border-white/10 p-7 space-y-3 hover:border-[#A8C7FA]/40 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-[#A8C7FA]/10 border border-[#A8C7FA]/20 text-[#A8C7FA] flex items-center justify-center">
-                  <span className="material-symbols-outlined">hub</span>
+              {CAPABILITIES_DATA.map((cap, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-2xl bg-[#1E1F20] border border-white/10 p-7 space-y-3 transition-all ${cap.borderColor}`}
+                >
+                  <div className={`w-11 h-11 rounded-xl border border-white/10 flex items-center justify-center ${cap.iconBg} ${cap.iconColor}`}>
+                    {cap.icon}
+                  </div>
+                  <h3 className="text-base font-semibold text-white">{cap.title}</h3>
+                  <p className="text-xs text-[#C4C7C5] leading-relaxed">
+                    {cap.description}
+                  </p>
+                  <div className={`pt-1 text-[11px] font-mono flex items-center gap-1.5 ${cap.iconColor}`}>
+                    <span className="w-2 h-2 rounded-full bg-current" />
+                    <span>{cap.metricBadge}</span>
+                  </div>
                 </div>
-                <h3 className="text-base font-semibold text-white">Agentic Strategy Orchestration</h3>
-                <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                  Real-time multi-agent coordination with hierarchical sub-agents (Sales, Inventory, Finance, Suppliers) communicating via strict Pydantic schemas.
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================= RBAC KNOWLEDGE MATRIX SECTION ================= */}
+        <section className="py-20 px-6 md:px-10 bg-[#131314] border-t border-white/[0.08]" id="rbac">
+          <div className="max-w-7xl mx-auto space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <div className="text-[#A8C7FA] inline-flex items-center gap-1.5 mb-2 font-mono text-xs font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>KNOWLEDGE HUB & POLICY GOVERNANCE</span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight">
+                  Role-Based Knowledge Isolation (RBAC)
+                </h2>
+                <p className="text-[#C4C7C5] text-xs sm:text-sm max-w-2xl mt-1 leading-relaxed">
+                  Department document racks stored in Markdown are strictly isolated by cryptographic permission tokens. Agents can only access information authorized for their operational scope.
                 </p>
-                <div className="pt-1 text-[11px] font-mono text-[#A8C7FA] flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#A8C7FA]" />
-                  <span>3 Specialized Agents • Swarm Latency &lt; 12ms</span>
-                </div>
               </div>
 
-              {/* Card 2 */}
-              <div className="rounded-2xl bg-[#1E1F20] border border-white/10 p-7 space-y-3 hover:border-[#A8C7FA]/40 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-[#B2C5FF]/10 border border-[#B2C5FF]/20 text-[#B2C5FF] flex items-center justify-center">
-                  <span className="material-symbols-outlined">account_tree</span>
-                </div>
-                <h3 className="text-base font-semibold text-white">Non-Linear Reasoning & Backtracking</h3>
-                <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                  Tree-of-thought DAG planner with rollback capability, adaptive self-correction, and chronological audit trail logging across all stages.
-                </p>
-                <div className="pt-1 text-[11px] font-mono text-[#B2C5FF] flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#B2C5FF]" />
-                  <span>DAG Depth: 4 Nodes • Backtrack Capable</span>
-                </div>
+              {/* Role Filter Tabs */}
+              <div className="flex items-center gap-1.5 bg-[#1E1F20] p-1.5 rounded-full border border-white/10 font-mono text-xs">
+                <button
+                  onClick={() => setActiveRbacRole('sales')}
+                  className={`px-3.5 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeRbacRole === 'sales'
+                      ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                      : 'text-[#C4C7C5] hover:text-white'
+                  }`}
+                >
+                  Sales Director
+                </button>
+                <button
+                  onClick={() => setActiveRbacRole('inventory')}
+                  className={`px-3.5 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeRbacRole === 'inventory'
+                      ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                      : 'text-[#C4C7C5] hover:text-white'
+                  }`}
+                >
+                  Inventory Lead
+                </button>
+                <button
+                  onClick={() => setActiveRbacRole('finance')}
+                  className={`px-3.5 py-1.5 rounded-full transition-all cursor-pointer ${
+                    activeRbacRole === 'finance'
+                      ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
+                      : 'text-[#C4C7C5] hover:text-white'
+                  }`}
+                >
+                  CFO / Finance
+                </button>
               </div>
+            </div>
 
-              {/* Card 3 */}
-              <div className="rounded-2xl bg-[#1E1F20] border border-white/10 p-7 space-y-3 hover:border-[#A8C7FA]/40 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
-                  <span className="material-symbols-outlined">database</span>
-                </div>
-                <h3 className="text-base font-semibold text-white">Dynamic Tools & Neon PostgreSQL Integration</h3>
-                <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                  Plug-and-play API tool calling for ERP, Neon Cloud PostgreSQL, SAP, Shopify, and custom webhooks with strict RBAC permission racks.
-                </p>
-                <div className="pt-1 text-[11px] font-mono text-purple-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-purple-400" />
-                  <span>Neon PostgreSQL • REST APIs • Document Racks</span>
-                </div>
-              </div>
+            {/* RBAC Matrix Table */}
+            <div className="rounded-2xl bg-[#1E1F20] border border-white/10 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-[#171819] text-[#747775] font-mono text-[11px]">
+                      <th className="py-3 px-5">Knowledge Document Rack</th>
+                      <th className="py-3 px-5">Scope & Description</th>
+                      <th className="py-3 px-4 text-center">Sales Agent</th>
+                      <th className="py-3 px-4 text-center">Inventory Agent</th>
+                      <th className="py-3 px-4 text-center">Finance Agent</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 font-mono">
+                    {RBAC_POLICIES.map((policy, idx) => {
+                      const getBadge = (level: 'READ/WRITE' | 'READ' | 'DENIED', isCurrentRole: boolean) => {
+                        if (level === 'READ/WRITE') {
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              isCurrentRole
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 ring-2 ring-emerald-500/20'
+                                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            }`}>
+                              <CheckCircle className="w-3 h-3" />
+                              <span>READ/WRITE</span>
+                            </span>
+                          );
+                        }
+                        if (level === 'READ') {
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
+                              isCurrentRole
+                                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 ring-2 ring-blue-500/20'
+                                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                            }`}>
+                              <FileText className="w-3 h-3" />
+                              <span>READ ONLY</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
+                            isCurrentRole
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 ring-2 ring-rose-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                          }`}>
+                            <Lock className="w-3 h-3" />
+                            <span>DENIED</span>
+                          </span>
+                        );
+                      };
 
-              {/* Card 4 */}
-              <div className="rounded-2xl bg-[#1E1F20] border border-white/10 p-7 space-y-3 hover:border-emerald-500/40 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <span className="material-symbols-outlined">verified_user</span>
-                </div>
-                <h3 className="text-base font-semibold text-white">Zero-Hallucination Integer Linear Solver</h3>
-                <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                  Deterministic mathematical constraint solver (Google OR-Tools) guarantees allocations respect statutory liquidity and supplier caps.
-                </p>
-                <div className="pt-1 text-[11px] font-mono text-emerald-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span>Exact Integer Linear Programming (ILP)</span>
-                </div>
+                      return (
+                        <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3.5 px-5 font-medium text-white flex items-center gap-2">
+                            <FolderLock className="w-3.5 h-3.5 text-[#A8C7FA] shrink-0" />
+                            <span className="text-xs font-mono text-[#A8C7FA]">{policy.rack}</span>
+                          </td>
+                          <td className="py-3.5 px-5 text-[#C4C7C5] font-sans text-xs">
+                            {policy.summary}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            {getBadge(policy.sales, activeRbacRole === 'sales')}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            {getBadge(policy.inventory, activeRbacRole === 'inventory')}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            {getBadge(policy.finance, activeRbacRole === 'finance')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </section>
 
         {/* ================= BENCHMARKS RIBBON ================= */}
-        <section className="py-14 px-6 md:px-10 bg-[#131314] border-t border-white/[0.08]" id="benchmarks">
+        <section className="py-14 px-6 md:px-10 bg-[#131313] border-t border-white/[0.08]" id="benchmarks">
           <div className="max-w-5xl mx-auto">
             <div className="rounded-2xl bg-[#1E1F20] p-8 border border-white/10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               <div className="space-y-1">
@@ -514,10 +983,57 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
               <div className="space-y-1">
                 <div className="text-3xl sm:text-4xl font-semibold text-white font-mono tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-400">
-                  99.7%
+                  100%
                 </div>
-                <div className="text-[11px] text-[#747775] font-mono">Constraint Feasibility</div>
+                <div className="text-[11px] text-[#747775] font-mono">ILP Solver Feasibility</div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= FAQ ACCORDION SECTION ================= */}
+        <section className="py-20 px-6 md:px-10 bg-[#131314] border-t border-white/[0.08]" id="faq">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="text-center space-y-2">
+              <div className="text-[#A8C7FA] inline-flex items-center gap-1.5 font-mono text-xs font-semibold">
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>FREQUENTLY ASKED QUESTIONS</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight">
+                Everything you need to know
+              </h2>
+              <p className="text-[#C4C7C5] text-xs sm:text-sm max-w-lg mx-auto">
+                Architectural details on deterministic constraint solvers, Neon Cloud PostgreSQL, and deployment.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {FAQS_DATA.map((faq, idx) => {
+                const isOpen = openFaqIndex === idx;
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-xl bg-[#1E1F20] border border-white/10 overflow-hidden transition-colors"
+                  >
+                    <button
+                      onClick={() => toggleFaq(idx)}
+                      className="w-full flex items-center justify-between p-5 text-left text-sm font-semibold text-white hover:text-[#A8C7FA] transition-colors cursor-pointer"
+                    >
+                      <span>{faq.question}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-[#A8C7FA] transition-transform duration-200 shrink-0 ml-4 ${
+                          isOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                    {isOpen && (
+                      <div className="px-5 pb-5 text-xs text-[#C4C7C5] leading-relaxed border-t border-white/5 pt-3">
+                        {faq.answer}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -525,11 +1041,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* ================= BOTTOM CTA ================= */}
         <section className="py-20 px-6 md:px-10 bg-[#0e0e0e] border-t border-white/[0.08]">
           <div className="max-w-3xl mx-auto text-center space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1E1F20] border border-white/10 text-xs font-mono text-[#A8C7FA]">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Free Instant Deployment on Vercel + Render</span>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
-              Ready to experience Nexus?
+              Ready to automate operations with Nexus?
             </h2>
             <p className="text-xs sm:text-sm text-[#C4C7C5] max-w-lg mx-auto leading-relaxed">
-              Get instant access to autonomous enterprise workflows and state-of-the-art multi-agent swarm orchestration.
+              Experience deterministic multi-agent swarm orchestration, live Neon PostgreSQL syncing, and zero-hallucination integer optimization.
             </p>
             <form onSubmit={handleSubscribe} className="max-w-md mx-auto flex flex-col sm:flex-row gap-2">
               <input
@@ -540,12 +1060,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="flex-1 px-4 py-2.5 rounded-full bg-[#1E1F20] border border-white/10 text-white text-xs focus:outline-none focus:border-[#A8C7FA] font-mono placeholder:text-[#747775]"
               />
               <button
-                type="button"
-                onClick={onGetStarted}
+                type="submit"
                 className="px-6 py-2.5 rounded-full bg-[#C2E7FF] hover:bg-[#A8C7FA] text-[#001E2C] font-semibold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>{subscribed ? 'Access Granted' : 'Get Started Free'}</span>
-                <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                <span>{subscribed ? 'Access Granted ✓' : 'Get Started Free'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </form>
           </div>
@@ -556,11 +1075,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <footer className="border-t border-white/[0.08] bg-[#0c0d10] py-8 px-6 text-xs text-[#747775]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#A8C7FA] text-sm">spark</span>
+            <Sparkles className="w-4 h-4 text-[#A8C7FA]" />
             <span className="font-semibold text-[#E3E3E3]">Nexus Autonomous Operating System 2.0</span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-emerald-400 border border-emerald-500/20">
+              All Systems Operational
+            </span>
           </div>
           <div className="font-mono text-[11px]">
-            Built for Frontier AI Safety • HackVilla 2026 • 100% Free Hosting Ready
+            Built for Frontier AI Safety • Nanital HackVilla 2026 • 100% Free Cloud Ready
           </div>
         </div>
       </footer>

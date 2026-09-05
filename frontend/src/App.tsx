@@ -114,11 +114,11 @@ export const App: React.FC = () => {
             <div className="hidden md:flex items-center gap-4 text-xs font-mono">
               <div className="flex items-center gap-1.5 bg-[#1E1F20] px-3 py-1 rounded-full border border-white/10">
                 <span className="text-[#747775]">Cash Balance:</span>
-                <span className="text-emerald-400 font-semibold">?{metrics?.cash_balance.toLocaleString() || '8,50,000'}</span>
+                <span className="text-emerald-400 font-semibold">₹{metrics?.cash_balance.toLocaleString() || '8,50,000'}</span>
               </div>
               <div className="flex items-center gap-1.5 bg-[#1E1F20] px-3 py-1 rounded-full border border-white/10">
                 <span className="text-[#747775]">Safe Budget:</span>
-                <span className="text-blue-400 font-semibold">?{metrics?.safe_procurement_budget.toLocaleString() || '1,80,000'}</span>
+                <span className="text-blue-400 font-semibold">₹{metrics?.safe_procurement_budget.toLocaleString() || '1,80,000'}</span>
               </div>
             </div>
           </header>
@@ -205,10 +205,10 @@ export const App: React.FC = () => {
                     <DollarSign className="w-4 h-4 text-emerald-400" />
                   </div>
                   <div className="text-2xl font-bold font-mono text-white">
-                    ?{response.finance_evidence.max_procurement_budget.toLocaleString()} <span className="text-xs font-normal text-[#C4C7C5]">safe spend cap</span>
+                    ₹{response.finance_evidence.max_procurement_budget.toLocaleString()} <span className="text-xs font-normal text-[#C4C7C5]">safe spend cap</span>
                   </div>
                   <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                    Statutory reserve: <strong>?{response.finance_evidence.statutory_buffer.toLocaleString()}</strong> locked & protected.
+                    Statutory reserve: <strong>₹{response.finance_evidence.statutory_buffer.toLocaleString()}</strong> locked & protected.
                   </p>
                   <ul className="text-[11px] text-[#747775] space-y-1 list-disc list-inside">
                     {response.finance_evidence.rationale.map((r, i) => (
@@ -254,8 +254,8 @@ export const App: React.FC = () => {
                         <tr key={idx}>
                           <td className="py-2.5 text-white font-medium">{alloc.supplier_name}</td>
                           <td className="py-2.5 text-[#A8C7FA] font-bold">{alloc.allocated_units}</td>
-                          <td className="py-2.5">?{alloc.unit_cost}</td>
-                          <td className="py-2.5 text-emerald-400">?{alloc.upfront_cash_required.toLocaleString()}</td>
+                          <td className="py-2.5">₹{alloc.unit_cost}</td>
+                          <td className="py-2.5 text-emerald-400">₹{alloc.upfront_cash_required.toLocaleString()}</td>
                           <td className="py-2.5">{alloc.lead_time_days} days</td>
                           <td className="py-2.5">{alloc.payment_terms}</td>
                         </tr>
