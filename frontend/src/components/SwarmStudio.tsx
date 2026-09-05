@@ -41,7 +41,9 @@ import {
   LayoutGrid,
   RefreshCw,
   MousePointer,
-  HelpCircle
+  HelpCircle,
+  GripHorizontal,
+  ChevronDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -58,6 +60,7 @@ interface NodeData {
   subtitle: string;
   role: string;
   model: string;
+  modelProvider: 'Google' | 'OpenAI' | 'Nexus Formal' | 'Neon' | 'Executive';
   latency: string;
   x: number;
   y: number;
@@ -70,6 +73,14 @@ interface NodeData {
   stageNum: number;
 }
 
+const AVAILABLE_MODELS_BY_TYPE: Record<string, string[]> = {
+  orchestrator: ['Gemini 3.6 Flash (Default)', 'Gemini 3.8 Flash (Turbo)', 'Gemini 2.5 Pro', 'GPT-4o'],
+  sales: ['Gemini 3.6 Flash (High-Throughput)', 'GPT-4o Mini', 'Gemini 3.8 Flash'],
+  inventory: ['GPT-4o Mini (Tactical)', 'Gemini 3.6 Flash', 'Claude 3.5 Sonnet'],
+  finance: ['Gemini 1.5 Pro (2M Context)', 'Gemini 2.5 Pro', 'GPT-4o (Audit)'],
+  solver: ['Google OR-Tools ILP v9.8 (Exact)', 'Nexus 3.1 Deep Think ILP', 'SciPy Linear Solver'],
+};
+
 const DEFAULT_NODES: NodeData[] = [
   {
     id: 'node-ceo',
@@ -78,11 +89,12 @@ const DEFAULT_NODES: NodeData[] = [
     subtitle: 'Business Demand Trigger',
     role: 'CEO / Business Executive (Rahul)',
     model: 'Executive Directive Stream',
+    modelProvider: 'Executive',
     latency: '< 1ms',
     x: 60,
     y: 280,
-    width: 240,
-    height: 180,
+    width: 245,
+    height: 190,
     iconBg: 'bg-[#A8C7FA]/10',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]/40',
@@ -95,12 +107,13 @@ const DEFAULT_NODES: NodeData[] = [
     title: 'Nexus Swarm Orchestrator',
     subtitle: 'Hierarchical Task Dispatch',
     role: 'DAG Planner & Sub-Agent Coordinator',
-    model: 'Gemini 3.6 Flash',
+    model: 'Gemini 3.6 Flash (Default)',
+    modelProvider: 'Google',
     latency: '4.2ms',
-    x: 370,
+    x: 375,
     y: 260,
-    width: 260,
-    height: 215,
+    width: 265,
+    height: 225,
     iconBg: 'bg-[#A8C7FA]/20',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]',
@@ -113,12 +126,13 @@ const DEFAULT_NODES: NodeData[] = [
     title: 'Sales Intelligence Agent',
     subtitle: 'Velocity & Attribution',
     role: 'Forecast & Growth Elasticity',
-    model: 'Gemini 3.6 Flash',
+    model: 'Gemini 3.6 Flash (High-Throughput)',
+    modelProvider: 'Google',
     latency: '8.2ms',
-    x: 710,
+    x: 720,
     y: 90,
-    width: 250,
-    height: 165,
+    width: 255,
+    height: 175,
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
     borderColor: 'border-blue-500/50',
@@ -131,12 +145,13 @@ const DEFAULT_NODES: NodeData[] = [
     title: 'Supply Chain & Inventory',
     subtitle: 'Depletion & Safety Buffers',
     role: 'Stockout Horizon & Reorder Deficit',
-    model: 'GPT-4o Mini',
+    model: 'GPT-4o Mini (Tactical)',
+    modelProvider: 'OpenAI',
     latency: '6.4ms',
-    x: 710,
-    y: 285,
-    width: 250,
-    height: 165,
+    x: 720,
+    y: 290,
+    width: 255,
+    height: 175,
     iconBg: 'bg-amber-500/10',
     iconColor: 'text-amber-400',
     borderColor: 'border-amber-500/50',
@@ -149,12 +164,13 @@ const DEFAULT_NODES: NodeData[] = [
     title: 'Treasury & Governance',
     subtitle: 'Liquidity & Statutory Caps',
     role: 'Ledger Audit & Reserve Lock',
-    model: 'Gemini 1.5 Pro',
+    model: 'Gemini 1.5 Pro (2M Context)',
+    modelProvider: 'Google',
     latency: '9.1ms',
-    x: 710,
-    y: 480,
-    width: 250,
-    height: 165,
+    x: 720,
+    y: 490,
+    width: 255,
+    height: 175,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/50',
@@ -167,12 +183,13 @@ const DEFAULT_NODES: NodeData[] = [
     title: 'Google OR-Tools ILP Solver',
     subtitle: 'Deterministic Optimization',
     role: 'Integer Linear Programming Matrix',
-    model: 'Nexus 3.1 Deep Think (Exact ILP)',
+    model: 'Google OR-Tools ILP v9.8 (Exact)',
+    modelProvider: 'Nexus Formal',
     latency: '2.4ms',
-    x: 1040,
+    x: 1060,
     y: 250,
-    width: 270,
-    height: 235,
+    width: 275,
+    height: 245,
     iconBg: 'bg-purple-500/10',
     iconColor: 'text-purple-400',
     borderColor: 'border-purple-500/60',
@@ -186,11 +203,12 @@ const DEFAULT_NODES: NodeData[] = [
     subtitle: 'Immutable Ledger Action',
     role: 'Relational DB Sync & PO Execution',
     model: 'Neon Cloud Postgres (asyncpg)',
+    modelProvider: 'Neon',
     latency: '1.8ms',
-    x: 1390,
+    x: 1415,
     y: 280,
-    width: 250,
-    height: 195,
+    width: 255,
+    height: 205,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/60',
@@ -209,11 +227,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 30, y: 20 });
   const [zoom, setZoom] = useState<number>(0.92);
   const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  // Node Dragging State
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Simulation & Pipeline State
   const [simSurge, setSimSurge] = useState<number>(70);
@@ -223,8 +237,34 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(true);
+  const [showModelRoster, setShowModelRoster] = useState<boolean>(true);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Robust Ref to track Drag & Pan mechanics without dropping locks
+  const dragTracker = useRef<{
+    isDraggingNode: boolean;
+    nodeId: string | null;
+    isPanning: boolean;
+    startX: number;
+    startY: number;
+    initialNodeX: number;
+    initialNodeY: number;
+    initialPanX: number;
+    initialPanY: number;
+    hasMoved: boolean;
+  }>({
+    isDraggingNode: false,
+    nodeId: null,
+    isPanning: false,
+    startX: 0,
+    startY: 0,
+    initialNodeX: 0,
+    initialNodeY: 0,
+    initialPanX: 0,
+    initialPanY: 0,
+    hasMoved: false,
+  });
 
   // Dynamic real-time calculations
   const sim = useMemo(() => {
@@ -274,7 +314,72 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     setNodes(DEFAULT_NODES);
   };
 
-  // Canvas Mouse / Wheel handlers
+  // Change model for a specific agent node
+  const handleModelChange = (nodeId: string, newModel: string) => {
+    setNodes((prev) =>
+      prev.map((n) => (n.id === nodeId ? { ...n, model: newModel } : n))
+    );
+  };
+
+  // Global Window Mouse Listeners for 100% Reliable Drag & Pan
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const tracker = dragTracker.current;
+      if (tracker.isDraggingNode && tracker.nodeId) {
+        const dx = (e.clientX - tracker.startX) / zoom;
+        const dy = (e.clientY - tracker.startY) / zoom;
+        if (Math.hypot(dx, dy) > 4) {
+          tracker.hasMoved = true;
+        }
+
+        setNodes((prevNodes) =>
+          prevNodes.map((n) => {
+            if (n.id === tracker.nodeId) {
+              return {
+                ...n,
+                x: Math.round(tracker.initialNodeX + dx),
+                y: Math.round(tracker.initialNodeY + dy),
+              };
+            }
+            return n;
+          })
+        );
+      } else if (tracker.isPanning) {
+        const dx = e.clientX - tracker.startX;
+        const dy = e.clientY - tracker.startY;
+        if (Math.hypot(dx, dy) > 4) {
+          tracker.hasMoved = true;
+        }
+        setPan({
+          x: tracker.initialPanX + dx,
+          y: tracker.initialPanY + dy,
+        });
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      const tracker = dragTracker.current;
+      if (tracker.isDraggingNode && tracker.nodeId && !tracker.hasMoved) {
+        // Pure click without movement: open node inspector
+        setSelectedNodeId(tracker.nodeId);
+      }
+
+      tracker.isDraggingNode = false;
+      tracker.nodeId = null;
+      tracker.isPanning = false;
+      setDraggingNodeId(null);
+      setIsPanning(false);
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [zoom]);
+
+  // Mouse Wheel Pan & Zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (e.ctrlKey || e.metaKey) {
@@ -288,57 +393,38 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // If clicking directly on canvas background, start pan
-    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-bg')) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-    }
+  // Start Canvas Pan
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return; // Only primary left click
+    const tracker = dragTracker.current;
+    tracker.isPanning = true;
+    tracker.isDraggingNode = false;
+    tracker.nodeId = null;
+    tracker.hasMoved = false;
+    tracker.startX = e.clientX;
+    tracker.startY = e.clientY;
+    tracker.initialPanX = pan.x;
+    tracker.initialPanY = pan.y;
+    setIsPanning(true);
   };
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (isPanning) {
-        setPan({
-          x: e.clientX - panStart.x,
-          y: e.clientY - panStart.y,
-        });
-      } else if (draggingNodeId) {
-        setNodes((prevNodes) =>
-          prevNodes.map((n) => {
-            if (n.id === draggingNodeId) {
-              const rawX = (e.clientX - pan.x) / zoom - dragOffset.x;
-              const rawY = (e.clientY - pan.y) / zoom - dragOffset.y;
-              return {
-                ...n,
-                x: Math.round(rawX),
-                y: Math.round(rawY),
-              };
-            }
-            return n;
-          })
-        );
-      }
-    },
-    [isPanning, panStart, draggingNodeId, pan, zoom, dragOffset]
-  );
-
-  const handleMouseUp = () => {
-    setIsPanning(false);
-    setDraggingNodeId(null);
-  };
-
-  const handleStartDragNode = (nodeId: string, e: React.MouseEvent) => {
+  // Start Node Drag
+  const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (e.button !== 0) return;
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
+
+    const tracker = dragTracker.current;
+    tracker.isDraggingNode = true;
+    tracker.nodeId = nodeId;
+    tracker.isPanning = false;
+    tracker.hasMoved = false;
+    tracker.startX = e.clientX;
+    tracker.startY = e.clientY;
+    tracker.initialNodeX = node.x;
+    tracker.initialNodeY = node.y;
     setDraggingNodeId(nodeId);
-    setSelectedNodeId(nodeId);
-    
-    // Calculate cursor offset inside the node
-    const clickX = (e.clientX - pan.x) / zoom - node.x;
-    const clickY = (e.clientY - pan.y) / zoom - node.y;
-    setDragOffset({ x: clickX, y: clickY });
   };
 
   // Step-by-step pipeline execution
@@ -464,7 +550,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
         </div>
       </header>
 
-      {/* ================= FLOATING CANVAS TOOLBAR ================= */}
+      {/* ================= FLOATING CANVAS TOOLBAR & MODEL ROSTER ================= */}
       <div className="bg-[#171819] border-b border-white/5 px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 z-20">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -473,9 +559,16 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               Interactive Swarm Network Graph
             </span>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-[#747775] border border-white/10 hidden sm:inline">
-            Drag nodes freely • Pan canvas • Scroll to zoom
-          </span>
+          
+          <button
+            onClick={() => setShowModelRoster(!showModelRoster)}
+            className={`text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
+              showModelRoster ? 'bg-[#A8C7FA]/10 text-[#A8C7FA] border-[#A8C7FA]/30' : 'bg-[#1E1F20] text-[#747775] border-white/10'
+            }`}
+          >
+            <Cpu className="w-3 h-3" />
+            <span>Active Model Lineup</span>
+          </button>
         </div>
 
         {/* Demand Surge Slider & Pipeline Trigger */}
@@ -506,14 +599,40 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
         </div>
       </div>
 
+      {/* ================= MODEL ROSTER RIBBON ================= */}
+      {showModelRoster && (
+        <div className="bg-[#131314] border-b border-white/5 px-4 md:px-6 py-2 overflow-x-auto shrink-0 flex items-center gap-3 text-[11px] font-mono">
+          <span className="text-[#747775] uppercase text-[10px] shrink-0">Model Lineup:</span>
+          
+          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
+            <span className="text-[#747775]">Orchestrator:</span>
+            <span className="text-[#A8C7FA] font-semibold">Gemini 3.6 Flash</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
+            <span className="text-[#747775]">Sales:</span>
+            <span className="text-blue-400 font-semibold">Gemini 3.6 Flash</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
+            <span className="text-[#747775]">Inventory:</span>
+            <span className="text-amber-400 font-semibold">GPT-4o Mini</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
+            <span className="text-[#747775]">Finance:</span>
+            <span className="text-emerald-400 font-semibold">Gemini 1.5 Pro</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
+            <span className="text-[#747775]">Solver:</span>
+            <span className="text-purple-400 font-semibold">Google OR-Tools ILP</span>
+          </div>
+        </div>
+      )}
+
       {/* ================= INFINITE PAN & ZOOM CANVAS ================= */}
       <div
         ref={canvasRef}
         onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        className={`flex-1 w-full h-full relative overflow-hidden canvas-bg ${
+        onMouseDown={handleCanvasMouseDown}
+        className={`flex-1 w-full h-full relative overflow-hidden ${
           isPanning ? 'cursor-grabbing' : 'cursor-grab'
         } ${
           showGrid
@@ -541,28 +660,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                 <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
-              <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-
-              {/* Gradient Conduits */}
-              <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#A8C7FA" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#A8C7FA" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#FBBF24" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="grad-emerald" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#A8C7FA" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#34D399" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#818CF8" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#C084FC" stopOpacity="0.8" />
-              </linearGradient>
             </defs>
 
             {/* Render Links */}
@@ -589,7 +686,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     stroke={link.color}
                     strokeWidth={link.active ? '2.5' : '1.5'}
                     strokeDasharray={link.active ? '6 6' : '3 6'}
-                    className={link.active ? 'animate-[dash_1.5s_linear_infinite]' : 'opacity-30'}
                     style={{
                       animation: link.active ? 'dash 1.2s linear infinite' : 'none',
                     }}
@@ -610,15 +706,12 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           {nodes.map((node) => {
             const isSelected = selectedNodeId === node.id;
             const isNodeActive = activeStep >= node.stageNum;
+            const availableModels = AVAILABLE_MODELS_BY_TYPE[node.type];
 
             return (
               <div
                 key={node.id}
-                onMouseDown={(e) => handleStartDragNode(node.id, e)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedNodeId(node.id);
-                }}
+                onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
                 className={`absolute rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-shadow duration-200 pointer-events-auto cursor-grab active:cursor-grabbing flex flex-col justify-between p-3.5 shadow-2xl ${
                   isSelected
                     ? 'border-[#A8C7FA] ring-2 ring-[#A8C7FA]/30 shadow-[#A8C7FA]/20'
@@ -647,35 +740,65 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   </div>
                 )}
 
-                {/* Card Header */}
+                {/* Card Drag Handle & Header */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center ${node.iconBg} ${node.iconColor}`}>
-                        {node.type === 'ceo' && <UserCheck className="w-3.5 h-3.5" />}
-                        {node.type === 'orchestrator' && <Sparkles className="w-3.5 h-3.5" />}
-                        {node.type === 'sales' && <TrendingUp className="w-3.5 h-3.5" />}
-                        {node.type === 'inventory' && <Package className="w-3.5 h-3.5" />}
-                        {node.type === 'finance' && <DollarSign className="w-3.5 h-3.5" />}
-                        {node.type === 'solver' && <Cpu className="w-3.5 h-3.5" />}
-                        {node.type === 'db' && <Database className="w-3.5 h-3.5" />}
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-[#747775] hover:text-white cursor-grab active:cursor-grabbing p-0.5">
+                        <GripHorizontal className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider">
+                      <div className={`w-6 h-6 rounded-lg border border-white/10 flex items-center justify-center ${node.iconBg} ${node.iconColor}`}>
+                        {node.type === 'ceo' && <UserCheck className="w-3 h-3" />}
+                        {node.type === 'orchestrator' && <Sparkles className="w-3 h-3" />}
+                        {node.type === 'sales' && <TrendingUp className="w-3 h-3" />}
+                        {node.type === 'inventory' && <Package className="w-3 h-3" />}
+                        {node.type === 'finance' && <DollarSign className="w-3 h-3" />}
+                        {node.type === 'solver' && <Cpu className="w-3 h-3" />}
+                        {node.type === 'db' && <Database className="w-3 h-3" />}
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider truncate max-w-[100px]">
                         {node.subtitle}
                       </span>
                     </div>
 
-                    <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#131314] text-[#747775] border border-white/5">
-                      {node.latency}
-                    </span>
+                    {/* Info / Inspect Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedNodeId(node.id);
+                      }}
+                      className="text-[#747775] hover:text-[#A8C7FA] p-1 rounded-md hover:bg-white/5 transition-colors cursor-pointer"
+                      title="Inspect Node Details"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   <h3 className="text-xs font-semibold text-white font-headline truncate">
                     {node.title}
                   </h3>
-                  <p className="text-[10px] text-[#747775] font-mono truncate mb-2">
-                    {node.model}
-                  </p>
+
+                  {/* Model Selector Dropdown on Card */}
+                  {availableModels && availableModels.length > 0 ? (
+                    <div className="relative mt-1 mb-2">
+                      <select
+                        value={node.model}
+                        onChange={(e) => handleModelChange(node.id, e.target.value)}
+                        className="w-full bg-[#131314] hover:bg-[#282A2C] border border-white/10 text-white text-[10px] font-mono rounded-lg px-2 py-1 pr-6 appearance-none cursor-pointer focus:outline-none focus:border-[#A8C7FA]"
+                      >
+                        {availableModels.map((m) => (
+                          <option key={m} value={m} className="bg-[#1E1F20] text-white">
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3 h-3 text-[#747775] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-[#747775] font-mono truncate mb-2">
+                      {node.model}
+                    </p>
+                  )}
                 </div>
 
                 {/* Dynamic Node Body Content */}
@@ -683,7 +806,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   {node.type === 'ceo' && (
                     <>
                       <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">SKU Target:</span>
+                        <span className="text-[#747775]">SKU:</span>
                         <span className="text-[#A8C7FA] font-bold">P100 (Headphones)</span>
                       </div>
                       <div className="flex justify-between text-[#C4C7C5]">
@@ -766,7 +889,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     <>
                       <div className="flex justify-between text-[#C4C7C5]">
                         <span className="text-[#747775]">Database:</span>
-                        <span className="text-emerald-400 font-bold">Neon Cloud PostgreSQL</span>
+                        <span className="text-emerald-400 font-bold">Neon PostgreSQL</span>
                       </div>
                       <button
                         onClick={(e) => {
