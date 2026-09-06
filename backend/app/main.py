@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.api.v1.router import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -16,6 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_router, prefix="/api/v1")
+
 @app.get("/")
 def root():
     return {
@@ -23,9 +26,5 @@ def root():
         "status": "online",
         "version": "2.0.0",
         "docs_url": "/docs",
-        "api_v1": settings.API_V1_STR,
+        "api_v1": "/api/v1",
     }
-
-@app.get("/api/v1/health")
-def health():
-    return {"status": "healthy", "database": "connected", "agents": "ready"}
