@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Sparkles,
   ArrowLeft,
@@ -43,7 +43,9 @@ import {
   MousePointer,
   HelpCircle,
   GripHorizontal,
-  ChevronDown
+  ChevronDown,
+  Key,
+  Globe
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -60,6 +62,7 @@ interface NodeData {
   subtitle: string;
   role: string;
   model: string;
+  apiKey: string;
   modelProvider: 'Google' | 'OpenAI' | 'Nexus Formal' | 'Neon' | 'Executive';
   latency: string;
   x: number;
@@ -79,6 +82,7 @@ const AVAILABLE_MODELS_BY_TYPE: Record<string, string[]> = {
   inventory: ['GPT-4o Mini (Tactical)', 'Gemini 3.6 Flash', 'Claude 3.5 Sonnet'],
   finance: ['Gemini 1.5 Pro (2M Context)', 'Gemini 2.5 Pro', 'GPT-4o (Audit)'],
   solver: ['Google OR-Tools ILP v9.8 (Exact)', 'Nexus 3.1 Deep Think ILP', 'SciPy Linear Solver'],
+  db: ['Neon Cloud Postgres (asyncpg)', 'Google Drive Cloud Docs API', 'Supabase Realtime'],
 };
 
 const DEFAULT_NODES: NodeData[] = [
@@ -86,15 +90,16 @@ const DEFAULT_NODES: NodeData[] = [
     id: 'node-ceo',
     type: 'ceo',
     title: 'Executive Directive',
-    subtitle: 'Business Demand Trigger',
+    subtitle: 'CEO & Business Trigger',
     role: 'CEO / Business Executive (Rahul)',
     model: 'Executive Directive Stream',
+    apiKey: 'System Exec',
     modelProvider: 'Executive',
     latency: '< 1ms',
     x: 60,
     y: 280,
-    width: 240,
-    height: 180,
+    width: 250,
+    height: 185,
     iconBg: 'bg-[#A8C7FA]/10',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]/40',
@@ -105,15 +110,16 @@ const DEFAULT_NODES: NodeData[] = [
     id: 'node-orchestrator',
     type: 'orchestrator',
     title: 'Nexus Swarm Orchestrator',
-    subtitle: 'Hierarchical Task Dispatch',
-    role: 'DAG Planner & Sub-Agent Coordinator',
+    subtitle: 'Hierarchical Task & Refinement',
+    role: 'DAG Planner, Agent Router & Final Synthesizer',
     model: 'Gemini 3.6 Flash (Default)',
+    apiKey: 'AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ',
     modelProvider: 'Google',
     latency: '4.2ms',
-    x: 360,
+    x: 370,
     y: 260,
-    width: 260,
-    height: 220,
+    width: 270,
+    height: 225,
     iconBg: 'bg-[#A8C7FA]/20',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]',
@@ -124,15 +130,16 @@ const DEFAULT_NODES: NodeData[] = [
     id: 'node-sales',
     type: 'sales',
     title: 'Sales Intelligence Agent',
-    subtitle: 'Velocity & Attribution',
-    role: 'Forecast & Growth Elasticity',
+    subtitle: 'Promotions & Order Velocity',
+    role: 'Demand Forecast & Elasticity Analysis',
     model: 'Gemini 3.6 Flash (High-Throughput)',
+    apiKey: 'AQ.Ab8RN...SalesKey01',
     modelProvider: 'Google',
     latency: '8.2ms',
-    x: 700,
-    y: 90,
-    width: 250,
-    height: 175,
+    x: 720,
+    y: 80,
+    width: 260,
+    height: 180,
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
     borderColor: 'border-blue-500/50',
@@ -143,15 +150,16 @@ const DEFAULT_NODES: NodeData[] = [
     id: 'node-inventory',
     type: 'inventory',
     title: 'Supply Chain & Inventory',
-    subtitle: 'Depletion & Safety Buffers',
+    subtitle: 'Bin 4B Depletion & Safety Floor',
     role: 'Stockout Horizon & Reorder Deficit',
     model: 'GPT-4o Mini (Tactical)',
+    apiKey: 'sk-proj-InventoryKey02',
     modelProvider: 'OpenAI',
     latency: '6.4ms',
-    x: 700,
+    x: 720,
     y: 290,
-    width: 250,
-    height: 175,
+    width: 260,
+    height: 180,
     iconBg: 'bg-amber-500/10',
     iconColor: 'text-amber-400',
     borderColor: 'border-amber-500/50',
@@ -162,15 +170,16 @@ const DEFAULT_NODES: NodeData[] = [
     id: 'node-finance',
     type: 'finance',
     title: 'Treasury & Governance',
-    subtitle: 'Liquidity & Statutory Caps',
-    role: 'Ledger Audit & Reserve Lock',
+    subtitle: 'Statutory Reserve & Cash Cap',
+    role: 'Ledger Audit & Spend Cap Compliance',
     model: 'Gemini 1.5 Pro (2M Context)',
+    apiKey: 'AQ.Ab8RN...FinanceKey03',
     modelProvider: 'Google',
     latency: '9.1ms',
-    x: 700,
-    y: 490,
-    width: 250,
-    height: 175,
+    x: 720,
+    y: 500,
+    width: 260,
+    height: 180,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/50',
@@ -181,14 +190,15 @@ const DEFAULT_NODES: NodeData[] = [
     id: 'node-solver',
     type: 'solver',
     title: 'Google OR-Tools ILP Solver',
-    subtitle: 'Deterministic Optimization',
-    role: 'Integer Linear Programming Matrix',
+    subtitle: 'Deterministic Matrix Optimization',
+    role: 'Integer Linear Programming Supplier Split',
     model: 'Google OR-Tools ILP v9.8 (Exact)',
+    apiKey: 'OR-Tools Native Engine',
     modelProvider: 'Nexus Formal',
     latency: '2.4ms',
-    x: 1030,
+    x: 1070,
     y: 250,
-    width: 270,
+    width: 275,
     height: 240,
     iconBg: 'bg-purple-500/10',
     iconColor: 'text-purple-400',
@@ -199,16 +209,17 @@ const DEFAULT_NODES: NodeData[] = [
   {
     id: 'node-db',
     type: 'db',
-    title: 'Neon PostgreSQL Ground Truth',
-    subtitle: 'Immutable Ledger Action',
-    role: 'Relational DB Sync & PO Execution',
+    title: 'Neon DB & Enterprise Cloud Docs',
+    subtitle: 'Shared Google Drive & Postgres Sync',
+    role: 'Immutable Ledger Commit & Document Fetch',
     model: 'Neon Cloud Postgres (asyncpg)',
+    apiKey: 'neon_db_secret_key_live',
     modelProvider: 'Neon',
     latency: '1.8ms',
-    x: 1380,
-    y: 280,
-    width: 250,
-    height: 200,
+    x: 1420,
+    y: 270,
+    width: 270,
+    height: 215,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/60',
@@ -222,24 +233,20 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   onSwitchToChat,
   activeView,
 }) => {
-  // Canvas State: Pan & Zoom
   const [nodes, setNodes] = useState<NodeData[]>(DEFAULT_NODES);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 30, y: 20 });
-  const [zoom, setZoom] = useState<number>(0.92);
-  const [isPanMode, setIsPanMode] = useState<boolean>(false);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 20, y: 20 });
+  const [zoom, setZoom] = useState<number>(0.88);
   const [showGrid, setShowGrid] = useState<boolean>(true);
 
-  // Simulation & Pipeline State
+  // Simulation & Pipeline Loop State
   const [simSurge, setSimSurge] = useState<number>(70);
-  const [activeStep, setActiveStep] = useState<number>(5);
-  const [isPropagating, setIsPropagating] = useState<boolean>(false);
-  const [executed, setExecuted] = useState<boolean>(false);
+  const [activeStage, setActiveStage] = useState<number>(0);
+  const [simulationPhase, setSimulationPhase] = useState<'idle' | 'forward' | 'consultation' | 'return' | 'complete'>('idle');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [copied, setCopied] = useState<boolean>(false);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  // Dynamic real-time calculations
+  // Real-time metrics calculation
   const sim = useMemo(() => {
     const baseDemand = 85;
     const velocity = Math.round(baseDemand * (1 + simSurge / 100));
@@ -272,13 +279,9 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     };
   }, [simSurge]);
 
-  // =========================================================================
-  // ROBUST DRAG & DROP MECHANICS (GLOBAL WINDOW EVENT LISTENERS - NO STICKING)
-  // =========================================================================
+  // Pointer Down Drag Handler
   const handleNodePointerDown = (nodeId: string, e: React.PointerEvent) => {
     e.stopPropagation();
-    
-    // Prevent default drag behaviors
     const startX = e.clientX;
     const startY = e.clientY;
     const targetNode = nodes.find((n) => n.id === nodeId);
@@ -292,7 +295,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       const dx = (moveEvent.clientX - startX) / zoom;
       const dy = (moveEvent.clientY - startY) / zoom;
 
-      // 5px threshold to distinguish click from drag
       if (!isDragging && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 5) {
         isDragging = true;
       }
@@ -311,7 +313,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       window.removeEventListener('pointerup', onPointerUp);
 
       if (!isDragging) {
-        // Toggle or select node inspector drawer on click
         setSelectedNodeId(nodeId);
       }
     };
@@ -346,7 +347,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     window.addEventListener('pointerup', onPanUp);
   };
 
-  // Canvas Wheel Zoom Handler
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -357,80 +357,93 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     }
   };
 
-  // Auto Layout Alignment
   const handleResetLayout = () => {
     setNodes(DEFAULT_NODES);
-    setPan({ x: 30, y: 20 });
-    setZoom(0.92);
+    setPan({ x: 20, y: 20 });
+    setZoom(0.88);
   };
 
-  // Pipeline Propagation Simulation Trigger
-  const handleRunPropagation = () => {
-    if (isPropagating) return;
-    setIsPropagating(true);
-    setExecuted(false);
-    setActiveStep(1);
+  // Live Bidirectional Swarm Workflow Trigger
+  const handleRunSwarmPipeline = () => {
+    if (simulationPhase !== 'idle' && simulationPhase !== 'complete') return;
 
-    const steps = [1, 2, 3, 4, 5];
-    steps.forEach((step, index) => {
-      setTimeout(() => {
-        setActiveStep(step);
-        if (step === 5) {
-          setIsPropagating(false);
-          setExecuted(true);
-          confetti({
-            particleCount: 80,
-            spread: 60,
-            origin: { y: 0.6 },
-          });
-        }
-      }, (index + 1) * 750);
-    });
-  };
+    // Phase 1: Forward Dispatch (CEO -> Orchestrator -> Sub-Agents)
+    setSimulationPhase('forward');
+    setActiveStage(1);
 
-  // Model update handler in inspector drawer
-  const handleUpdateNodeModel = (nodeId: string, newModel: string) => {
-    setNodes((prev) =>
-      prev.map((n) => (n.id === nodeId ? { ...n, model: newModel } : n))
-    );
+    setTimeout(() => {
+      setActiveStage(2);
+    }, 700);
+
+    setTimeout(() => {
+      setActiveStage(3);
+      setSimulationPhase('consultation');
+    }, 1400);
+
+    // Phase 2: Inter-Agent & Cloud DB Consultation
+    setTimeout(() => {
+      setActiveStage(4);
+    }, 2200);
+
+    // Phase 3: Return Loop to Orchestrator for Refinement
+    setTimeout(() => {
+      setSimulationPhase('return');
+      setActiveStage(5);
+    }, 3000);
+
+    // Phase 4: Final Refinement back to User
+    setTimeout(() => {
+      setSimulationPhase('complete');
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+    }, 3800);
   };
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
-  // SVG Connection helper (Cubic Bezier path)
-  const renderConnection = (fromId: string, toId: string, activeStageTarget: number) => {
+  // SVG Direct Port-to-Port Bezier Connection Renderer
+  const renderPortConnection = (
+    fromId: string,
+    toId: string,
+    color: string,
+    isReturnLoop = false
+  ) => {
     const fromNode = nodes.find((n) => n.id === fromId);
     const toNode = nodes.find((n) => n.id === toId);
     if (!fromNode || !toNode) return null;
 
-    const x1 = fromNode.x + fromNode.width;
+    // Direct Port coordinates (Right Output -> Left Input or Return Loop Left -> Right)
+    const x1 = isReturnLoop ? fromNode.x : fromNode.x + fromNode.width;
     const y1 = fromNode.y + fromNode.height / 2;
-    const x2 = toNode.x;
+    const x2 = isReturnLoop ? toNode.x + toNode.width : toNode.x;
     const y2 = toNode.y + toNode.height / 2;
 
-    const dx = Math.max(40, (x2 - x1) * 0.45);
-    const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    const dx = Math.max(50, Math.abs(x2 - x1) * 0.45);
+    const pathD = isReturnLoop
+      ? `M ${x1} ${y1} C ${x1 - dx} ${y1 + 40}, ${x2 + dx} ${y2 + 40}, ${x2} ${y2}`
+      : `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 
-    const isPathActive = activeStep >= activeStageTarget;
+    const isRunning = simulationPhase !== 'idle';
 
     return (
-      <g key={`${fromId}-${toId}`}>
-        {/* Outer Glow Path */}
+      <g key={`${fromId}-${toId}-${isReturnLoop ? 'return' : 'fwd'}`}>
         <path
           d={pathD}
           fill="none"
-          stroke={isPathActive ? '#4285F4' : '#2D2E30'}
-          strokeWidth={isPathActive ? 3 : 1.5}
-          strokeOpacity={isPathActive ? 0.8 : 0.4}
+          stroke={isRunning ? color : '#2D2E30'}
+          strokeWidth={isRunning ? 2.5 : 1.5}
+          strokeOpacity={isRunning ? 0.85 : 0.4}
         />
-        {/* Animated Dashed Flow Line */}
-        {isPathActive && (
+        {isRunning && (
           <path
             d={pathD}
             fill="none"
             stroke="#A8C7FA"
-            strokeWidth={2.5}
-            strokeDasharray="6,6"
+            strokeWidth={3}
+            strokeDasharray="6,8"
             className="animate-pulse"
           />
         )}
@@ -440,9 +453,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#0B0C0E] text-[#E3E3E3] font-sans overflow-hidden select-none">
-      {/* ========================================================================= */}
-      {/* 1. EXECUTIVE HEADER BAR (PRESERVED NEXUS 2.0 HEADER)                     */}
-      {/* ========================================================================= */}
+      {/* EXECUTIVE HEADER */}
       <header className="h-14 border-b border-[#2D2E30]/70 bg-[#131314]/90 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center space-x-3">
           <button
@@ -453,7 +464,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             <span>Landing Page</span>
           </button>
 
-          {/* Toggle Switch between Executive Chat & Agent Swarm Studio */}
           <div className="flex items-center bg-[#1E1F20] p-0.5 rounded-full border border-[#2D2E30]">
             <button
               onClick={onSwitchToChat}
@@ -477,47 +487,40 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           </div>
         </div>
 
-        {/* Live KPI Indicators & Actions */}
         <div className="flex items-center space-x-3">
           <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-            <span className="text-[#888888]">Order Velocity:</span>
-            <span className="font-semibold text-blue-400">{sim.velocity} u/d</span>
-          </div>
-
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-            <span className="text-[#888888]">Safe Cap:</span>
-            <span className="font-semibold text-[#A8C7FA]">₹1,80,000</span>
+            <span className="text-[#888888]">Swarm State:</span>
+            <span className="font-semibold text-[#A8C7FA] capitalize">
+              {simulationPhase === 'idle' ? 'Ready' : simulationPhase}
+            </span>
           </div>
 
           <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#1E1F20] border border-[#2D2E30] text-[11px]">
             <span className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-            <span className="text-[#C4C7C5] font-medium">DAG Swarm Online</span>
+            <span className="text-[#C4C7C5] font-medium">Parallel Multi-Agent Network</span>
           </div>
         </div>
       </header>
 
-      {/* ========================================================================= */}
-      {/* 2. MAIN SWARM CANVAS & CONTROLS CONTAINER                                 */}
-      {/* ========================================================================= */}
+      {/* MAIN CANVAS FIELD */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* LEFT SIMULATION CONTROLS OVERLAY PANEL */}
+        {/* OVERLAY CONTROLS PANEL */}
         <div className="absolute top-4 left-4 z-20 w-72 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-2xl p-4 shadow-2xl space-y-4">
           <div className="flex items-center justify-between border-b border-[#2D2E30] pb-2.5">
             <div className="flex items-center space-x-2">
               <Zap className="w-4 h-4 text-[#A8C7FA]" />
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                Surge Simulation
+                Swarm Simulation
               </h3>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#131314] text-[#A8C7FA] border border-[#2D2E30]">
-              P100 Headphones
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#131314] text-[#81C995] border border-[#2D2E30]">
+              Bidirectional Loop
             </span>
           </div>
 
-          {/* Surge Multiplier Slider */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[#888888]">Demand Spike Surge:</span>
+              <span className="text-[#888888]">Promotional Surge:</span>
               <span className="font-bold text-amber-400 font-mono">+{simSurge}%</span>
             </div>
             <input
@@ -531,61 +534,31 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             />
           </div>
 
-          {/* Real-Time Metrics Table */}
-          <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
-              <div className="text-[10px] text-[#888888]">Velocity</div>
-              <div className="font-semibold text-white mt-0.5">{sim.velocity} u/day</div>
-            </div>
-
-            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
-              <div className="text-[10px] text-[#888888]">Stockout Floor</div>
-              <div className="font-semibold text-amber-400 mt-0.5">{sim.horizonDays} days</div>
-            </div>
-
-            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
-              <div className="text-[10px] text-[#888888]">Deficit Reorder</div>
-              <div className="font-semibold text-blue-400 mt-0.5">{sim.deficitUnits} units</div>
-            </div>
-
-            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
-              <div className="text-[10px] text-[#888888]">Upfront Cash</div>
-              <div className="font-semibold text-[#81C995] mt-0.5">₹{sim.upfrontCash.toLocaleString()}</div>
-            </div>
-          </div>
-
-          {/* Trigger Simulation Button */}
           <button
-            onClick={handleRunPropagation}
-            disabled={isPropagating}
-            className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition-all shadow-lg ${
-              isPropagating
-                ? 'bg-[#1A73E8]/50 text-white cursor-not-allowed'
-                : 'bg-[#1A73E8] hover:bg-[#4285F4] text-white'
-            }`}
+            onClick={handleRunSwarmPipeline}
+            disabled={simulationPhase !== 'idle' && simulationPhase !== 'complete'}
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 bg-[#1A73E8] hover:bg-[#4285F4] text-white shadow-lg"
           >
-            {isPropagating ? (
+            {simulationPhase !== 'idle' && simulationPhase !== 'complete' ? (
               <>
                 <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Propagating Swarm Pipeline...</span>
+                <span className="capitalize">{simulationPhase} Processing...</span>
               </>
             ) : (
               <>
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Run Swarm Pipeline Simulation</span>
+                <span>Run Live Bidirectional Swarm</span>
               </>
             )}
           </button>
         </div>
 
-        {/* INTERACTIVE CANVAS FIELD */}
+        {/* CANVAS BG */}
         <div
           ref={canvasContainerRef}
           onPointerDown={handleCanvasPointerDown}
           onWheel={handleWheel}
-          className={`canvas-bg flex-1 w-full h-full relative overflow-hidden bg-[#0B0C0E] cursor-${
-            isPanMode ? 'grab' : 'default'
-          }`}
+          className="canvas-bg flex-1 w-full h-full relative overflow-hidden bg-[#0B0C0E]"
           style={{
             backgroundImage: showGrid
               ? 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)'
@@ -593,36 +566,36 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             backgroundSize: '24px 24px',
           }}
         >
-          {/* CANVAS TRANSFORM CONTAINER (PAN & ZOOM SCALED) */}
           <div
             className="absolute inset-0 origin-top-left transition-transform duration-75 ease-out"
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             }}
           >
-            {/* SVG PIPELINE CONNECTING LINES LAYER */}
+            {/* SVG PORT CONNECTIONS LAYER */}
             <svg className="absolute top-0 left-0 w-[3000px] h-[2000px] pointer-events-none z-0">
-              {/* Stage 1 -> 2 */}
-              {renderConnection('node-ceo', 'node-orchestrator', 2)}
+              {/* Forward Connections */}
+              {renderPortConnection('node-ceo', 'node-orchestrator', '#4285F4')}
+              {renderPortConnection('node-orchestrator', 'node-sales', '#3B82F6')}
+              {renderPortConnection('node-orchestrator', 'node-inventory', '#F59E0B')}
+              {renderPortConnection('node-orchestrator', 'node-finance', '#10B981')}
 
-              {/* Stage 2 -> 3 (Parallel Sub-Agents) */}
-              {renderConnection('node-orchestrator', 'node-sales', 3)}
-              {renderConnection('node-orchestrator', 'node-inventory', 3)}
-              {renderConnection('node-orchestrator', 'node-finance', 3)}
+              {/* Inter-Agent & Cloud DB Connections */}
+              {renderPortConnection('node-sales', 'node-[#node-inventory]', '#3B82F6')}
+              {renderPortConnection('node-inventory', 'node-db', '#10B981')}
+              {renderPortConnection('node-sales', 'node-solver', '#8B5CF6')}
+              {renderPortConnection('node-inventory', 'node-solver', '#8B5CF6')}
+              {renderPortConnection('node-finance', 'node-solver', '#8B5CF6')}
+              {renderPortConnection('node-solver', 'node-db', '#10B981')}
 
-              {/* Stage 3 -> 4 */}
-              {renderConnection('node-sales', 'node-solver', 4)}
-              {renderConnection('node-inventory', 'node-solver', 4)}
-              {renderConnection('node-finance', 'node-solver', 4)}
-
-              {/* Stage 4 -> 5 */}
-              {renderConnection('node-solver', 'node-db', 5)}
+              {/* Return Loop Back to Orchestrator & User */}
+              {renderPortConnection('node-solver', 'node-orchestrator', '#A8C7FA', true)}
+              {renderPortConnection('node-orchestrator', 'node-ceo', '#A8C7FA', true)}
             </svg>
 
-            {/* NODES LAYER */}
+            {/* NODES WITH PORT ANCHORS */}
             {nodes.map((node) => {
               const isSelected = selectedNodeId === node.id;
-              const isStageActive = activeStep >= node.stageNum;
 
               return (
                 <div
@@ -636,60 +609,46 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   className={`absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-150 cursor-grab active:cursor-grabbing shadow-2xl ${
                     isSelected
                       ? 'border-[#4285F4] ring-2 ring-[#4285F4]/40 scale-[1.02]'
-                      : isStageActive
-                      ? node.borderColor
-                      : 'border-[#2D2E30] opacity-80'
+                      : node.borderColor
                   }`}
                 >
-                  {/* Node Header Drag Handle */}
-                  <div className="p-3.5 border-b border-[#2D2E30]/70 flex items-center justify-between bg-[#18191A]/80 rounded-t-2xl">
-                    <div className="flex items-center space-x-2.5 truncate">
-                      <div
-                        className={`w-7 h-7 rounded-lg ${node.iconBg} ${node.iconColor} flex items-center justify-center shrink-0 border border-white/10`}
-                      >
-                        <Bot className="w-4 h-4" />
-                      </div>
-                      <div className="truncate">
-                        <div className="text-xs font-bold text-white truncate font-heading">
-                          {node.title}
-                        </div>
-                        <div className="text-[10px] text-[#888888] truncate">{node.subtitle}</div>
-                      </div>
-                    </div>
+                  {/* Left Input Port Dot */}
+                  <div className="w-3 h-3 rounded-full bg-[#4285F4] border-2 border-[#1E1F20] absolute -left-1.5 top-1/2 -translate-y-1/2 shadow-md" />
 
-                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#131314] text-[#A8C7FA] border border-[#2D2E30]">
-                      STAGE {node.stageNum}
-                    </span>
+                  {/* Right Output Port Dot */}
+                  <div className="w-3 h-3 rounded-full bg-[#A8C7FA] border-2 border-[#1E1F20] absolute -right-1.5 top-1/2 -translate-y-1/2 shadow-md" />
+
+                  <div className="p-3 border-b border-[#2D2E30]/70 flex items-center justify-between bg-[#18191A]/80 rounded-t-2xl">
+                    <div className="flex items-center space-x-2 truncate">
+                      <div className={`w-6 h-6 rounded-lg ${node.iconBg} ${node.iconColor} flex items-center justify-center shrink-0`}>
+                        <Bot className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold text-white truncate font-heading">
+                        {node.title}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Node Body Details */}
                   <div className="p-3 space-y-2 text-xs">
-                    <div className="text-[11px] text-[#C4C7C5] leading-tight line-clamp-2">
+                    <div className="text-[11px] text-[#C4C7C5] line-clamp-2 leading-tight">
                       {node.role}
                     </div>
 
-                    {/* AI Model Badge */}
-                    <div className="flex items-center justify-between pt-1 border-t border-[#2D2E30]/50 text-[10px]">
-                      <span className="text-[#888888]">Model:</span>
-                      <span className="font-mono font-semibold text-[#A8C7FA] truncate max-w-[130px]">
-                        {node.model}
-                      </span>
-                    </div>
-
-                    {/* Latency & Status */}
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-[#888888]">Latency:</span>
-                      <span className="font-mono text-emerald-400">{node.latency}</span>
+                    <div className="pt-1 border-t border-[#2D2E30]/50 space-y-1 text-[10px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#888888]">AI Model:</span>
+                        <span className="font-mono text-[#A8C7FA] font-medium truncate max-w-[120px]">
+                          {node.model}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#888888]">API Key:</span>
+                        <span className="font-mono text-[#81C995] truncate max-w-[110px]">
+                          {node.apiKey.slice(0, 10)}...
+                        </span>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Active Propagation Glow Pulse */}
-                  {isStageActive && (
-                    <div
-                      className="absolute inset-0 rounded-2xl pointer-events-none border border-[#4285F4]/30"
-                      style={{ boxShadow: `0 0 20px ${node.accentGlow}` }}
-                    />
-                  )}
                 </div>
               );
             })}
@@ -699,59 +658,54 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           <div className="absolute bottom-6 left-6 z-30 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-full px-3 py-1.5 shadow-2xl">
             <button
               onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30]"
               title="Zoom Out"
             >
               <ZoomOut className="w-4 h-4" />
             </button>
-
             <span className="text-xs font-mono font-medium text-[#A8C7FA] px-2">
               {Math.round(zoom * 100)}%
             </span>
-
             <button
               onClick={() => setZoom((z) => Math.min(1.8, z + 0.1))}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30]"
               title="Zoom In"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
-
             <div className="w-px h-4 bg-[#2D2E30] mx-1" />
-
             <button
               onClick={handleResetLayout}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30]"
               title="Reset View"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
-
             <button
               onClick={() => setShowGrid(!showGrid)}
-              className={`p-1.5 rounded-full transition-colors ${
+              className={`p-1.5 rounded-full ${
                 showGrid ? 'text-[#4285F4] bg-[#4285F4]/10' : 'text-[#888888] hover:text-white'
               }`}
-              title="Toggle Canvas Grid"
+              title="Toggle Grid"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* RIGHT SIDE NODE INSPECTOR DRAWER */}
+        {/* NODE INSPECTOR WITH CUSTOM MODEL & API KEY PER AGENT */}
         {selectedNode && (
           <aside className="w-80 border-l border-[#2D2E30]/70 bg-[#1E1F20] z-20 flex flex-col h-full shadow-2xl">
             <div className="p-4 border-b border-[#2D2E30] flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Info className="w-4 h-4 text-[#A8C7FA]" />
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Node Inspector
+                  Agent Inspector & API Key
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedNodeId(null)}
-                className="p-1 text-[#888888] hover:text-white rounded-lg"
+                className="p-1 text-[#888888] hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -760,21 +714,26 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs">
               <div>
                 <label className="text-[10px] text-[#888888] uppercase tracking-wider">
-                  Node Title
+                  Agent Title
                 </label>
                 <div className="text-sm font-bold text-white mt-0.5">{selectedNode.title}</div>
-                <div className="text-xs text-[#A8C7FA] mt-0.5">{selectedNode.subtitle}</div>
+                <div className="text-xs text-[#A8C7FA]">{selectedNode.subtitle}</div>
               </div>
 
-              {/* Model Switcher for this specific Node */}
+              {/* Swappable AI Model Selector */}
               {AVAILABLE_MODELS_BY_TYPE[selectedNode.type] && (
                 <div className="space-y-1">
                   <label className="text-[10px] text-[#888888] uppercase tracking-wider">
-                    Assigned AI Model
+                    Swappable AI Model
                   </label>
                   <select
                     value={selectedNode.model}
-                    onChange={(e) => handleUpdateNodeModel(selectedNode.id, e.target.value)}
+                    onChange={(e) => {
+                      const newModel = e.target.value;
+                      setNodes((prev) =>
+                        prev.map((n) => (n.id === selectedNode.id ? { ...n, model: newModel } : n))
+                      );
+                    }}
                     className="w-full bg-[#131314] text-xs text-white p-2.5 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
                   >
                     {AVAILABLE_MODELS_BY_TYPE[selectedNode.type].map((m) => (
@@ -786,32 +745,32 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                 </div>
               )}
 
+              {/* Dedicated API Key for Parallel Execution */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-[#888888] uppercase tracking-wider flex items-center space-x-1">
+                  <Key className="w-3 h-3 text-[#34A853]" />
+                  <span>Agent API Key (Parallel Processing)</span>
+                </label>
+                <input
+                  type="password"
+                  value={selectedNode.apiKey}
+                  onChange={(e) => {
+                    const newKey = e.target.value;
+                    setNodes((prev) =>
+                      prev.map((n) => (n.id === selectedNode.id ? { ...n, apiKey: newKey } : n))
+                    );
+                  }}
+                  placeholder="Paste model API key for this agent..."
+                  className="w-full bg-[#131314] text-xs text-white p-2.5 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
+                />
+              </div>
+
               <div>
                 <label className="text-[10px] text-[#888888] uppercase tracking-wider">
                   Operational Role
                 </label>
                 <div className="p-3 rounded-xl bg-[#131314] text-[#C4C7C5] border border-[#2D2E30] mt-1 leading-relaxed">
                   {selectedNode.role}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-[#888888] uppercase tracking-wider">
-                  Telemetry & Performance
-                </label>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30]">
-                    <div className="text-[10px] text-[#888888]">Latency</div>
-                    <div className="font-mono text-emerald-400 font-bold mt-0.5">
-                      {selectedNode.latency}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30]">
-                    <div className="text-[10px] text-[#888888]">Provider</div>
-                    <div className="font-mono text-[#A8C7FA] font-bold mt-0.5">
-                      {selectedNode.modelProvider}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
