@@ -39,7 +39,16 @@ import {
   Mic,
   BarChart3,
   GitBranch,
-  Network
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Image as ImageIcon,
+  Video,
+  FolderKanban,
+  Paperclip,
+  Compass,
+  ArrowUpRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -56,85 +65,31 @@ interface ExecutiveChatProps {
   activeView: 'chat' | 'swarm';
 }
 
-const INITIAL_SESSIONS: ChatSession[] = [
+// Quick Suggestion Prompts for Gemini Landing View
+const SUGGESTED_PROMPTS = [
   {
-    id: 'sess-1',
-    title: 'Viral Demand Spike Analysis (P100)',
-    createdAt: 'Just now',
-    updatedAt: 'Just now',
-    messages: [
-      {
-        id: 'msg-1',
-        role: 'user',
-        content: 'Analyze high creator promotional surge (+70%) on P100 Headphones. Formulate optimal supplier split within ₹1.80L cash cap.',
-        timestamp: '11:15 AM',
-      },
-      {
-        id: 'msg-2',
-        role: 'assistant',
-        content: `### Executive Operations Brief: P100 Demand Spike Allocation
-
-Based on multi-agent analysis of live order velocity and warehouse stock levels, here is the verified operational plan:
-
-#### 1. Demand & Stockout Horizon
-- **Elevated Velocity**: **145 units/day** (+70% surge detected from active influencer campaign).
-- **Current Inventory**: **170 units** in Bin 4B.
-- **Safety Floor Depletion**: Expected in **1.17 days** without expedited intervention.
-- **7-Day Cumulative Deficit**: **845 units** required to replenish buffer.
-
-#### 2. Liquidity & Statutory Governance
-- **Ledger Cash Balance**: ₹8,50,000.
-- **Statutory Reserve Lock**: **₹5,00,000 (Locked & Protected)**.
-- **Safe Spend Ceiling**: **₹1,80,000**.
-- **Optimization Feasibility**: 100% verified via Google OR-Tools Integer Linear Programming (ILP).
-
-#### 3. Recommended Split Purchase Order
-- **QuickLogix Logistics (Supplier B)**: **400 units** via **Net-30 credit** at ₹477/unit (₹0 upfront cash, 3-day lead time).
-- **Zenith Global Air Freight (Supplier C)**: **445 units** via **50% advance** at ₹436.50/unit (₹97,121 upfront cash, 2-day lead time).
-- **Total Upfront Cash Impact**: **₹97,121** (Comfortably within the ₹1,80,000 ceiling).`,
-        timestamp: '11:15 AM',
-        thinking: `1. [SALES AGENT] Order velocity verified at 144.5 u/d (+70% promotional surge).
-2. [INVENTORY AGENT] Bin 4B stock (170 units) will deplete below 150-unit safety floor in 1.17 days. Replenishment deficit: 845 units.
-3. [FINANCE AGENT] Verified ₹8.50L ledger with ₹5.00L protected reserve. Safe spend cap of ₹1.80L approved.
-4. [OR-TOOLS SOLVER] Allocated: 400 u (QuickLogix, Net-30, ₹0 Upfront) + 445 u (Zenith, 50% Adv, ₹97,121 Upfront). Total upfront: ₹97,121 <= ₹1,80,000 Cap. Feasibility: 100%.`,
-        thinkingTimeSec: 2.18,
-        modelUsed: 'Gemini 3.6 Flash',
-        totalUnits: 845,
-        totalUpfrontCash: 97121,
-        allocationPlan: [
-          {
-            supplier: 'QuickLogix Logistics (Supplier B)',
-            units: 400,
-            unitCost: 477,
-            upfrontCash: 0,
-            leadTime: '3 days',
-            paymentTerms: 'Net-30 Credit (Zero Upfront)',
-          },
-          {
-            supplier: 'Zenith Global Air Freight (Supplier C)',
-            units: 445,
-            unitCost: 436.5,
-            upfrontCash: 97121,
-            leadTime: '2 days',
-            paymentTerms: '50% Advance Required',
-          },
-        ],
-      },
-    ],
+    title: 'Analyze P100 Demand Surge',
+    subtitle: '+70% promotional spike & supplier split',
+    icon: Flame,
+    prompt: 'Analyze high creator promotional surge (+70%) on P100 Headphones. Formulate optimal supplier split within ₹1.80L cash cap.',
   },
   {
-    id: 'sess-2',
-    title: 'Supplier B vs C Cost & Terms Audit',
-    createdAt: 'Yesterday',
-    updatedAt: 'Yesterday',
-    messages: [],
+    title: 'Audit Statutory Reserves',
+    subtitle: 'Verify ₹5.00L statutory cash lock & spend ceiling',
+    icon: ShieldCheck,
+    prompt: 'Audit current treasury liquidity, statutory reserve lock compliance (₹5.00L), and verify maximum safe spend ceiling.',
   },
   {
-    id: 'sess-3',
-    title: 'Q3 Statutory Cash Reserve Lock',
-    createdAt: '2 days ago',
-    updatedAt: '2 days ago',
-    messages: [],
+    title: 'Optimize Supplier B vs C POs',
+    subtitle: 'Net-30 credit vs 50% air freight advance',
+    icon: Package,
+    prompt: 'Compare Supplier B (QuickLogix Net-30) vs Supplier C (Zenith Air Freight 50% advance) for urgent stock replenishment.',
+  },
+  {
+    title: 'Stockout Floor Depletion Risk',
+    subtitle: 'Bin 4B inventory velocity & safety stock floor',
+    icon: AlertTriangle,
+    prompt: 'Calculate exact stockout horizon for Bin 4B inventory based on current 145 units/day order velocity.',
   },
 ];
 
@@ -143,49 +98,65 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
   onSwitchToSwarm,
   activeView,
 }) => {
-  // Sidebar State
+  // Sidebar & Sessions State (Starting completely fresh without dummy chats)
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sessions, setSessions] = useState<ChatSession[]>(INITIAL_SESSIONS);
-  const [activeSessionId, setActiveSessionId] = useState<string>('sess-1');
-
-  // Active Model & Prompt State
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.6-flash');
-  const [inputPrompt, setInputPrompt] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [surgeSliderOpen, setSurgeSliderOpen] = useState<boolean>(false);
-  const [surgeMultiplier, setSurgeMultiplier] = useState<number>(70);
-  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({ 'msg-2': false });
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-
-  // Settings Modal State
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [customApiKey, setCustomApiKey] = useState(geminiService.getApiKey());
-  const [apiKeySaved, setApiKeySaved] = useState(false);
-
-  // Auto-scroll ref
-  const chatBottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
-
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeSession?.messages, isLoading]);
-
-  // Adjust textarea height dynamically
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputPrompt(e.target.value);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+  const [sessions, setSessions] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem('nexus_chat_sessions');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
     }
-  };
+    return [];
+  });
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
+    return localStorage.getItem('nexus_active_session_id') || null;
+  });
 
+  // Current Input & Chat State
+  const [inputPrompt, setInputPrompt] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.6-flash');
+  const [isLoading, setIsLoading] = useState(false);
+  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [executedPOs, setExecutedPOs] = useState<Record<string, boolean>>({});
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Save sessions to localStorage
+  useEffect(() => {
+    localStorage.setItem('nexus_chat_sessions', JSON.stringify(sessions));
+  }, [sessions]);
+
+  // Save active session id to localStorage
+  useEffect(() => {
+    if (activeSessionId) {
+      localStorage.setItem('nexus_active_session_id', activeSessionId);
+    } else {
+      localStorage.removeItem('nexus_active_session_id');
+    }
+  }, [activeSessionId]);
+
+  // Auto scroll to bottom of chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [sessions, activeSessionId, isLoading]);
+
+  // Get active session messages
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const currentMessages = activeSession ? activeSession.messages : [];
+
+  // Create New Chat Session
   const handleCreateNewChat = () => {
     const newSessionId = `sess-${Date.now()}`;
     const newSession: ChatSession = {
       id: newSessionId,
-      title: 'New Operations Query',
+      title: 'New Operational Inquiry',
       createdAt: 'Just now',
       updatedAt: 'Just now',
       messages: [],
@@ -194,59 +165,70 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
     setActiveSessionId(newSessionId);
   };
 
-  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+  // Delete Chat Session
+  const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (sessions.length === 1) return;
-    const remaining = sessions.filter((s) => s.id !== id);
-    setSessions(remaining);
-    if (activeSessionId === id) {
-      setActiveSessionId(remaining[0].id);
+    const updated = sessions.filter((s) => s.id !== sessionId);
+    setSessions(updated);
+    if (activeSessionId === sessionId) {
+      setActiveSessionId(updated.length > 0 ? updated[0].id : null);
     }
   };
 
-  const handleSendMessage = async (customText?: string) => {
-    const promptToSend = customText || inputPrompt;
-    if (!promptToSend.trim() || isLoading) return;
+  // Handle Send Prompt
+  const handleSendPrompt = async (customPrompt?: string) => {
+    const promptToSend = (customPrompt || inputPrompt).trim();
+    if (!promptToSend || isLoading) return;
 
-    const userMessageId = `msg-${Date.now()}`;
+    setInputPrompt('');
+
+    let sessionId = activeSessionId;
+    let targetSession = sessions.find((s) => s.id === sessionId);
+
+    // If no active session exists, create one
+    if (!sessionId || !targetSession) {
+      sessionId = `sess-${Date.now()}`;
+      const titleSnippet = promptToSend.length > 30 ? promptToSend.slice(0, 30) + '...' : promptToSend;
+      targetSession = {
+        id: sessionId,
+        title: titleSnippet,
+        createdAt: 'Just now',
+        updatedAt: 'Just now',
+        messages: [],
+      };
+      setSessions((prev) => [targetSession!, ...prev]);
+      setActiveSessionId(sessionId);
+    } else if (targetSession.messages.length === 0) {
+      // Update session title based on first prompt
+      const titleSnippet = promptToSend.length > 30 ? promptToSend.slice(0, 30) + '...' : promptToSend;
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, title: titleSnippet } : s))
+      );
+    }
+
     const userMessage: ChatMessage = {
-      id: userMessageId,
+      id: `msg-user-${Date.now()}`,
       role: 'user',
-      content: promptToSend.trim(),
+      content: promptToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    // Update active session messages
-    const updatedMessages = [...activeSession.messages, userMessage];
-    const isFirstMessage = activeSession.messages.length === 0;
-    const updatedTitle = isFirstMessage
-      ? promptToSend.slice(0, 32) + (promptToSend.length > 32 ? '...' : '')
-      : activeSession.title;
-
-    setSessions(
-      sessions.map((s) =>
-        s.id === activeSessionId
-          ? { ...s, title: updatedTitle, messages: updatedMessages, updatedAt: 'Just now' }
-          : s
+    // Add user message to session
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId ? { ...s, messages: [...s.messages, userMessage] } : s
       )
     );
 
-    setInputPrompt('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
     setIsLoading(true);
 
     try {
-      const response = await geminiService.sendMessage(
-        promptToSend,
-        updatedMessages,
-        selectedModel,
-        surgeMultiplier
-      );
+      // Get conversation history for Gemini API
+      const history = targetSession ? targetSession.messages : [];
+      const response = await geminiService.sendMessage(promptToSend, history, selectedModel);
 
       const assistantMessage: ChatMessage = {
-        id: `msg-resp-${Date.now()}`,
+        id: `msg-ast-${Date.now()}`,
         role: 'assistant',
         content: response.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -255,725 +237,678 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
         allocationPlan: response.allocationPlan,
         totalUpfrontCash: response.totalUpfrontCash,
         totalUnits: response.totalUnits,
-        modelUsed: GEMINI_MODELS.find((m) => m.id === selectedModel)?.name || 'Gemini 3.6 Flash',
+        modelUsed: GEMINI_MODELS.find((m) => m.id === selectedModel)?.name || selectedModel,
       };
 
-      setSessions((prevSessions) =>
-        prevSessions.map((s) =>
-          s.id === activeSessionId
-            ? { ...s, messages: [...updatedMessages, assistantMessage], updatedAt: 'Just now' }
-            : s
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId ? { ...s, messages: [...s.messages, assistantMessage] } : s
         )
       );
-    } catch (err) {
-      console.error('Failed to get response:', err);
+    } catch (err: any) {
+      const errorMessage: ChatMessage = {
+        id: `msg-err-${Date.now()}`,
+        role: 'assistant',
+        content: `**Execution Error**: Unable to complete multi-agent orchestration reasoning. Details: ${err.message || 'Network error'}.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        modelUsed: selectedModel,
+      };
+
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId ? { ...s, messages: [...s.messages, errorMessage] } : s
+        )
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleExecuteProcurement = (msgId: string) => {
+  // Copy Message Content
+  const handleCopy = (msgId: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMsgId(msgId);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+  };
+
+  // Execute PO Split Action
+  const handleExecutePOSplit = (msgId: string) => {
     confetti({
-      particleCount: 80,
+      particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ['#A8C7FA', '#C2E7FF', '#22c55e', '#ffffff'],
     });
-
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeSessionId
-          ? {
-              ...s,
-              messages: s.messages.map((m) =>
-                m.id === msgId ? { ...m, isExecuted: true } : m
-              ),
-            }
-          : s
-      )
-    );
+    setExecutedPOs((prev) => ({ ...prev, [msgId]: true }));
   };
 
-  const handleCopyMessage = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedMessageId(id);
-    setTimeout(() => setCopiedMessageId(null), 2000);
-  };
-
-  const handleSaveApiKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    geminiService.setApiKey(customApiKey);
-    setApiKeySaved(true);
-    setTimeout(() => {
-      setApiKeySaved(false);
-      setSettingsOpen(false);
-    }, 1200);
-  };
+  // Filter sessions by search
+  const filteredSessions = sessions.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="flex h-screen w-full bg-[#131313] text-[#E3E3E3] font-sans overflow-hidden">
-      {/* ================= GEMINI COLLAPSIBLE SIDEBAR ================= */}
+    <div className="flex h-screen w-full bg-[#0B0C0E] text-[#E3E3E3] font-sans overflow-hidden">
+      {/* ========================================================================= */}
+      {/* 1. LEFT SIDE PANEL (GEMINI INSPIRED COLLAPSIBLE / EXPANDABLE SIDEBAR)     */}
+      {/* ========================================================================= */}
       <aside
-        className={`flex flex-col bg-[#1E1F20] border-r border-white/10 transition-all duration-300 ease-in-out z-30 shrink-0 ${
-          sidebarOpen ? 'w-72' : 'w-0 -translate-x-full lg:w-16 lg:translate-x-0'
+        className={`flex flex-col border-r border-[#2D2E30]/70 bg-[#1E1F20] transition-all duration-300 ease-in-out z-20 ${
+          sidebarOpen ? 'w-64' : 'w-16'
         }`}
       >
-        {/* Sidebar Header */}
-        <div className="p-3.5 flex items-center justify-between border-b border-white/5 min-h-[60px]">
+        {/* Top Header of Side Panel */}
+        <div className="flex items-center justify-between h-14 px-3 border-b border-[#2D2E30]/50">
           {sidebarOpen ? (
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1.5 rounded-lg text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-                title="Collapse Sidebar"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <span className="text-sm font-semibold text-white font-headline">Nexus Operations</span>
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] flex items-center justify-center shadow-lg shadow-[#1A73E8]/20">
+                <Sparkles className="w-4 h-4 text-white animate-pulse" />
+              </div>
+              <span className="font-semibold text-sm tracking-tight text-white font-heading">
+                Nexus AI
+              </span>
             </div>
           ) : (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="mx-auto p-1.5 rounded-lg text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-              title="Expand Sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] flex items-center justify-center mx-auto shadow-md">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
           )}
+
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1.5 rounded-lg text-[#999999] hover:text-white hover:bg-[#2D2E30] transition-colors"
+            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="w-4 h-4" />
+            ) : (
+              <PanelLeftOpen className="w-4 h-4" />
+            )}
+          </button>
         </div>
 
-        {/* New Chat Button */}
+        {/* Action Button: New Chat */}
         <div className="p-3">
-          {sidebarOpen ? (
-            <button
-              onClick={handleCreateNewChat}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#282A2C] hover:bg-[#343638] text-white border border-white/10 transition-all text-xs font-semibold shadow-sm cursor-pointer group"
-            >
-              <Plus className="w-4 h-4 text-[#A8C7FA] group-hover:rotate-90 transition-transform duration-200" />
-              <span>New Operational Chat</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleCreateNewChat}
-              className="w-10 h-10 mx-auto rounded-full bg-[#282A2C] hover:bg-[#343638] text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer"
-              title="New Chat"
-            >
-              <Plus className="w-4 h-4 text-[#A8C7FA]" />
-            </button>
-          )}
+          <button
+            onClick={handleCreateNewChat}
+            className={`w-full flex items-center justify-center space-x-2 rounded-full bg-[#2A2B2D] hover:bg-[#35373A] text-white py-2.5 px-4 font-medium text-sm transition-all border border-[#3A3B3E]/60 shadow-sm ${
+              !sidebarOpen ? 'px-0 justify-center' : ''
+            }`}
+          >
+            <Plus className="w-4 h-4 text-[#A8C7FA]" />
+            {sidebarOpen && <span>New Operational Chat</span>}
+          </button>
         </div>
 
-        {/* Chat Sessions List */}
-        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
+        {/* Search Bar (Only Expanded) */}
+        {sidebarOpen && (
+          <div className="px-3 mb-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#888888]" />
+              <input
+                type="text"
+                placeholder="Search inquiries..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#131314] text-xs text-white placeholder-[#777777] pl-8 pr-3 py-2 rounded-lg border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]/60"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Recent Inquiries List */}
+        <div className="flex-1 overflow-y-auto px-2 space-y-1 py-1">
           {sidebarOpen && (
-            <div className="px-2 py-1 text-[11px] font-mono text-[#747775] uppercase tracking-wider">
+            <div className="px-2 py-1.5 text-[11px] font-semibold text-[#888888] uppercase tracking-wider">
               Recent Inquiries
             </div>
           )}
-          {sessions.map((sess) => {
-            const isActive = sess.id === activeSessionId;
-            if (!sidebarOpen) {
+
+          {filteredSessions.length === 0 ? (
+            sidebarOpen && (
+              <div className="px-3 py-6 text-center text-xs text-[#777777] italic">
+                No recent inquiries. Start a new chat above.
+              </div>
+            )
+          ) : (
+            filteredSessions.map((session) => {
+              const isActive = session.id === activeSessionId;
               return (
                 <button
-                  key={sess.id}
-                  onClick={() => setActiveSessionId(sess.id)}
-                  className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                    isActive ? 'bg-[#A8C7FA]/20 text-[#A8C7FA] border border-[#A8C7FA]/30' : 'text-[#747775] hover:text-white hover:bg-[#282A2C]'
+                  key={session.id}
+                  onClick={() => setActiveSessionId(session.id)}
+                  className={`w-full flex items-center group relative rounded-lg px-2.5 py-2 text-xs transition-colors ${
+                    isActive
+                      ? 'bg-[#004A77]/40 text-[#A8C7FA] font-medium border border-[#1A73E8]/40'
+                      : 'text-[#C4C7C5] hover:bg-[#2A2B2D] hover:text-white'
                   }`}
-                  title={sess.title}
+                  title={session.title}
                 >
-                  <Bot className="w-4 h-4" />
+                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#A8C7FA]' : 'text-[#888888]'}`} />
+                  {sidebarOpen && (
+                    <>
+                      <span className="ml-2.5 truncate text-left flex-1">
+                        {session.title}
+                      </span>
+                      <button
+                        onClick={(e) => handleDeleteSession(session.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-[#888888] transition-opacity"
+                        title="Delete chat"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
                 </button>
               );
-            }
-
-            return (
-              <div
-                key={sess.id}
-                onClick={() => setActiveSessionId(sess.id)}
-                className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-[#282A2C] text-white font-medium border border-white/10'
-                    : 'text-[#C4C7C5] hover:text-white hover:bg-[#282A2C]/60'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 truncate flex-1 mr-2">
-                  <Bot className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#A8C7FA]' : 'text-[#747775]'}`} />
-                  <span className="truncate">{sess.title}</span>
-                </div>
-                {sessions.length > 1 && (
-                  <button
-                    onClick={(e) => handleDeleteSession(sess.id, e)}
-                    className="opacity-0 group-hover:opacity-100 text-[#747775] hover:text-rose-400 transition-opacity p-1"
-                    title="Delete session"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
+            })
+          )}
         </div>
 
-        {/* Sidebar Footer: User Profile & Status */}
-        <div className="p-3 border-t border-white/5 space-y-2 bg-[#171819]">
+        {/* Bottom User Profile Section */}
+        <div className="border-t border-[#2D2E30]/70 p-3 bg-[#18191A]">
           {sidebarOpen ? (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5 truncate">
-                  <div className="w-8 h-8 rounded-full bg-[#A8C7FA]/20 border border-[#A8C7FA]/30 text-[#A8C7FA] flex items-center justify-center font-bold text-xs shrink-0">
-                    R
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-semibold text-white truncate">Rahul</div>
-                    <div className="text-[10px] text-[#747775] font-mono truncate">CEO • TechMart Electronics</div>
-                  </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5 truncate">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-xs shadow-md">
+                  R
                 </div>
-                <button
-                  onClick={() => setSettingsOpen(true)}
-                  className="p-1.5 rounded-lg text-[#747775] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-                  title="Settings"
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between pt-1 text-[10px] font-mono text-[#747775]">
-                <div className="flex items-center gap-1.5 text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Gemini 3.6 Flash Active</span>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-white truncate">Rahul Singh</div>
+                  <div className="text-[10px] text-[#A8C7FA] font-medium">CEO • TechMart</div>
                 </div>
-                <span>v2.5</span>
               </div>
-            </>
+              <button
+                onClick={() => setApiKeyModalOpen(true)}
+                className="p-1.5 text-[#888888] hover:text-white hover:bg-[#2D2E30] rounded-lg transition-colors"
+                title="Gemini API Key Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
           ) : (
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="w-10 h-10 mx-auto rounded-full bg-[#282A2C] text-[#C4C7C5] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-              title="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col items-center space-y-3">
+              <button
+                onClick={() => setApiKeyModalOpen(true)}
+                className="p-1.5 text-[#888888] hover:text-white hover:bg-[#2D2E30] rounded-lg transition-colors"
+                title="API Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-[11px]">
+                R
+              </div>
+            </div>
           )}
         </div>
       </aside>
 
-      {/* ================= MAIN CHAT CONTENT STAGE ================= */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* ================= EXECUTIVE HEADER (NEXUS 1.0 THEME) ================= */}
-        <header className="sticky top-0 z-20 bg-[#131313]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-6 py-2.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-1.5 rounded-lg text-[#C4C7C5] hover:text-white hover:bg-[#1E1F20] transition-colors cursor-pointer"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            )}
-
+      {/* ========================================================================= */}
+      {/* 2. MAIN CONTENT AREA (EXECUTIVE HEADER + GEMINI CHAT CONTAINER)           */}
+      {/* ========================================================================= */}
+      <main className="flex-1 flex flex-col h-full bg-[#0B0C0E] relative overflow-hidden">
+        {/* EXECUTIVE HEADER BAR (PRESERVED NEXUS 2.0 HEADER) */}
+        <header className="h-14 border-b border-[#2D2E30]/70 bg-[#131314]/90 backdrop-blur-md px-4 flex items-center justify-between z-10 shrink-0">
+          <div className="flex items-center space-x-3">
             <button
               onClick={onBackToLanding}
-              className="flex items-center gap-1.5 text-xs text-[#C4C7C5] hover:text-white bg-[#1E1F20] hover:bg-[#282A2C] px-3 py-1.5 rounded-full border border-white/10 transition-all cursor-pointer"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#1E1F20] hover:bg-[#2A2B2D] text-[#C4C7C5] hover:text-white text-xs font-medium border border-[#2D2E30] transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Landing Page</span>
+              <span>Landing Page</span>
             </button>
 
-            {/* Mode Switcher Toggle: Executive Chat ⟷ Swarm Studio */}
-            <div className="flex items-center bg-[#1E1F20] p-1 rounded-full border border-white/10 font-mono text-xs">
+            {/* Toggle Switch between Executive Chat & Agent Swarm Studio */}
+            <div className="flex items-center bg-[#1E1F20] p-0.5 rounded-full border border-[#2D2E30]">
               <button
-                onClick={() => {}}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold shadow-sm transition-all cursor-pointer"
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  activeView === 'chat'
+                    ? 'bg-[#1A73E8] text-white shadow-md'
+                    : 'text-[#888888] hover:text-white'
+                }`}
               >
-                <Bot className="w-3.5 h-3.5" />
-                <span>Executive Chat</span>
+                Executive Chat
               </button>
               <button
                 onClick={onSwitchToSwarm}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[#C4C7C5] hover:text-white transition-all cursor-pointer"
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  activeView === 'swarm'
+                    ? 'bg-[#1A73E8] text-white shadow-md'
+                    : 'text-[#888888] hover:text-white'
+                }`}
               >
-                <GitBranch className="w-3.5 h-3.5 text-[#B2C5FF]" />
-                <span className="hidden sm:inline">Agent Swarm Studio</span>
+                Agent Swarm Studio
               </button>
             </div>
           </div>
 
           {/* Model Switcher & Live KPI Badges */}
-          <div className="flex items-center gap-2.5">
-            {/* Model Selector Dropdown */}
+          <div className="flex items-center space-x-3">
+            {/* Model Dropdown Selector */}
             <div className="relative">
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-[#1E1F20] hover:bg-[#282A2C] border border-white/10 text-white text-xs font-mono rounded-full px-3 py-1.5 pr-7 appearance-none cursor-pointer focus:outline-none focus:border-[#A8C7FA]"
+                className="appearance-none bg-[#1E1F20] text-xs font-medium text-[#E3E3E3] border border-[#2D2E30] rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:border-[#4285F4] cursor-pointer"
               >
                 {GEMINI_MODELS.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-[#1E1F20] text-white">
+                  <option key={m.id} value={m.id}>
                     {m.name} ({m.badge})
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-[#747775] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-[#888888] absolute right-2.5 top-2.5 pointer-events-none" />
             </div>
 
-            {/* Live Financial KPIs */}
-            <div className="hidden xl:flex items-center gap-2 text-xs font-mono">
-              <div className="flex items-center gap-1.5 bg-[#1E1F20] px-3 py-1 rounded-full border border-white/10">
-                <span className="text-[#747775]">Cash:</span>
-                <span className="text-emerald-400 font-semibold">₹8,50,000</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-[#1E1F20] px-3 py-1 rounded-full border border-white/10">
-                <span className="text-[#747775]">Safe Cap:</span>
-                <span className="text-blue-400 font-semibold">₹1,80,000</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-1 rounded-full border border-emerald-500/20 text-emerald-400 text-[11px]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Neon DB Online</span>
-              </div>
+            {/* KPI 1: Cash */}
+            <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
+              <span className="text-[#888888]">Cash:</span>
+              <span className="font-semibold text-[#81C995]">₹8,50,000</span>
+            </div>
+
+            {/* KPI 2: Safe Cap */}
+            <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
+              <span className="text-[#888888]">Safe Cap:</span>
+              <span className="font-semibold text-[#A8C7FA]">₹1,80,000</span>
+            </div>
+
+            {/* KPI 3: Neon DB Status */}
+            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#1E1F20] border border-[#2D2E30] text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
+              <span className="text-[#C4C7C5] font-medium">Neon DB Online</span>
             </div>
           </div>
         </header>
 
-        {/* ================= CHAT MESSAGE STREAM ================= */}
-        <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 max-w-4xl w-full mx-auto pb-36">
-          {/* Empty State: Gemini Style Welcome */}
-          {activeSession.messages.length === 0 ? (
-            <div className="pt-8 sm:pt-16 flex flex-col items-center text-center space-y-6">
-              <div className="w-14 h-14 rounded-2xl bg-[#A8C7FA]/10 border border-[#A8C7FA]/20 flex items-center justify-center shadow-lg shadow-[#A8C7FA]/10">
-                <Sparkles className="w-7 h-7 text-[#A8C7FA]" />
-              </div>
+        {/* CHAT DISPLAY BODY */}
+        <div className="flex-1 overflow-y-auto relative flex flex-col">
+          {/* Radial Ambient Glow (Gemini Dark Theme Backdrop) */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1A73E8]/10 via-[#0B0C0E]/90 to-[#0B0C0E] pointer-events-none" />
 
-              <div className="space-y-2">
-                <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#A8C7FA] via-[#C2E7FF] to-[#E3E3E3]">
-                  Hello, Rahul
+          {currentMessages.length === 0 ? (
+            /* ========================================================================= */
+            /* ZERO MESSAGES / GEMINI CENTERPIECE WELCOME VIEW                           */
+            /* ========================================================================= */
+            <div className="flex-1 flex flex-col items-center justify-center px-4 max-w-4xl mx-auto w-full z-10 py-10">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-[#1E1F20] border border-[#2D2E30] mb-4 shadow-xl shadow-[#1A73E8]/10">
+                  <Sparkles className="w-8 h-8 text-[#A8C7FA] animate-pulse" />
+                </div>
+                <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-white font-heading">
+                  The mic is yours, <span className="bg-gradient-to-r from-[#A8C7FA] via-[#4285F4] to-[#A855F7] bg-clip-text text-transparent font-medium">Rahul</span>
                 </h1>
-                <p className="text-sm sm:text-base text-[#C4C7C5] max-w-lg mx-auto">
-                  How can I help coordinate operations, verify liquidity, and optimize split purchase orders today?
+                <p className="text-[#888888] text-sm mt-2 max-w-md mx-auto">
+                  What supply chain allocation or liquidity optimization can Nexus assist you with today?
                 </p>
               </div>
 
-              {/* 4 Interactive Starter Prompt Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-2xl pt-4 text-left">
-                <div
-                  onClick={() =>
-                    handleSendMessage('Analyze viral creator demand spike (+70%) on P100 Headphones and compute stockout horizon.')
-                  }
-                  className="p-4 rounded-2xl bg-[#1E1F20] border border-white/10 hover:border-[#A8C7FA]/50 hover:bg-[#282A2C] transition-all cursor-pointer group space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs font-semibold text-white">
-                    <span className="flex items-center gap-2 text-[#A8C7FA]">
-                      <Flame className="w-4 h-4 text-amber-400" />
-                      Viral Demand Surge
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#747775] group-hover:translate-x-1 transition-transform" />
-                  </div>
-                  <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                    Simulate a 70% demand spike on SKU P100 and evaluate inventory burn rate vs. safety stock floor.
-                  </p>
-                </div>
+              {/* CENTER FLOATING GEMINI-STYLE INPUT CAPSULE */}
+              <div className="w-full max-w-2xl bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-3xl p-3 shadow-2xl focus-within:border-[#4285F4] transition-all">
+                <textarea
+                  rows={2}
+                  value={inputPrompt}
+                  onChange={(e) => setInputPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendPrompt();
+                    }
+                  }}
+                  placeholder="Ask Nexus to run demand spike solver, audit statutory reserves, or allocate POs..."
+                  className="w-full bg-transparent text-sm text-white placeholder-[#777777] resize-none focus:outline-none px-3 pt-1"
+                />
 
-                <div
-                  onClick={() =>
-                    handleSendMessage('Formulate Google OR-Tools integer solver for Supplier B vs Supplier C split under ₹1.80L cash cap.')
-                  }
-                  className="p-4 rounded-2xl bg-[#1E1F20] border border-white/10 hover:border-emerald-500/50 hover:bg-[#282A2C] transition-all cursor-pointer group space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs font-semibold text-white">
-                    <span className="flex items-center gap-2 text-emerald-400">
-                      <Cpu className="w-4 h-4 text-emerald-400" />
-                      Integer Linear Solver
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#747775] group-hover:translate-x-1 transition-transform" />
+                <div className="flex items-center justify-between pt-2 px-2 border-t border-[#2D2E30]/40">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      className="p-2 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+                      title="Attach context file"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#131314] text-[11px] text-[#A8C7FA] border border-[#2D2E30]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#4285F4]" />
+                      <span>{GEMINI_MODELS.find((m) => m.id === selectedModel)?.name}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                    Solve deterministic split PO across QuickLogix (Net-30) and Zenith (50% Advance).
-                  </p>
-                </div>
 
-                <div
-                  onClick={() =>
-                    handleSendMessage('Verify statutory cash reserve compliance: confirm ₹5,00,000 lock before issuing advance procurement.')
-                  }
-                  className="p-4 rounded-2xl bg-[#1E1F20] border border-white/10 hover:border-blue-500/50 hover:bg-[#282A2C] transition-all cursor-pointer group space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs font-semibold text-white">
-                    <span className="flex items-center gap-2 text-blue-400">
-                      <ShieldCheck className="w-4 h-4 text-blue-400" />
-                      Statutory Reserve Audit
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#747775] group-hover:translate-x-1 transition-transform" />
+                  <div className="flex items-center space-x-2">
+                    <button
+                      className="p-2 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+                      title="Voice Input"
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleSendPrompt()}
+                      disabled={!inputPrompt.trim() || isLoading}
+                      className="p-2 rounded-full bg-[#1A73E8] hover:bg-[#4285F4] disabled:opacity-40 disabled:hover:bg-[#1A73E8] text-white transition-all shadow-md"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
                   </div>
-                  <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                    Verify statutory operating reserve lock and compute maximum safe cash expenditure ceiling.
-                  </p>
                 </div>
+              </div>
 
-                <div
-                  onClick={() =>
-                    handleSendMessage('Inspect SKU P100 stock on hand (170 units) in Neon Cloud PostgreSQL and review reorder threshold.')
-                  }
-                  className="p-4 rounded-2xl bg-[#1E1F20] border border-white/10 hover:border-purple-500/50 hover:bg-[#282A2C] transition-all cursor-pointer group space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs font-semibold text-white">
-                    <span className="flex items-center gap-2 text-purple-400">
-                      <Database className="w-4 h-4 text-purple-400" />
-                      Neon Cloud DB Grounding
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#747775] group-hover:translate-x-1 transition-transform" />
-                  </div>
-                  <p className="text-xs text-[#C4C7C5] leading-relaxed">
-                    Query relational Ground Truth tables across 7 live enterprise databases.
-                  </p>
-                </div>
+              {/* QUICK PROMPT SUGGESTION CHIPS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl mt-8">
+                {SUGGESTED_PROMPTS.map((item, idx) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendPrompt(item.prompt)}
+                      className="flex items-start p-3.5 rounded-2xl bg-[#1E1F20]/60 hover:bg-[#252629] border border-[#2D2E30] hover:border-[#4285F4]/40 text-left transition-all group"
+                    >
+                      <div className="p-2 rounded-xl bg-[#131314] text-[#A8C7FA] group-hover:text-white transition-colors mr-3 shrink-0">
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-white group-hover:text-[#A8C7FA] transition-colors flex items-center justify-between">
+                          <span>{item.title}</span>
+                          <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                        </div>
+                        <div className="text-[11px] text-[#888888] mt-0.5">{item.subtitle}</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (
-            // Message List
-            activeSession.messages.map((msg) => {
-              if (msg.role === 'user') {
-                return (
-                  <div key={msg.id} className="flex items-start justify-end gap-3">
-                    <div className="bg-[#282A2C] text-white border border-white/10 rounded-2xl rounded-tr-sm px-5 py-3.5 text-xs sm:text-sm max-w-2xl leading-relaxed shadow-sm">
-                      {msg.content}
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-[#343638] text-[#C4C7C5] flex items-center justify-center font-bold text-xs shrink-0">
-                      R
-                    </div>
-                  </div>
-                );
-              }
-
-              // Assistant Message (Gemini Style)
-              const isThinkingOpen = expandedThinking[msg.id] ?? false;
-
-              return (
-                <div key={msg.id} className="flex items-start gap-3.5 max-w-4xl">
-                  <div className="w-8 h-8 rounded-full bg-[#A8C7FA]/20 border border-[#A8C7FA]/30 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-4 h-4 text-[#A8C7FA]" />
-                  </div>
-
-                  <div className="space-y-4 flex-1 overflow-hidden">
-                    {/* Expandable Thinking Process Accordion */}
-                    {msg.thinking && (
-                      <div className="border border-[#A8C7FA]/20 bg-[#1E1F20]/70 rounded-xl overflow-hidden text-xs font-mono">
-                        <button
-                          onClick={() =>
-                            setExpandedThinking((prev) => ({
-                              ...prev,
-                              [msg.id]: !isThinkingOpen,
-                            }))
-                          }
-                          className="w-full flex items-center justify-between px-3.5 py-2 text-[#A8C7FA] hover:bg-white/[0.02] transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Activity className="w-3.5 h-3.5 animate-pulse text-[#A8C7FA]" />
-                            <span>
-                              Thought for {msg.thinkingTimeSec || 2.1}s • Multi-Agent Consensus Breakdown
-                            </span>
-                          </div>
-                          <ChevronDown
-                            className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                              isThinkingOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-                        {isThinkingOpen && (
-                          <div className="px-4 py-3 border-t border-white/5 bg-[#131314] text-[#C4C7C5] whitespace-pre-wrap leading-relaxed text-[11px]">
-                            {msg.thinking}
-                          </div>
-                        )}
+            /* ========================================================================= */
+            /* ACTIVE CHAT MESSAGE STREAM                                               */
+            /* ========================================================================= */
+            <div className="flex-1 overflow-y-auto px-4 py-6 max-w-4xl mx-auto w-full space-y-6 z-10">
+              {currentMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col ${
+                    msg.role === 'user' ? 'items-end' : 'items-start'
+                  }`}
+                >
+                  {/* USER MESSAGE */}
+                  {msg.role === 'user' ? (
+                    <div className="flex items-start space-x-2 max-w-2xl">
+                      <div className="bg-[#2A2B2D] text-white text-sm px-4 py-3 rounded-2xl rounded-tr-xs border border-[#3A3B3E]/60 shadow-md">
+                        {msg.content}
                       </div>
-                    )}
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-xs shrink-0">
+                        R
+                      </div>
+                    </div>
+                  ) : (
+                    /* ASSISTANT MESSAGE */
+                    <div className="w-full flex items-start space-x-3">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A855F7] flex items-center justify-center text-white shrink-0 shadow-lg shadow-[#1A73E8]/20">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
 
-                    {/* Main Assistant Body */}
-                    <div className="bg-[#1E1F20] border border-white/10 rounded-2xl p-5 sm:p-6 text-xs sm:text-sm text-[#E3E3E3] leading-relaxed space-y-4 shadow-md">
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
-
-                      {/* Structured Allocation Table Widget (If Generated) */}
-                      {msg.allocationPlan && msg.allocationPlan.length > 0 && (
-                        <div className="mt-4 rounded-xl bg-[#131314] border border-white/10 p-4 space-y-3 font-mono">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-xs text-[#A8C7FA] font-semibold">
-                              <Cpu className="w-4 h-4 text-[#A8C7FA]" />
-                              <span>Integer Linear Solver Split Allocation (ILP)</span>
-                            </div>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                              100% Feasible
-                            </span>
-                          </div>
-
-                          <div className="overflow-x-auto text-[11px]">
-                            <table className="w-full text-left border-collapse">
-                              <thead>
-                                <tr className="border-b border-white/10 text-[#747775]">
-                                  <th className="pb-2">Supplier</th>
-                                  <th className="pb-2">Units</th>
-                                  <th className="pb-2">Unit Cost</th>
-                                  <th className="pb-2">Upfront Cash</th>
-                                  <th className="pb-2">Lead Time</th>
-                                  <th className="pb-2">Payment Terms</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-white/5 text-[#C4C7C5]">
-                                {msg.allocationPlan.map((alloc, idx) => (
-                                  <tr key={idx}>
-                                    <td className="py-2 text-white font-medium">{alloc.supplier}</td>
-                                    <td className="py-2 text-[#A8C7FA] font-bold">{alloc.units}</td>
-                                    <td className="py-2">₹{alloc.unitCost}</td>
-                                    <td className="py-2 text-emerald-400 font-bold">
-                                      ₹{alloc.upfrontCash.toLocaleString()}
-                                    </td>
-                                    <td className="py-2">{alloc.leadTime}</td>
-                                    <td className="py-2 text-xs text-[#747775]">{alloc.paymentTerms}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {/* Purchase Order Execution Trigger */}
-                          <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                            <span className="text-[#747775] text-[11px]">
-                              Total Upfront Spend: <strong className="text-white">₹{msg.totalUpfrontCash?.toLocaleString()}</strong> / ₹1,80,000 Cap
-                            </span>
+                      <div className="flex-1 space-y-3 max-w-3xl">
+                        {/* Thinking Accordion Step */}
+                        {msg.thinking && (
+                          <div className="rounded-xl border border-[#2D2E30] bg-[#1E1F20]/80 overflow-hidden">
                             <button
-                              onClick={() => handleExecuteProcurement(msg.id)}
-                              disabled={msg.isExecuted}
-                              className={`px-4 py-1.5 rounded-full font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-xs ${
-                                msg.isExecuted
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                  : 'bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] shadow-md'
-                              }`}
+                              onClick={() =>
+                                setExpandedThinking((prev) => ({
+                                  ...prev,
+                                  [msg.id]: !prev[msg.id],
+                                }))
+                              }
+                              className="w-full px-3 py-2 flex items-center justify-between text-xs text-[#A8C7FA] hover:bg-[#252628] transition-colors"
                             >
-                              {msg.isExecuted ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Committed to Neon DB ✓</span>
-                                </>
+                              <div className="flex items-center space-x-2">
+                                <Cpu className="w-3.5 h-3.5 text-[#4285F4]" />
+                                <span>
+                                  Thought for {msg.thinkingTimeSec || 2.18}s • Multi-Agent Consensus Breakdown
+                                </span>
+                              </div>
+                              {expandedThinking[msg.id] ? (
+                                <ChevronDown className="w-3.5 h-3.5" />
                               ) : (
-                                <>
-                                  <Zap className="w-3.5 h-3.5" />
-                                  <span>Execute Split PO in Neon DB</span>
-                                </>
+                                <ChevronRight className="w-3.5 h-3.5" />
                               )}
                             </button>
-                          </div>
-                        </div>
-                      )}
 
-                      {/* Action Toolbar */}
-                      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-[#747775]">
-                        <span className="font-mono text-[10px]">
-                          Model: {msg.modelUsed || 'Gemini 3.6 Flash'}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleCopyMessage(msg.id, msg.content)}
-                            className="p-1.5 rounded-md hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer flex items-center gap-1 text-[11px]"
-                            title="Copy Response"
-                          >
-                            {copiedMessageId === msg.id ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
+                            {expandedThinking[msg.id] && (
+                              <div className="p-3 bg-[#131314] text-[11px] font-mono text-[#C4C7C5] border-t border-[#2D2E30] whitespace-pre-wrap leading-relaxed">
+                                {msg.thinking}
+                              </div>
                             )}
-                            <span>{copiedMessageId === msg.id ? 'Copied' : 'Copy'}</span>
-                          </button>
-                          <button
-                            onClick={onSwitchToSwarm}
-                            className="p-1.5 rounded-md hover:text-[#B2C5FF] hover:bg-[#282A2C] transition-colors cursor-pointer flex items-center gap-1 text-[11px]"
-                            title="Inspect in Swarm Studio DAG"
-                          >
-                            <GitBranch className="w-3.5 h-3.5" />
-                            <span>Inspect DAG</span>
-                          </button>
+                          </div>
+                        )}
+
+                        {/* Main Response Markdown Container */}
+                        <div className="bg-[#1E1F20] text-sm text-[#E3E3E3] p-5 rounded-2xl border border-[#2D2E30] shadow-xl space-y-3 leading-relaxed">
+                          <div className="prose prose-invert max-w-none text-xs sm:text-sm">
+                            {msg.content.split('\n').map((line, idx) => {
+                              if (line.startsWith('### ')) {
+                                return (
+                                  <h3 key={idx} className="text-base font-bold text-white mt-2 mb-1">
+                                    {line.replace('### ', '')}
+                                  </h3>
+                                );
+                              }
+                              if (line.startsWith('#### ')) {
+                                return (
+                                  <h4 key={idx} className="text-sm font-semibold text-[#A8C7FA] mt-3 mb-1">
+                                    {line.replace('#### ', '')}
+                                  </h4>
+                                );
+                              }
+                              if (line.startsWith('- ')) {
+                                return (
+                                  <div key={idx} className="flex items-start space-x-2 my-1 text-[#C4C7C5]">
+                                    <span className="text-[#4285F4] mt-1">•</span>
+                                    <span>{line.replace('- ', '')}</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <p key={idx} className="my-1">
+                                  {line}
+                                </p>
+                              );
+                            })}
+                          </div>
+
+                          {/* INTERACTIVE PO SPLIT ALLOCATION CARD */}
+                          {msg.allocationPlan && (
+                            <div className="mt-4 pt-3 border-t border-[#2D2E30]">
+                              <div className="text-xs font-semibold text-white mb-2 flex items-center justify-between">
+                                <span>Recommended PO Split Allocation</span>
+                                <span className="text-[#81C995] font-mono">
+                                  Total Upfront: ₹{msg.totalUpfrontCash?.toLocaleString()}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2">
+                                {msg.allocationPlan.map((po, pIdx) => (
+                                  <div
+                                    key={pIdx}
+                                    className="p-3 rounded-xl bg-[#131314] border border-[#2D2E30] flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2"
+                                  >
+                                    <div>
+                                      <div className="font-semibold text-white">{po.supplier}</div>
+                                      <div className="text-[#888888] text-[11px]">
+                                        {po.units} units @ ₹{po.unitCost}/unit • {po.paymentTerms}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-[#A8C7FA] font-medium">
+                                        Upfront: ₹{po.upfrontCash.toLocaleString()}
+                                      </div>
+                                      <div className="text-[#888888] text-[10px]">Lead Time: {po.leadTime}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="mt-3 flex justify-end">
+                                <button
+                                  onClick={() => handleExecutePOSplit(msg.id)}
+                                  disabled={executedPOs[msg.id]}
+                                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all shadow-md ${
+                                    executedPOs[msg.id]
+                                      ? 'bg-[#34A853]/20 text-[#81C995] border border-[#34A853]/40'
+                                      : 'bg-[#1A73E8] hover:bg-[#4285F4] text-white'
+                                  }`}
+                                >
+                                  {executedPOs[msg.id] ? (
+                                    <>
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>PO Split Executed & Transmitted</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="w-3.5 h-3.5" />
+                                      <span>Approve & Transmit PO Split</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Message Action Footer Bar */}
+                          <div className="flex items-center justify-between pt-2 border-t border-[#2D2E30]/40 text-xs text-[#888888]">
+                            <div className="text-[11px] font-mono">
+                              Model: {msg.modelUsed || selectedModel} • {msg.timestamp}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => handleCopy(msg.id, msg.content)}
+                                className="p-1 hover:text-white transition-colors"
+                                title="Copy response"
+                              >
+                                {copiedMsgId === msg.id ? (
+                                  <Check className="w-3.5 h-3.5 text-green-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  )}
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] to-[#A855F7] flex items-center justify-center text-white shrink-0 animate-spin">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="bg-[#1E1F20] px-4 py-3 rounded-2xl border border-[#2D2E30] text-xs text-[#A8C7FA] flex items-center space-x-2">
+                    <span className="w-2 h-2 rounded-full bg-[#1A73E8] animate-ping" />
+                    <span>Orchestrating multi-agent integer linear programming solver...</span>
                   </div>
                 </div>
-              );
-            })
-          )}
+              )}
 
-          {/* Loading Indicator */}
-          {isLoading && (
-            <div className="flex items-start gap-3.5 max-w-4xl">
-              <div className="w-8 h-8 rounded-full bg-[#A8C7FA]/20 border border-[#A8C7FA]/30 flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4 text-[#A8C7FA] animate-spin" />
-              </div>
-              <div className="bg-[#1E1F20] border border-white/10 rounded-2xl p-4 space-y-2 flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#A8C7FA] animate-bounce" />
-                <div className="w-2 h-2 rounded-full bg-[#A8C7FA] animate-bounce [animation-delay:0.2s]" />
-                <div className="w-2 h-2 rounded-full bg-[#A8C7FA] animate-bounce [animation-delay:0.4s]" />
-                <span className="text-xs font-mono text-[#A8C7FA] ml-2">
-                  Gemini Orchestrator formulating multi-agent decision...
-                </span>
-              </div>
+              <div ref={messagesEndRef} />
             </div>
           )}
+        </div>
 
-          <div ref={chatBottomRef} />
-        </main>
-
-        {/* ================= FLOATING GEMINI BOTTOM PROMPT BAR ================= */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-[#131313] via-[#131313]/90 to-transparent pointer-events-none">
-          <div className="max-w-4xl mx-auto pointer-events-auto space-y-2">
-            {/* Quick Demand Surge Drawer Popover */}
-            {surgeSliderOpen && (
-              <div className="bg-[#1E1F20] border border-[#A8C7FA]/30 rounded-2xl p-4 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono mb-2">
-                <div className="flex items-center gap-2 text-white">
-                  <Flame className="w-4 h-4 text-amber-400" />
-                  <span>Demand Surge Multiplier:</span>
-                  <span className="text-[#A8C7FA] font-bold text-sm">+{surgeMultiplier}%</span>
-                </div>
-                <div className="flex items-center gap-3 flex-1 max-w-md">
-                  <span className="text-[10px] text-[#747775]">+20%</span>
-                  <input
-                    type="range"
-                    min="20"
-                    max="150"
-                    step="5"
-                    value={surgeMultiplier}
-                    onChange={(e) => setSurgeMultiplier(Number(e.target.value))}
-                    className="flex-1 accent-[#A8C7FA] h-2 bg-[#282A2C] rounded-lg cursor-pointer"
-                  />
-                  <span className="text-[10px] text-[#747775]">+150%</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setSurgeSliderOpen(false);
-                    handleSendMessage(`Run solver under +${surgeMultiplier}% viral demand spike on SKU P100.`);
-                  }}
-                  className="px-3 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold hover:bg-[#A8C7FA] transition-all cursor-pointer"
-                >
-                  Apply & Run
-                </button>
-              </div>
-            )}
-
-            {/* Main Rounded Input Bar */}
-            <div className="bg-[#1E1F20]/95 backdrop-blur-xl border border-white/15 rounded-3xl p-2.5 sm:p-3 flex items-end gap-2 shadow-2xl focus-within:border-[#A8C7FA]/60 transition-all">
-              {/* Attachment / Action Tools */}
-              <div className="flex items-center gap-1 pb-1 pl-1">
-                <button
-                  onClick={() => setSurgeSliderOpen(!surgeSliderOpen)}
-                  className={`p-2 rounded-full transition-colors cursor-pointer ${
-                    surgeSliderOpen ? 'bg-[#A8C7FA] text-[#001E2C]' : 'text-[#C4C7C5] hover:text-white hover:bg-[#282A2C]'
-                  }`}
-                  title="Simulate Demand Surge Slider"
-                >
-                  <Sliders className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleSendMessage('Query inventory stock on hand in Neon PostgreSQL and evaluate safety buffers.')}
-                  className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer hidden sm:inline-flex"
-                  title="Query Ground Truth Database"
-                >
-                  <Database className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Textarea Input */}
+        {/* FLOATING BOTTOM INPUT CAPSULE (WHEN MESSAGES ARE ACTIVE) */}
+        {currentMessages.length > 0 && (
+          <div className="p-4 z-10 shrink-0 max-w-4xl mx-auto w-full">
+            <div className="bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-3xl p-3 shadow-2xl focus-within:border-[#4285F4] transition-all">
               <textarea
-                ref={textareaRef}
+                rows={1}
                 value={inputPrompt}
-                onChange={handleTextareaChange}
+                onChange={(e) => setInputPrompt(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSendMessage();
+                    handleSendPrompt();
                   }
                 }}
-                placeholder="Ask Nexus to run demand spike solver, audit statutory reserves, or allocate purchase orders..."
-                rows={1}
-                className="flex-1 bg-transparent text-white text-xs sm:text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 leading-relaxed placeholder:text-[#747775]"
+                placeholder="Ask Nexus to run demand spike solver, audit statutory reserves..."
+                className="w-full bg-transparent text-sm text-white placeholder-[#777777] resize-none focus:outline-none px-3"
               />
 
-              {/* Trailing Controls & Send Button */}
-              <div className="flex items-center gap-1.5 pb-1 pr-1">
-                <div className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-[#282A2C] border border-white/10 text-[#747775] text-[10px] font-mono">
-                  Enter ↵
+              <div className="flex items-center justify-between pt-2 px-2 border-t border-[#2D2E30]/40">
+                <div className="flex items-center space-x-2">
+                  <button className="p-1.5 rounded-full text-[#888888] hover:text-white transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <span className="text-[11px] text-[#A8C7FA] bg-[#131314] px-2 py-0.5 rounded-full border border-[#2D2E30]">
+                    {GEMINI_MODELS.find((m) => m.id === selectedModel)?.name}
+                  </span>
                 </div>
-                <button
-                  onClick={() => handleSendMessage()}
-                  disabled={!inputPrompt.trim() || isLoading}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                    inputPrompt.trim() && !isLoading
-                      ? 'bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] shadow-md scale-100'
-                      : 'bg-[#282A2C] text-[#747775] cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  <Send className="w-4 h-4" />
-                </button>
+
+                <div className="flex items-center space-x-2">
+                  <button className="p-1.5 rounded-full text-[#888888] hover:text-white transition-colors">
+                    <Mic className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleSendPrompt()}
+                    disabled={!inputPrompt.trim() || isLoading}
+                    className="p-2 rounded-full bg-[#1A73E8] hover:bg-[#4285F4] disabled:opacity-40 text-white transition-all shadow-md"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-
-            {/* Disclaimer Subtitle */}
-            <p className="text-center text-[#747775] text-[11px] font-mono">
+            <div className="text-center text-[10px] text-[#777777] mt-2">
               Nexus 2.0 AI generates verifiable operations intelligence grounded in Neon Cloud PostgreSQL.
-            </p>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+      </main>
 
-      {/* ================= SETTINGS MODAL ================= */}
-      {settingsOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1E1F20] border border-white/15 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
+      {/* API KEY SETTINGS MODAL */}
+      {apiKeyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#1E1F20] border border-[#3A3B3E] rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
                 <Settings className="w-4 h-4 text-[#A8C7FA]" />
-                <h3 className="text-sm font-semibold text-white font-headline">Enterprise Configuration</h3>
-              </div>
+                <span>Gemini API Key Settings</span>
+              </h3>
               <button
-                onClick={() => setSettingsOpen(false)}
-                className="text-[#747775] hover:text-white transition-colors"
+                onClick={() => setApiKeyModalOpen(false)}
+                className="text-[#888888] hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveApiKey} className="space-y-4 text-xs font-mono">
-              <div className="space-y-1.5">
-                <label className="text-[#C4C7C5] block">Google Gemini API Key:</label>
-                <input
-                  type="password"
-                  value={customApiKey}
-                  onChange={(e) => setCustomApiKey(e.target.value)}
-                  placeholder="Enter Gemini API key..."
-                  className="w-full bg-[#131314] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#A8C7FA]"
-                />
-                <p className="text-[10px] text-[#747775]">
-                  Active key: {customApiKey ? `••••${customApiKey.slice(-6)}` : 'Default Key'}
-                </p>
-              </div>
+            <p className="text-xs text-[#888888] mb-4">
+              Configure your Google Gemini API key to activate high-performance operational reasoning.
+            </p>
 
-              <div className="space-y-1.5">
-                <label className="text-[#C4C7C5] block">Neon PostgreSQL Ground Truth:</label>
-                <div className="bg-[#131314] border border-white/10 rounded-xl p-3 text-[11px] text-emerald-400 flex items-center justify-between">
-                  <span>db.neondb.azure.com:5432</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                </div>
-              </div>
+            <input
+              type="password"
+              placeholder="Enter Gemini API Key..."
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4] mb-4"
+            />
 
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(false)}
-                  className="px-4 py-2 rounded-full bg-[#282A2C] text-[#C4C7C5] hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold hover:bg-[#A8C7FA] transition-all"
-                >
-                  {apiKeySaved ? 'Saved ✓' : 'Save Config'}
-                </button>
-              </div>
-            </form>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setApiKeyModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#2A2B2D] text-xs text-[#C4C7C5] hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (apiKeyInput.trim()) {
+                    geminiService.setApiKey(apiKeyInput.trim());
+                  }
+                  setApiKeyModalOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-[#1A73E8] hover:bg-[#4285F4] text-xs text-white font-medium"
+              >
+                Save Settings
+              </button>
+            </div>
           </div>
         </div>
       )}
