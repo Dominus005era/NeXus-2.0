@@ -93,8 +93,8 @@ const DEFAULT_NODES: NodeData[] = [
     latency: '< 1ms',
     x: 60,
     y: 280,
-    width: 245,
-    height: 190,
+    width: 240,
+    height: 180,
     iconBg: 'bg-[#A8C7FA]/10',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]/40',
@@ -110,10 +110,10 @@ const DEFAULT_NODES: NodeData[] = [
     model: 'Gemini 3.6 Flash (Default)',
     modelProvider: 'Google',
     latency: '4.2ms',
-    x: 375,
+    x: 360,
     y: 260,
-    width: 265,
-    height: 225,
+    width: 260,
+    height: 220,
     iconBg: 'bg-[#A8C7FA]/20',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]',
@@ -129,9 +129,9 @@ const DEFAULT_NODES: NodeData[] = [
     model: 'Gemini 3.6 Flash (High-Throughput)',
     modelProvider: 'Google',
     latency: '8.2ms',
-    x: 720,
+    x: 700,
     y: 90,
-    width: 255,
+    width: 250,
     height: 175,
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
@@ -148,9 +148,9 @@ const DEFAULT_NODES: NodeData[] = [
     model: 'GPT-4o Mini (Tactical)',
     modelProvider: 'OpenAI',
     latency: '6.4ms',
-    x: 720,
+    x: 700,
     y: 290,
-    width: 255,
+    width: 250,
     height: 175,
     iconBg: 'bg-amber-500/10',
     iconColor: 'text-amber-400',
@@ -167,9 +167,9 @@ const DEFAULT_NODES: NodeData[] = [
     model: 'Gemini 1.5 Pro (2M Context)',
     modelProvider: 'Google',
     latency: '9.1ms',
-    x: 720,
+    x: 700,
     y: 490,
-    width: 255,
+    width: 250,
     height: 175,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
@@ -186,10 +186,10 @@ const DEFAULT_NODES: NodeData[] = [
     model: 'Google OR-Tools ILP v9.8 (Exact)',
     modelProvider: 'Nexus Formal',
     latency: '2.4ms',
-    x: 1060,
+    x: 1030,
     y: 250,
-    width: 275,
-    height: 245,
+    width: 270,
+    height: 240,
     iconBg: 'bg-purple-500/10',
     iconColor: 'text-purple-400',
     borderColor: 'border-purple-500/60',
@@ -205,10 +205,10 @@ const DEFAULT_NODES: NodeData[] = [
     model: 'Neon Cloud Postgres (asyncpg)',
     modelProvider: 'Neon',
     latency: '1.8ms',
-    x: 1415,
+    x: 1380,
     y: 280,
-    width: 255,
-    height: 205,
+    width: 250,
+    height: 200,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/60',
@@ -226,8 +226,8 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [nodes, setNodes] = useState<NodeData[]>(DEFAULT_NODES);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 30, y: 20 });
   const [zoom, setZoom] = useState<number>(0.92);
-  const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [isPanMode, setIsPanMode] = useState<boolean>(false);
+  const [showGrid, setShowGrid] = useState<boolean>(true);
 
   // Simulation & Pipeline State
   const [simSurge, setSimSurge] = useState<number>(70);
@@ -236,35 +236,8 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [executed, setExecuted] = useState<boolean>(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
-  const [showGrid, setShowGrid] = useState<boolean>(true);
-  const [showModelRoster, setShowModelRoster] = useState<boolean>(true);
 
-  const canvasRef = useRef<HTMLDivElement>(null);
-
-  // Robust Ref to track Drag & Pan mechanics without dropping locks
-  const dragTracker = useRef<{
-    isDraggingNode: boolean;
-    nodeId: string | null;
-    isPanning: boolean;
-    startX: number;
-    startY: number;
-    initialNodeX: number;
-    initialNodeY: number;
-    initialPanX: number;
-    initialPanY: number;
-    hasMoved: boolean;
-  }>({
-    isDraggingNode: false,
-    nodeId: null,
-    isPanning: false,
-    startX: 0,
-    startY: 0,
-    initialNodeX: 0,
-    initialNodeY: 0,
-    initialPanX: 0,
-    initialPanY: 0,
-    hasMoved: false,
-  });
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Dynamic real-time calculations
   const sim = useMemo(() => {
@@ -276,8 +249,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     const rawHorizon = (currentStock - safetyStock) / velocity;
     const horizonDays = Number(Math.max(0.1, rawHorizon).toFixed(2));
     const deficitUnits = Math.max(0, forecast7d + safetyStock - currentStock);
-    
-    // Split PO allocation
+
     const supplierBUnits = Math.min(400, deficitUnits);
     const supplierCUnits = Math.max(0, deficitUnits - supplierBUnits);
     const costB = supplierBUnits * 477;
@@ -300,829 +272,552 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     };
   }, [simSurge]);
 
-  // Selected node inspection object
-  const inspectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
+  // =========================================================================
+  // ROBUST DRAG & DROP MECHANICS (GLOBAL WINDOW EVENT LISTENERS - NO STICKING)
+  // =========================================================================
+  const handleNodePointerDown = (nodeId: string, e: React.PointerEvent) => {
+    e.stopPropagation();
+    
+    // Prevent default drag behaviors
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const targetNode = nodes.find((n) => n.id === nodeId);
+    if (!targetNode) return;
 
-  // Zoom controls
-  const handleZoom = (delta: number) => {
-    setZoom((prev) => Math.min(1.8, Math.max(0.4, Number((prev + delta).toFixed(2)))));
+    const initialX = targetNode.x;
+    const initialY = targetNode.y;
+    let isDragging = false;
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const dx = (moveEvent.clientX - startX) / zoom;
+      const dy = (moveEvent.clientY - startY) / zoom;
+
+      // 5px threshold to distinguish click from drag
+      if (!isDragging && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 5) {
+        isDragging = true;
+      }
+
+      if (isDragging) {
+        setNodes((prevNodes) =>
+          prevNodes.map((n) =>
+            n.id === nodeId ? { ...n, x: Math.round(initialX + dx), y: Math.round(initialY + dy) } : n
+          )
+        );
+      }
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+
+      if (!isDragging) {
+        // Toggle or select node inspector drawer on click
+        setSelectedNodeId(nodeId);
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
   };
 
-  const handleResetCanvas = () => {
+  // Canvas Pan Handler
+  const handleCanvasPointerDown = (e: React.PointerEvent) => {
+    if (e.target !== canvasContainerRef.current && !(e.target as HTMLElement).classList.contains('canvas-bg')) {
+      return;
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialPanX = pan.x;
+    const initialPanY = pan.y;
+
+    const onPanMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      setPan({ x: initialPanX + dx, y: initialPanY + dy });
+    };
+
+    const onPanUp = () => {
+      window.removeEventListener('pointermove', onPanMove);
+      window.removeEventListener('pointerup', onPanUp);
+    };
+
+    window.addEventListener('pointermove', onPanMove);
+    window.addEventListener('pointerup', onPanUp);
+  };
+
+  // Canvas Wheel Zoom Handler
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      setZoom((prev) => Math.min(1.8, Math.max(0.4, prev * zoomFactor)));
+    } else {
+      setPan((prev) => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+    }
+  };
+
+  // Auto Layout Alignment
+  const handleResetLayout = () => {
+    setNodes(DEFAULT_NODES);
     setPan({ x: 30, y: 20 });
     setZoom(0.92);
-    setNodes(DEFAULT_NODES);
   };
 
-  // Change model for a specific agent node
-  const handleModelChange = (nodeId: string, newModel: string) => {
+  // Pipeline Propagation Simulation Trigger
+  const handleRunPropagation = () => {
+    if (isPropagating) return;
+    setIsPropagating(true);
+    setExecuted(false);
+    setActiveStep(1);
+
+    const steps = [1, 2, 3, 4, 5];
+    steps.forEach((step, index) => {
+      setTimeout(() => {
+        setActiveStep(step);
+        if (step === 5) {
+          setIsPropagating(false);
+          setExecuted(true);
+          confetti({
+            particleCount: 80,
+            spread: 60,
+            origin: { y: 0.6 },
+          });
+        }
+      }, (index + 1) * 750);
+    });
+  };
+
+  // Model update handler in inspector drawer
+  const handleUpdateNodeModel = (nodeId: string, newModel: string) => {
     setNodes((prev) =>
       prev.map((n) => (n.id === nodeId ? { ...n, model: newModel } : n))
     );
   };
 
-  // Global Window Mouse Listeners for 100% Reliable Drag & Pan
-  useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      const tracker = dragTracker.current;
-      if (tracker.isDraggingNode && tracker.nodeId) {
-        const dx = (e.clientX - tracker.startX) / zoom;
-        const dy = (e.clientY - tracker.startY) / zoom;
-        if (Math.hypot(dx, dy) > 4) {
-          tracker.hasMoved = true;
-        }
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
-        setNodes((prevNodes) =>
-          prevNodes.map((n) => {
-            if (n.id === tracker.nodeId) {
-              return {
-                ...n,
-                x: Math.round(tracker.initialNodeX + dx),
-                y: Math.round(tracker.initialNodeY + dy),
-              };
-            }
-            return n;
-          })
-        );
-      } else if (tracker.isPanning) {
-        const dx = e.clientX - tracker.startX;
-        const dy = e.clientY - tracker.startY;
-        if (Math.hypot(dx, dy) > 4) {
-          tracker.hasMoved = true;
-        }
-        setPan({
-          x: tracker.initialPanX + dx,
-          y: tracker.initialPanY + dy,
-        });
-      }
-    };
+  // SVG Connection helper (Cubic Bezier path)
+  const renderConnection = (fromId: string, toId: string, activeStageTarget: number) => {
+    const fromNode = nodes.find((n) => n.id === fromId);
+    const toNode = nodes.find((n) => n.id === toId);
+    if (!fromNode || !toNode) return null;
 
-    const handleGlobalMouseUp = () => {
-      const tracker = dragTracker.current;
-      if (tracker.isDraggingNode && tracker.nodeId && !tracker.hasMoved) {
-        // Pure click without movement: open node inspector
-        setSelectedNodeId(tracker.nodeId);
-      }
+    const x1 = fromNode.x + fromNode.width;
+    const y1 = fromNode.y + fromNode.height / 2;
+    const x2 = toNode.x;
+    const y2 = toNode.y + toNode.height / 2;
 
-      tracker.isDraggingNode = false;
-      tracker.nodeId = null;
-      tracker.isPanning = false;
-      setDraggingNodeId(null);
-      setIsPanning(false);
-    };
+    const dx = Math.max(40, (x2 - x1) * 0.45);
+    const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [zoom]);
+    const isPathActive = activeStep >= activeStageTarget;
 
-  // Mouse Wheel Pan & Zoom
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-      const zoomFactor = e.deltaY < 0 ? 0.08 : -0.08;
-      handleZoom(zoomFactor);
-    } else {
-      setPan((prev) => ({
-        x: prev.x - e.deltaX * 0.7,
-        y: prev.y - e.deltaY * 0.7,
-      }));
-    }
-  };
-
-  // Start Canvas Pan
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // Only primary left click
-    const tracker = dragTracker.current;
-    tracker.isPanning = true;
-    tracker.isDraggingNode = false;
-    tracker.nodeId = null;
-    tracker.hasMoved = false;
-    tracker.startX = e.clientX;
-    tracker.startY = e.clientY;
-    tracker.initialPanX = pan.x;
-    tracker.initialPanY = pan.y;
-    setIsPanning(true);
-  };
-
-  // Start Node Drag
-  const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (e.button !== 0) return;
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    const tracker = dragTracker.current;
-    tracker.isDraggingNode = true;
-    tracker.nodeId = nodeId;
-    tracker.isPanning = false;
-    tracker.hasMoved = false;
-    tracker.startX = e.clientX;
-    tracker.startY = e.clientY;
-    tracker.initialNodeX = node.x;
-    tracker.initialNodeY = node.y;
-    setDraggingNodeId(nodeId);
-  };
-
-  // Step-by-step pipeline execution
-  const handleRunPipeline = () => {
-    setIsPropagating(true);
-    setActiveStep(1);
-
-    const t1 = setTimeout(() => setActiveStep(2), 500);
-    const t2 = setTimeout(() => setActiveStep(3), 1100);
-    const t3 = setTimeout(() => setActiveStep(4), 1800);
-    const t4 = setTimeout(() => {
-      setActiveStep(5);
-      setIsPropagating(false);
-      confetti({
-        particleCount: 90,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#A8C7FA', '#B2C5FF', '#22c55e', '#ffffff'],
-      });
-    }, 2500);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  };
-
-  const handleCommitOrder = () => {
-    confetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#22c55e', '#A8C7FA', '#ffffff'],
-    });
-    setExecuted(true);
-  };
-
-  const handleCopyLog = () => {
-    navigator.clipboard.writeText(
-      `[NEXUS SWARM PIPELINE TRACE]\nStep 1 (CEO): Directive VIRAL_DEMAND_SPIKE_P100 (+${simSurge}%)\nStep 2 (Orchestrator): Deconstructed into 3 worker tasks (4.2ms)\nStep 3 (Workers): Sales (${sim.velocity} u/d) | Inventory (${sim.horizonDays}d stockout) | Finance (₹1.80L cap)\nStep 4 (ILP Solver): Feasible. Allocated 400u (QuickLogix, Net-30) + ${sim.supplierCUnits}u (Zenith, 50% Adv, ₹${sim.upfrontCash.toLocaleString()} upfront)\nStep 5 (Neon DB): Transaction Verified & Committed.`
+    return (
+      <g key={`${fromId}-${toId}`}>
+        {/* Outer Glow Path */}
+        <path
+          d={pathD}
+          fill="none"
+          stroke={isPathActive ? '#4285F4' : '#2D2E30'}
+          strokeWidth={isPathActive ? 3 : 1.5}
+          strokeOpacity={isPathActive ? 0.8 : 0.4}
+        />
+        {/* Animated Dashed Flow Line */}
+        {isPathActive && (
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#A8C7FA"
+            strokeWidth={2.5}
+            strokeDasharray="6,6"
+            className="animate-pulse"
+          />
+        )}
+      </g>
     );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
-
-  // Helper to compute smooth Bézier curves between node sockets
-  const getNodeSocket = (nodeId: string, side: 'left' | 'right') => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return { x: 0, y: 0 };
-    return {
-      x: side === 'left' ? node.x : node.x + node.width,
-      y: node.y + node.height / 2,
-    };
-  };
-
-  const getBezierPath = (x1: number, y1: number, x2: number, y2: number) => {
-    const dx = Math.max(40, Math.abs(x2 - x1) * 0.45);
-    return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-  };
-
-  // Define active pipeline links
-  const links = useMemo(() => {
-    return [
-      { from: 'node-ceo', to: 'node-orchestrator', active: activeStep >= 2, color: '#A8C7FA' },
-      { from: 'node-orchestrator', to: 'node-sales', active: activeStep >= 3, color: '#60A5FA' },
-      { from: 'node-orchestrator', to: 'node-inventory', active: activeStep >= 3, color: '#FBBF24' },
-      { from: 'node-orchestrator', to: 'node-finance', active: activeStep >= 3, color: '#34D399' },
-      { from: 'node-sales', to: 'node-solver', active: activeStep >= 4, color: '#60A5FA' },
-      { from: 'node-inventory', to: 'node-solver', active: activeStep >= 4, color: '#FBBF24' },
-      { from: 'node-finance', to: 'node-solver', active: activeStep >= 4, color: '#34D399' },
-      { from: 'node-solver', to: 'node-db', active: activeStep >= 5, color: '#A855F7' },
-    ];
-  }, [activeStep]);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#131313] text-[#E3E3E3] font-sans overflow-hidden select-none">
-      {/* ================= TOP HEADER ================= */}
-      <header className="sticky top-0 z-30 bg-[#131313]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-6 py-2.5 flex items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-screen w-full bg-[#0B0C0E] text-[#E3E3E3] font-sans overflow-hidden select-none">
+      {/* ========================================================================= */}
+      {/* 1. EXECUTIVE HEADER BAR (PRESERVED NEXUS 2.0 HEADER)                     */}
+      {/* ========================================================================= */}
+      <header className="h-14 border-b border-[#2D2E30]/70 bg-[#131314]/90 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0">
+        <div className="flex items-center space-x-3">
           <button
             onClick={onBackToLanding}
-            className="flex items-center gap-1.5 text-xs text-[#C4C7C5] hover:text-white bg-[#1E1F20] hover:bg-[#282A2C] px-3 py-1.5 rounded-full border border-white/10 transition-all cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#1E1F20] hover:bg-[#2A2B2D] text-[#C4C7C5] hover:text-white text-xs font-medium border border-[#2D2E30] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Landing Page</span>
+            <span>Landing Page</span>
           </button>
 
-          {/* Mode Switcher Toggle */}
-          <div className="flex items-center bg-[#1E1F20] p-1 rounded-full border border-white/10 font-mono text-xs">
+          {/* Toggle Switch between Executive Chat & Agent Swarm Studio */}
+          <div className="flex items-center bg-[#1E1F20] p-0.5 rounded-full border border-[#2D2E30]">
             <button
               onClick={onSwitchToChat}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[#C4C7C5] hover:text-white transition-all cursor-pointer"
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                activeView === 'chat'
+                  ? 'bg-[#1A73E8] text-white shadow-md'
+                  : 'text-[#888888] hover:text-white'
+              }`}
             >
-              <Bot className="w-3.5 h-3.5 text-[#A8C7FA]" />
-              <span className="hidden sm:inline">Executive Chat</span>
+              Executive Chat
             </button>
             <button
-              onClick={() => {}}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold shadow-sm transition-all cursor-pointer"
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                activeView === 'swarm'
+                  ? 'bg-[#1A73E8] text-white shadow-md'
+                  : 'text-[#888888] hover:text-white'
+              }`}
             >
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>Agent Swarm Studio</span>
+              Agent Swarm Studio
             </button>
           </div>
         </div>
 
-        {/* Live Metrics Ribbon */}
-        <div className="flex items-center gap-2.5 text-xs font-mono">
-          <div className="hidden md:flex items-center gap-1.5 bg-[#1E1F20] px-3 py-1 rounded-full border border-white/10">
-            <span className="text-[#747775]">Cash:</span>
-            <span className="text-emerald-400 font-semibold">₹8,50,000</span>
+        {/* Live KPI Indicators & Actions */}
+        <div className="flex items-center space-x-3">
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
+            <span className="text-[#888888]">Order Velocity:</span>
+            <span className="font-semibold text-blue-400">{sim.velocity} u/d</span>
           </div>
-          <div className="hidden md:flex items-center gap-1.5 bg-[#1E1F20] px-3 py-1 rounded-full border border-white/10">
-            <span className="text-[#747775]">Safe Spend:</span>
-            <span className="text-blue-400 font-semibold">₹1,80,000</span>
+
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
+            <span className="text-[#888888]">Safe Cap:</span>
+            <span className="font-semibold text-[#A8C7FA]">₹1,80,000</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-1 rounded-full border border-emerald-500/20 text-emerald-400 text-[11px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Interactive Canvas Mode</span>
+
+          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#1E1F20] border border-[#2D2E30] text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
+            <span className="text-[#C4C7C5] font-medium">DAG Swarm Online</span>
           </div>
         </div>
       </header>
 
-      {/* ================= FLOATING CANVAS TOOLBAR & MODEL ROSTER ================= */}
-      <div className="bg-[#171819] border-b border-white/5 px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 z-20">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Network className="w-4 h-4 text-[#A8C7FA]" />
-            <span className="text-xs font-semibold text-white font-headline">
-              Interactive Swarm Network Graph
+      {/* ========================================================================= */}
+      {/* 2. MAIN SWARM CANVAS & CONTROLS CONTAINER                                 */}
+      {/* ========================================================================= */}
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* LEFT SIMULATION CONTROLS OVERLAY PANEL */}
+        <div className="absolute top-4 left-4 z-20 w-72 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-2xl p-4 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b border-[#2D2E30] pb-2.5">
+            <div className="flex items-center space-x-2">
+              <Zap className="w-4 h-4 text-[#A8C7FA]" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Surge Simulation
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#131314] text-[#A8C7FA] border border-[#2D2E30]">
+              P100 Headphones
             </span>
           </div>
-          
-          <button
-            onClick={() => setShowModelRoster(!showModelRoster)}
-            className={`text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
-              showModelRoster ? 'bg-[#A8C7FA]/10 text-[#A8C7FA] border-[#A8C7FA]/30' : 'bg-[#1E1F20] text-[#747775] border-white/10'
-            }`}
-          >
-            <Cpu className="w-3 h-3" />
-            <span>Active Model Lineup</span>
-          </button>
-        </div>
 
-        {/* Demand Surge Slider & Pipeline Trigger */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-[#1E1F20] px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-mono">
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-[#747775]">Demand Surge:</span>
+          {/* Surge Multiplier Slider */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#888888]">Demand Spike Surge:</span>
+              <span className="font-bold text-amber-400 font-mono">+{simSurge}%</span>
+            </div>
             <input
               type="range"
-              min="20"
-              max="150"
+              min="10"
+              max="200"
               step="5"
               value={simSurge}
               onChange={(e) => setSimSurge(Number(e.target.value))}
-              className="w-24 sm:w-32 accent-[#A8C7FA] cursor-pointer h-1.5 bg-[#282A2C] rounded-lg"
+              className="w-full h-1.5 bg-[#2D2E30] rounded-lg appearance-none cursor-pointer accent-[#1A73E8]"
             />
-            <span className="text-[#A8C7FA] font-bold">+{simSurge}%</span>
           </div>
 
+          {/* Real-Time Metrics Table */}
+          <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
+              <div className="text-[10px] text-[#888888]">Velocity</div>
+              <div className="font-semibold text-white mt-0.5">{sim.velocity} u/day</div>
+            </div>
+
+            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
+              <div className="text-[10px] text-[#888888]">Stockout Floor</div>
+              <div className="font-semibold text-amber-400 mt-0.5">{sim.horizonDays} days</div>
+            </div>
+
+            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
+              <div className="text-[10px] text-[#888888]">Deficit Reorder</div>
+              <div className="font-semibold text-blue-400 mt-0.5">{sim.deficitUnits} units</div>
+            </div>
+
+            <div className="bg-[#131314] p-2 rounded-xl border border-[#2D2E30]">
+              <div className="text-[10px] text-[#888888]">Upfront Cash</div>
+              <div className="font-semibold text-[#81C995] mt-0.5">₹{sim.upfrontCash.toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Trigger Simulation Button */}
           <button
-            onClick={handleRunPipeline}
+            onClick={handleRunPropagation}
             disabled={isPropagating}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold hover:bg-[#A8C7FA] transition-all text-xs cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
+            className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition-all shadow-lg ${
+              isPropagating
+                ? 'bg-[#1A73E8]/50 text-white cursor-not-allowed'
+                : 'bg-[#1A73E8] hover:bg-[#4285F4] text-white'
+            }`}
           >
-            <Play className={`w-3.5 h-3.5 ${isPropagating ? 'animate-spin' : ''}`} />
-            <span>{isPropagating ? 'Propagating Signal...' : 'Run Pipeline'}</span>
+            {isPropagating ? (
+              <>
+                <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Propagating Swarm Pipeline...</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Run Swarm Pipeline Simulation</span>
+              </>
+            )}
           </button>
         </div>
-      </div>
 
-      {/* ================= MODEL ROSTER RIBBON ================= */}
-      {showModelRoster && (
-        <div className="bg-[#131314] border-b border-white/5 px-4 md:px-6 py-2 overflow-x-auto shrink-0 flex items-center gap-3 text-[11px] font-mono">
-          <span className="text-[#747775] uppercase text-[10px] shrink-0">Model Lineup:</span>
-          
-          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
-            <span className="text-[#747775]">Orchestrator:</span>
-            <span className="text-[#A8C7FA] font-semibold">Gemini 3.6 Flash</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
-            <span className="text-[#747775]">Sales:</span>
-            <span className="text-blue-400 font-semibold">Gemini 3.6 Flash</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
-            <span className="text-[#747775]">Inventory:</span>
-            <span className="text-amber-400 font-semibold">GPT-4o Mini</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
-            <span className="text-[#747775]">Finance:</span>
-            <span className="text-emerald-400 font-semibold">Gemini 1.5 Pro</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-[#1E1F20] px-2.5 py-0.5 rounded-md border border-white/10 shrink-0">
-            <span className="text-[#747775]">Solver:</span>
-            <span className="text-purple-400 font-semibold">Google OR-Tools ILP</span>
-          </div>
-        </div>
-      )}
-
-      {/* ================= INFINITE PAN & ZOOM CANVAS ================= */}
-      <div
-        ref={canvasRef}
-        onWheel={handleWheel}
-        onMouseDown={handleCanvasMouseDown}
-        className={`flex-1 w-full h-full relative overflow-hidden ${
-          isPanning ? 'cursor-grabbing' : 'cursor-grab'
-        } ${
-          showGrid
-            ? 'bg-[radial-gradient(#ffffff15_1.2px,transparent_1.2px)] [background-size:24px_24px]'
-            : 'bg-[#131313]'
-        }`}
-        style={{
-          backgroundColor: '#131313',
-        }}
-      >
-        {/* Transformable Canvas Layer */}
+        {/* INTERACTIVE CANVAS FIELD */}
         <div
-          className="absolute inset-0 origin-top-left transition-transform duration-75 ease-out pointer-events-none"
+          ref={canvasContainerRef}
+          onPointerDown={handleCanvasPointerDown}
+          onWheel={handleWheel}
+          className={`canvas-bg flex-1 w-full h-full relative overflow-hidden bg-[#0B0C0E] cursor-${
+            isPanMode ? 'grab' : 'default'
+          }`}
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            width: '2400px',
-            height: '1400px',
+            backgroundImage: showGrid
+              ? 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)'
+              : 'none',
+            backgroundSize: '24px 24px',
           }}
         >
-          {/* ================= ANIMATED SVG PIPELINE CONNECTIONS ================= */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
-            <defs>
-              {/* Glow Filters */}
-              <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
+          {/* CANVAS TRANSFORM CONTAINER (PAN & ZOOM SCALED) */}
+          <div
+            className="absolute inset-0 origin-top-left transition-transform duration-75 ease-out"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            }}
+          >
+            {/* SVG PIPELINE CONNECTING LINES LAYER */}
+            <svg className="absolute top-0 left-0 w-[3000px] h-[2000px] pointer-events-none z-0">
+              {/* Stage 1 -> 2 */}
+              {renderConnection('node-ceo', 'node-orchestrator', 2)}
 
-            {/* Render Links */}
-            {links.map((link, i) => {
-              const src = getNodeSocket(link.from, 'right');
-              const dst = getNodeSocket(link.to, 'left');
-              const pathD = getBezierPath(src.x, src.y, dst.x, dst.y);
+              {/* Stage 2 -> 3 (Parallel Sub-Agents) */}
+              {renderConnection('node-orchestrator', 'node-sales', 3)}
+              {renderConnection('node-orchestrator', 'node-inventory', 3)}
+              {renderConnection('node-orchestrator', 'node-finance', 3)}
+
+              {/* Stage 3 -> 4 */}
+              {renderConnection('node-sales', 'node-solver', 4)}
+              {renderConnection('node-inventory', 'node-solver', 4)}
+              {renderConnection('node-finance', 'node-solver', 4)}
+
+              {/* Stage 4 -> 5 */}
+              {renderConnection('node-solver', 'node-db', 5)}
+            </svg>
+
+            {/* NODES LAYER */}
+            {nodes.map((node) => {
+              const isSelected = selectedNodeId === node.id;
+              const isStageActive = activeStep >= node.stageNum;
 
               return (
-                <g key={i}>
-                  {/* Background Path Track */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke="#282A2C"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Active Animated Glowing Flow Conduit */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke={link.color}
-                    strokeWidth={link.active ? '2.5' : '1.5'}
-                    strokeDasharray={link.active ? '6 6' : '3 6'}
-                    style={{
-                      animation: link.active ? 'dash 1.2s linear infinite' : 'none',
-                    }}
-                  />
-
-                  {/* Flowing Pulse Particle */}
-                  {link.active && (
-                    <circle r="3.5" fill="#ffffff" filter="url(#glow-blue)">
-                      <animateMotion path={pathD} dur="2.4s" repeatCount="indefinite" />
-                    </circle>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* ================= DRAGGABLE / INTERACTIVE NODE CARDS ================= */}
-          {nodes.map((node) => {
-            const isSelected = selectedNodeId === node.id;
-            const isNodeActive = activeStep >= node.stageNum;
-            const availableModels = AVAILABLE_MODELS_BY_TYPE[node.type];
-
-            return (
-              <div
-                key={node.id}
-                onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
-                className={`absolute rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-shadow duration-200 pointer-events-auto cursor-grab active:cursor-grabbing flex flex-col justify-between p-3.5 shadow-2xl ${
-                  isSelected
-                    ? 'border-[#A8C7FA] ring-2 ring-[#A8C7FA]/30 shadow-[#A8C7FA]/20'
-                    : isNodeActive
-                    ? `${node.borderColor} hover:border-white/40`
-                    : 'border-white/10 opacity-60'
-                }`}
-                style={{
-                  transform: `translate(${node.x}px, ${node.y}px)`,
-                  width: `${node.width}px`,
-                  minHeight: `${node.height}px`,
-                  boxShadow: isSelected ? `0 10px 30px ${node.accentGlow}` : undefined,
-                }}
-              >
-                {/* Left Input Port Socket Handle */}
-                {node.type !== 'ceo' && (
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#131314] border-2 border-[#A8C7FA] flex items-center justify-center shadow-md">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
-                  </div>
-                )}
-
-                {/* Right Output Port Socket Handle */}
-                {node.type !== 'db' && (
-                  <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-[#131314] border-2 border-[#A8C7FA] flex items-center justify-center shadow-md">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
-                  </div>
-                )}
-
-                {/* Card Drag Handle & Header */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <div className="text-[#747775] hover:text-white cursor-grab active:cursor-grabbing p-0.5">
-                        <GripHorizontal className="w-3.5 h-3.5" />
+                <div
+                  key={node.id}
+                  onPointerDown={(e) => handleNodePointerDown(node.id, e)}
+                  style={{
+                    transform: `translate(${node.x}px, ${node.y}px)`,
+                    width: `${node.width}px`,
+                    height: `${node.height}px`,
+                  }}
+                  className={`absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-150 cursor-grab active:cursor-grabbing shadow-2xl ${
+                    isSelected
+                      ? 'border-[#4285F4] ring-2 ring-[#4285F4]/40 scale-[1.02]'
+                      : isStageActive
+                      ? node.borderColor
+                      : 'border-[#2D2E30] opacity-80'
+                  }`}
+                >
+                  {/* Node Header Drag Handle */}
+                  <div className="p-3.5 border-b border-[#2D2E30]/70 flex items-center justify-between bg-[#18191A]/80 rounded-t-2xl">
+                    <div className="flex items-center space-x-2.5 truncate">
+                      <div
+                        className={`w-7 h-7 rounded-lg ${node.iconBg} ${node.iconColor} flex items-center justify-center shrink-0 border border-white/10`}
+                      >
+                        <Bot className="w-4 h-4" />
                       </div>
-                      <div className={`w-6 h-6 rounded-lg border border-white/10 flex items-center justify-center ${node.iconBg} ${node.iconColor}`}>
-                        {node.type === 'ceo' && <UserCheck className="w-3 h-3" />}
-                        {node.type === 'orchestrator' && <Sparkles className="w-3 h-3" />}
-                        {node.type === 'sales' && <TrendingUp className="w-3 h-3" />}
-                        {node.type === 'inventory' && <Package className="w-3 h-3" />}
-                        {node.type === 'finance' && <DollarSign className="w-3 h-3" />}
-                        {node.type === 'solver' && <Cpu className="w-3 h-3" />}
-                        {node.type === 'db' && <Database className="w-3 h-3" />}
+                      <div className="truncate">
+                        <div className="text-xs font-bold text-white truncate font-heading">
+                          {node.title}
+                        </div>
+                        <div className="text-[10px] text-[#888888] truncate">{node.subtitle}</div>
                       </div>
-                      <span className="text-[10px] font-mono font-bold text-white uppercase tracking-wider truncate max-w-[100px]">
-                        {node.subtitle}
+                    </div>
+
+                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#131314] text-[#A8C7FA] border border-[#2D2E30]">
+                      STAGE {node.stageNum}
+                    </span>
+                  </div>
+
+                  {/* Node Body Details */}
+                  <div className="p-3 space-y-2 text-xs">
+                    <div className="text-[11px] text-[#C4C7C5] leading-tight line-clamp-2">
+                      {node.role}
+                    </div>
+
+                    {/* AI Model Badge */}
+                    <div className="flex items-center justify-between pt-1 border-t border-[#2D2E30]/50 text-[10px]">
+                      <span className="text-[#888888]">Model:</span>
+                      <span className="font-mono font-semibold text-[#A8C7FA] truncate max-w-[130px]">
+                        {node.model}
                       </span>
                     </div>
 
-                    {/* Info / Inspect Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedNodeId(node.id);
-                      }}
-                      className="text-[#747775] hover:text-[#A8C7FA] p-1 rounded-md hover:bg-white/5 transition-colors cursor-pointer"
-                      title="Inspect Node Details"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Latency & Status */}
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-[#888888]">Latency:</span>
+                      <span className="font-mono text-emerald-400">{node.latency}</span>
+                    </div>
                   </div>
 
-                  <h3 className="text-xs font-semibold text-white font-headline truncate">
-                    {node.title}
-                  </h3>
-
-                  {/* Model Selector Dropdown on Card */}
-                  {availableModels && availableModels.length > 0 ? (
-                    <div className="relative mt-1 mb-2">
-                      <select
-                        value={node.model}
-                        onChange={(e) => handleModelChange(node.id, e.target.value)}
-                        className="w-full bg-[#131314] hover:bg-[#282A2C] border border-white/10 text-white text-[10px] font-mono rounded-lg px-2 py-1 pr-6 appearance-none cursor-pointer focus:outline-none focus:border-[#A8C7FA]"
-                      >
-                        {availableModels.map((m) => (
-                          <option key={m} value={m} className="bg-[#1E1F20] text-white">
-                            {m}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3 h-3 text-[#747775] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  ) : (
-                    <p className="text-[10px] text-[#747775] font-mono truncate mb-2">
-                      {node.model}
-                    </p>
+                  {/* Active Propagation Glow Pulse */}
+                  {isStageActive && (
+                    <div
+                      className="absolute inset-0 rounded-2xl pointer-events-none border border-[#4285F4]/30"
+                      style={{ boxShadow: `0 0 20px ${node.accentGlow}` }}
+                    />
                   )}
                 </div>
-
-                {/* Dynamic Node Body Content */}
-                <div className="bg-[#131314]/90 rounded-xl p-2 font-mono text-[10px] space-y-1 border border-white/5">
-                  {node.type === 'ceo' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">SKU:</span>
-                        <span className="text-[#A8C7FA] font-bold">P100 (Headphones)</span>
-                      </div>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Surge Signal:</span>
-                        <span className="text-amber-400 font-bold">+{simSurge}% Viral</span>
-                      </div>
-                    </>
-                  )}
-
-                  {node.type === 'orchestrator' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Task Routing:</span>
-                        <span className="text-emerald-400 font-bold">3 Workers</span>
-                      </div>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Contract:</span>
-                        <span className="text-white">Pydantic v2</span>
-                      </div>
-                    </>
-                  )}
-
-                  {node.type === 'sales' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Velocity:</span>
-                        <span className="text-white font-bold">{sim.velocity} u/day</span>
-                      </div>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">7d Demand:</span>
-                        <span className="text-blue-300 font-bold">{sim.forecast7d} units</span>
-                      </div>
-                    </>
-                  )}
-
-                  {node.type === 'inventory' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Stockout:</span>
-                        <span className="text-amber-300 font-bold">{sim.horizonDays} days</span>
-                      </div>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Deficit:</span>
-                        <span className="text-rose-400 font-bold">{sim.deficitUnits} units</span>
-                      </div>
-                    </>
-                  )}
-
-                  {node.type === 'finance' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Safe Cap:</span>
-                        <span className="text-emerald-400 font-bold">₹1,80,000</span>
-                      </div>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Reserve:</span>
-                        <span className="text-white">₹5.00L Lock</span>
-                      </div>
-                    </>
-                  )}
-
-                  {node.type === 'solver' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span>QuickLogix (B):</span>
-                        <span className="text-[#A8C7FA] font-bold">{sim.supplierBUnits} u (Net-30)</span>
-                      </div>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span>Zenith (C):</span>
-                        <span className="text-[#A8C7FA] font-bold">{sim.supplierCUnits} u (50% Adv)</span>
-                      </div>
-                      <div className="flex justify-between text-emerald-400 font-bold border-t border-white/5 pt-1">
-                        <span>Upfront Cash:</span>
-                        <span>₹{sim.upfrontCash.toLocaleString()}</span>
-                      </div>
-                    </>
-                  )}
-
-                  {node.type === 'db' && (
-                    <>
-                      <div className="flex justify-between text-[#C4C7C5]">
-                        <span className="text-[#747775]">Database:</span>
-                        <span className="text-emerald-400 font-bold">Neon PostgreSQL</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCommitOrder();
-                        }}
-                        disabled={executed}
-                        className={`w-full mt-1 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 text-[10px] font-mono ${
-                          executed
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA]'
-                        }`}
-                      >
-                        {executed ? (
-                          <>
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            <span>Committed ✓</span>
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="w-3 h-3" />
-                            <span>Commit PO</span>
-                          </>
-                        )}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ================= FLOATING CANVAS CONTROLS (BOTTOM LEFT) ================= */}
-        <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-[#1E1F20]/90 backdrop-blur-md border border-white/10 p-1.5 rounded-full shadow-2xl">
-          <button
-            onClick={() => handleZoom(0.1)}
-            className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-            title="Zoom In"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <span className="text-[11px] font-mono text-[#747775] px-1">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            onClick={() => handleZoom(-0.1)}
-            className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-            title="Zoom Out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <div className="w-px h-4 bg-white/10 mx-0.5" />
-          <button
-            onClick={handleResetCanvas}
-            className="p-2 rounded-full text-[#C4C7C5] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-            title="Reset View & Node Layout"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowGrid(!showGrid)}
-            className={`p-2 rounded-full transition-colors cursor-pointer ${
-              showGrid ? 'text-[#A8C7FA] bg-[#282A2C]' : 'text-[#747775] hover:text-white'
-            }`}
-            title="Toggle Dot Grid"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* ================= BOTTOM RIGHT TELEMETRY PILL ================= */}
-        <div className="absolute bottom-6 right-6 z-20 flex items-center gap-3 bg-[#1E1F20]/90 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full shadow-2xl text-xs font-mono">
-          <div className="flex items-center gap-1.5 text-[#C4C7C5]">
-            <Clock className="w-3.5 h-3.5 text-[#A8C7FA]" />
-            <span>Consensus: <strong className="text-white">11.4ms</strong></span>
+              );
+            })}
           </div>
-          <div className="w-px h-3 bg-white/10" />
-          <button
-            onClick={handleCopyLog}
-            className="text-xs text-[#A8C7FA] hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied' : 'Copy Trace'}</span>
-          </button>
-        </div>
-      </div>
 
-      {/* ================= SLIDE-OVER NODE DETAIL INSPECTION DRAWER ================= */}
-      {inspectedNode && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#1E1F20] border-l border-white/15 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-          {/* Drawer Header */}
-          <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#171819]">
-            <div className="flex items-center gap-2.5">
-              <div className={`w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center ${inspectedNode.iconBg} ${inspectedNode.iconColor}`}>
-                {inspectedNode.type === 'ceo' && <UserCheck className="w-4 h-4" />}
-                {inspectedNode.type === 'orchestrator' && <Sparkles className="w-4 h-4" />}
-                {inspectedNode.type === 'sales' && <TrendingUp className="w-4 h-4" />}
-                {inspectedNode.type === 'inventory' && <Package className="w-4 h-4" />}
-                {inspectedNode.type === 'finance' && <DollarSign className="w-4 h-4" />}
-                {inspectedNode.type === 'solver' && <Cpu className="w-4 h-4" />}
-                {inspectedNode.type === 'db' && <Database className="w-4 h-4" />}
+          {/* BOTTOM FLOATING CANVAS TOOLBAR */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-full px-3 py-1.5 shadow-2xl">
+            <button
+              onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+
+            <span className="text-xs font-mono font-medium text-[#A8C7FA] px-2">
+              {Math.round(zoom * 100)}%
+            </span>
+
+            <button
+              onClick={() => setZoom((z) => Math.min(1.8, z + 0.1))}
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+
+            <div className="w-px h-4 bg-[#2D2E30] mx-1" />
+
+            <button
+              onClick={handleResetLayout}
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              title="Reset View"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setShowGrid(!showGrid)}
+              className={`p-1.5 rounded-full transition-colors ${
+                showGrid ? 'text-[#4285F4] bg-[#4285F4]/10' : 'text-[#888888] hover:text-white'
+              }`}
+              title="Toggle Canvas Grid"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT SIDE NODE INSPECTOR DRAWER */}
+        {selectedNode && (
+          <aside className="w-80 border-l border-[#2D2E30]/70 bg-[#1E1F20] z-20 flex flex-col h-full shadow-2xl">
+            <div className="p-4 border-b border-[#2D2E30] flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Info className="w-4 h-4 text-[#A8C7FA]" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Node Inspector
+                </h3>
               </div>
+              <button
+                onClick={() => setSelectedNodeId(null)}
+                className="p-1 text-[#888888] hover:text-white rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs">
               <div>
-                <h3 className="text-sm font-semibold text-white font-headline">{inspectedNode.title}</h3>
-                <p className="text-[10px] text-[#747775] font-mono">{inspectedNode.role}</p>
+                <label className="text-[10px] text-[#888888] uppercase tracking-wider">
+                  Node Title
+                </label>
+                <div className="text-sm font-bold text-white mt-0.5">{selectedNode.title}</div>
+                <div className="text-xs text-[#A8C7FA] mt-0.5">{selectedNode.subtitle}</div>
+              </div>
+
+              {/* Model Switcher for this specific Node */}
+              {AVAILABLE_MODELS_BY_TYPE[selectedNode.type] && (
+                <div className="space-y-1">
+                  <label className="text-[10px] text-[#888888] uppercase tracking-wider">
+                    Assigned AI Model
+                  </label>
+                  <select
+                    value={selectedNode.model}
+                    onChange={(e) => handleUpdateNodeModel(selectedNode.id, e.target.value)}
+                    className="w-full bg-[#131314] text-xs text-white p-2.5 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
+                  >
+                    {AVAILABLE_MODELS_BY_TYPE[selectedNode.type].map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] text-[#888888] uppercase tracking-wider">
+                  Operational Role
+                </label>
+                <div className="p-3 rounded-xl bg-[#131314] text-[#C4C7C5] border border-[#2D2E30] mt-1 leading-relaxed">
+                  {selectedNode.role}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#888888] uppercase tracking-wider">
+                  Telemetry & Performance
+                </label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30]">
+                    <div className="text-[10px] text-[#888888]">Latency</div>
+                    <div className="font-mono text-emerald-400 font-bold mt-0.5">
+                      {selectedNode.latency}
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30]">
+                    <div className="text-[10px] text-[#888888]">Provider</div>
+                    <div className="font-mono text-[#A8C7FA] font-bold mt-0.5">
+                      {selectedNode.modelProvider}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => setSelectedNodeId(null)}
-              className="p-1.5 rounded-lg text-[#747775] hover:text-white hover:bg-[#282A2C] transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Drawer Body */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
-            {/* Metadata Pills */}
-            <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-              <div className="bg-[#131314] p-2.5 rounded-xl border border-white/5 space-y-0.5">
-                <span className="text-[#747775]">Foundation Model</span>
-                <div className="text-white font-semibold truncate">{inspectedNode.model}</div>
-              </div>
-              <div className="bg-[#131314] p-2.5 rounded-xl border border-white/5 space-y-0.5">
-                <span className="text-[#747775]">Execution Latency</span>
-                <div className="text-emerald-400 font-semibold">{inspectedNode.latency}</div>
-              </div>
-            </div>
-
-            {/* Live Parameter State */}
-            <div className="space-y-1.5">
-              <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Live Node Parameters</span>
-              <div className="bg-[#131314] rounded-xl border border-white/5 p-3 space-y-2 font-mono text-[11px]">
-                {inspectedNode.type === 'ceo' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">SKU:</span><span className="text-white font-bold">P100 Headphones</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Demand Surge:</span><span className="text-amber-400 font-bold">+{simSurge}%</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Trigger Channel:</span><span className="text-blue-400">Viral TikTok Campaign</span></div>
-                  </>
-                )}
-                {inspectedNode.type === 'orchestrator' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">Event ID:</span><span className="text-white font-bold">EVT-894102</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Sub-Agents Dispatched:</span><span className="text-emerald-400 font-bold">3 Parallel Tasks</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Schema Protocol:</span><span className="text-[#A8C7FA]">Pydantic v2 Contract</span></div>
-                  </>
-                )}
-                {inspectedNode.type === 'sales' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">Current Velocity:</span><span className="text-white font-bold">{sim.velocity} units/day</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">7-Day Total Demand:</span><span className="text-blue-300 font-bold">{sim.forecast7d} units</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Confidence Score:</span><span className="text-emerald-400 font-bold">94.2%</span></div>
-                  </>
-                )}
-                {inspectedNode.type === 'inventory' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">Physical Stock:</span><span className="text-white font-bold">170 units (Bin 4B)</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Safety Floor:</span><span className="text-amber-300 font-bold">150 units</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Stockout Horizon:</span><span className="text-rose-400 font-bold">{sim.horizonDays} days</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Replenishment Deficit:</span><span className="text-rose-400 font-bold">{sim.deficitUnits} units</span></div>
-                  </>
-                )}
-                {inspectedNode.type === 'finance' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">Treasury Balance:</span><span className="text-white font-bold">₹8,50,000</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Statutory Reserve Lock:</span><span className="text-emerald-400 font-bold">₹5,00,000 (100% Protected)</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Safe Immediate Spend Cap:</span><span className="text-emerald-400 font-bold">₹1,80,000</span></div>
-                  </>
-                )}
-                {inspectedNode.type === 'solver' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">QuickLogix Allocation:</span><span className="text-[#A8C7FA] font-bold">{sim.supplierBUnits} u (Net-30)</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Zenith Allocation:</span><span className="text-[#A8C7FA] font-bold">{sim.supplierCUnits} u (50% Adv)</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Total Upfront Cash Impact:</span><span className="text-emerald-400 font-bold">₹{sim.upfrontCash.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Mathematical Feasibility:</span><span className="text-emerald-400 font-bold">100% Feasible</span></div>
-                  </>
-                )}
-                {inspectedNode.type === 'db' && (
-                  <>
-                    <div className="flex justify-between"><span className="text-[#747775]">Target DB:</span><span className="text-white font-bold">Neon Cloud PostgreSQL</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Status:</span><span className="text-emerald-400 font-bold">{executed ? 'COMMITTED' : 'READY'}</span></div>
-                    <div className="flex justify-between"><span className="text-[#747775]">Audit Block Hash:</span><span className="text-purple-300">0x8f9c2d1e4a7b5c3e</span></div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Step-by-Step Chain of Thought Rationale */}
-            <div className="space-y-1.5">
-              <span className="text-[#747775] font-mono text-[10px] uppercase tracking-wider">Step-by-Step Chain-of-Thought</span>
-              <div className="bg-[#131314] p-3 rounded-xl border border-white/5 text-[11px] text-[#C4C7C5] leading-relaxed font-mono whitespace-pre-wrap">
-                {inspectedNode.type === 'ceo' && `• Dispatched high-priority directive to resolve viral surge.
-• Target: Restore SKU P100 inventory safety buffer within statutory treasury limits.`}
-                {inspectedNode.type === 'orchestrator' && `• Deconstructed high-level prompt into domain sub-tasks.
-• Bound Sales, Inventory, and Finance to Pydantic v2 validation contracts.`}
-                {inspectedNode.type === 'sales' && `• Evaluated marketing promo elasticity curve.
-• Order velocity climbed from 85 u/d to ${sim.velocity} u/d.
-• 7-day total requirement: ${sim.forecast7d} units.`}
-                {inspectedNode.type === 'inventory' && `• Bin 4B physical stock (170 units) will deplete below 150-unit safety floor in ~${sim.horizonDays} days.
-• Recommended split procurement deficit: ${sim.deficitUnits} units.`}
-                {inspectedNode.type === 'finance' && `• Statutory reserve of ₹5,00,000 strictly locked.
-• Safe immediate cash spend ceiling approved at ₹1,80,000.
-• Approved Net-30 credit facility for Supplier B.`}
-                {inspectedNode.type === 'solver' && `• Formulated Integer Linear Program (ILP) via Google OR-Tools.
-• Solved split: ${sim.supplierBUnits} u (QuickLogix, Net-30, ₹0 upfront) + ${sim.supplierCUnits} u (Zenith, 50% advance, ₹${sim.upfrontCash.toLocaleString()} upfront).
-• Total upfront cash strictly within the ₹1,80,000 safe cap.`}
-                {inspectedNode.type === 'db' && `• Relational schema validation succeeded across orders, supplier_pos, and audit_ledger.
-• Zero hallucination guarantee.`}
-              </div>
-            </div>
-          </div>
-
-          {/* Drawer Footer */}
-          <div className="p-4 border-t border-white/10 bg-[#171819] flex justify-end">
-            <button
-              onClick={() => setSelectedNodeId(null)}
-              className="px-4 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold text-xs hover:bg-[#A8C7FA] transition-colors cursor-pointer"
-            >
-              Close Inspector
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Global CSS for animated dashed flow lines */}
-      <style>{`
-        @keyframes dash {
-          to {
-            stroke-dashoffset: -24;
-          }
-        }
-      `}</style>
+          </aside>
+        )}
+      </div>
     </div>
   );
 };
