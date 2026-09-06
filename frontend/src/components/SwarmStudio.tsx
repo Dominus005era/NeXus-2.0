@@ -695,8 +695,8 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             })}
           </div>
 
-          {/* BOTTOM FLOATING CANVAS TOOLBAR */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-full px-3 py-1.5 shadow-2xl">
+          {/* BOTTOM-LEFT FLOATING CANVAS TOOLBAR */}
+          <div className="absolute bottom-6 left-6 z-30 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-full px-3 py-1.5 shadow-2xl">
             <button
               onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}
               className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
