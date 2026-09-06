@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Sparkles,
   ArrowRight,
@@ -245,6 +245,122 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [activeRbacRole, setActiveRbacRole] = useState<'sales' | 'inventory' | 'finance'>('sales');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Google Gemini Lumina Particle Wave Background Canvas Effect
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
+    let height = (canvas.height = canvas.parentElement?.clientHeight || 650);
+
+    const handleResize = () => {
+      if (!canvas || !canvas.parentElement) return;
+      width = canvas.width = canvas.parentElement.clientWidth;
+      height = canvas.height = canvas.parentElement.clientHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Particle Cloud Definition
+    const numParticles = 260;
+    const particles: {
+      x: number;
+      y: number;
+      baseY: number;
+      size: number;
+      speedX: number;
+      phase: number;
+      color: string;
+      alpha: number;
+    }[] = [];
+
+    const colors = [
+      'rgba(26, 115, 232, ',   // Google Blue #1A73E8
+      'rgba(66, 133, 244, ',   // Royal Blue #4285F4
+      'rgba(168, 199, 250, ',  // Lumina Cyan #A8C7FA
+      'rgba(194, 231, 255, ',  // Light Cyan #C2E7FF
+      'rgba(168, 85, 247, ',   // Lumina Violet #A855F7
+    ];
+
+    for (let i = 0; i < numParticles; i++) {
+      const x = Math.random() * width;
+      const baseY = height * 0.45 + (Math.random() - 0.5) * (height * 0.5);
+      particles.push({
+        x,
+        y: baseY,
+        baseY,
+        size: Math.random() * 2.8 + 0.8,
+        speedX: Math.random() * 0.4 + 0.15,
+        phase: Math.random() * Math.PI * 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: Math.random() * 0.7 + 0.25,
+      });
+    }
+
+    let time = 0;
+
+    const render = () => {
+      time += 0.012;
+      ctx.clearRect(0, 0, width, height);
+
+      // Deep space atmospheric background radial fill
+      const bgGrad = ctx.createRadialGradient(
+        width / 2,
+        height * 0.45,
+        50,
+        width / 2,
+        height * 0.45,
+        width * 0.65
+      );
+      bgGrad.addColorStop(0, 'rgba(0, 84, 205, 0.18)');
+      bgGrad.addColorStop(0.5, 'rgba(168, 199, 250, 0.05)');
+      bgGrad.addColorStop(1, 'rgba(11, 12, 14, 0)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw particle nebula wave
+      for (let i = 0; i < numParticles; i++) {
+        const p = particles[i];
+        p.x += p.speedX;
+        if (p.x > width) p.x = 0;
+
+        // Hyperbolic wave math (simulating Gemini about page particle vortex)
+        const normalizedX = (p.x / width) * Math.PI * 2.5;
+        const wave1 = Math.sin(normalizedX + time) * 65;
+        const wave2 = Math.cos(normalizedX * 0.7 - time * 0.8) * 35;
+        const funnelFactor = Math.sin((p.x / width) * Math.PI);
+        p.y = p.baseY + (wave1 + wave2) * funnelFactor;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${p.alpha})`;
+
+        // Glow filter on larger particles
+        if (p.size > 2.0) {
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = '#4285F4';
+        } else {
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.fill();
+      }
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
   // Dynamic real-time calculation
   const simCalculations = useMemo(() => {
     const baseDemand = 85;
@@ -256,14 +372,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     const horizonDays = Number(Math.max(0.1, rawHorizon).toFixed(2));
     const deficitUnits = Math.max(0, forecast7d + safetyStock - currentStock);
     
-    // Split procurement: Supplier B max 400 (Net-30), Supplier C gets remainder (50% adv)
+    // Split procurement
     const supplierBUnits = Math.min(400, deficitUnits);
     const supplierCUnits = Math.max(0, deficitUnits - supplierBUnits);
-    
     const costB = supplierBUnits * 477;
     const costC = supplierCUnits * 436.5;
-    const upfrontCashB = 0; // Net-30
-    const upfrontCashC = supplierCUnits * 218.25; // 50% advance
+    const upfrontCashB = 0;
+    const upfrontCashC = supplierCUnits * 218.25;
     const totalUpfrontCash = upfrontCashB + upfrontCashC;
     const isFeasible = totalUpfrontCash <= 180000;
 
@@ -314,26 +429,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full flex-1 bg-[#131313] text-[#E3E3E3] antialiased selection:bg-[#A8C7FA]/30 selection:text-white flex flex-col font-sans overflow-x-hidden">
-      {/* ================= TOP APP BAR ================= */}
-      <header className="sticky top-0 z-50 bg-[#131313]/90 backdrop-blur-md border-b border-white/[0.08] w-full">
-        <div className="relative flex justify-between items-center w-full px-6 md:px-12 py-3.5 max-w-7xl mx-auto">
+    <div className="min-h-screen w-full flex-1 bg-[#0B0C0E] text-[#E3E3E3] antialiased selection:bg-[#A8C7FA]/30 selection:text-white flex flex-col font-sans overflow-x-hidden">
+      {/* ================= TOP GOOGLE-STYLE APP BAR ================= */}
+      <header className="sticky top-0 z-50 bg-[#0B0C0E]/90 backdrop-blur-md border-b border-white/[0.08] w-full">
+        <div className="relative flex justify-between items-center w-full px-6 md:px-12 py-4 max-w-7xl mx-auto">
           {/* Brand Logo Anchor */}
           <div className="flex items-center gap-2.5 group cursor-pointer z-10" onClick={onGetStarted}>
-            <div className="w-8 h-8 rounded-lg bg-[#A8C7FA]/10 border border-[#A8C7FA]/20 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4 text-[#A8C7FA] group-hover:rotate-12 transition-transform duration-300" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center shadow-md shadow-[#1A73E8]/20 group-hover:scale-105 transition-transform">
+              <Sparkles className="w-4 h-4 text-white group-hover:rotate-12 transition-transform duration-300" />
             </div>
-            <span className="text-lg font-semibold text-white tracking-tight">
+            <span className="text-xl font-semibold text-white tracking-tight font-headline">
               Nexus AI
             </span>
-            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1E1F20] text-[#A8C7FA] border border-white/10 font-semibold">
+            <span className="hidden sm:inline-block text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#1E1F20] text-[#A8C7FA] border border-white/10 font-semibold">
               v2.5 Frontier
             </span>
           </div>
 
           {/* Navigation Links - Centered */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-medium text-[#C4C7C5] absolute left-1/2 -translate-x-1/2">
-            <a href="#hero-demo" className="hover:text-white transition-colors pb-1">Live Demo</a>
+          <nav className="hidden lg:flex items-center gap-7 text-xs font-medium text-[#C4C7C5] absolute left-1/2 -translate-x-1/2">
+            <a href="#hero-demo" className="hover:text-white transition-colors pb-1">Overview</a>
             <a href="#models" className="hover:text-white transition-colors pb-1">Models</a>
             <a href="#capabilities" className="hover:text-white transition-colors pb-1">Capabilities</a>
             <a href="#rbac" className="hover:text-white transition-colors pb-1">RBAC Security</a>
@@ -342,11 +457,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </nav>
 
           {/* Trailing Icon & Primary Actions */}
-          <div className="flex items-center gap-2.5 z-10">
+          <div className="flex items-center gap-3 z-10">
             {onOpenDeploymentGuide && (
               <button
                 onClick={onOpenDeploymentGuide}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all text-xs font-mono cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all text-xs font-mono cursor-pointer"
               >
                 <span>Free Cloud Deploy</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -354,66 +469,71 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             )}
             <button
               onClick={onGetStarted}
-              className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] transition-all text-xs font-semibold shadow-sm cursor-pointer active:scale-95"
+              className="inline-flex items-center justify-center px-5 py-2 rounded-full bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] text-white hover:opacity-95 transition-all text-xs font-semibold shadow-lg shadow-[#1A73E8]/25 cursor-pointer active:scale-95 hover:scale-105"
             >
-              Launch Workspace
+              Try Nexus AI
             </button>
           </div>
         </div>
       </header>
 
-      {/* ================= HERO SECTION ================= */}
+      {/* ================= HERO SECTION WITH LUMINA PARTICLE WAVE ================= */}
       <main className="flex-1 w-full">
-        <section className="relative pt-16 pb-20 px-6 md:px-10 overflow-hidden" id="hero-demo">
-          {/* Atmospheric Gradient Backdrops */}
-          <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[850px] h-[500px] bg-gradient-to-b from-[#0054CD]/20 via-[#A8C7FA]/10 to-transparent blur-3xl opacity-50 -z-10" />
-          <div className="pointer-events-none absolute top-32 left-1/4 w-[400px] h-[400px] bg-[#B2C5FF]/5 blur-[120px] rounded-full -z-10" />
+        <section className="relative pt-20 pb-24 px-6 md:px-10 overflow-hidden min-h-[680px] flex flex-col items-center justify-center" id="hero-demo">
+          {/* HTML5 Canvas Google Gemini Particle Wave Background */}
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-85"
+          />
 
-          <div className="max-w-6xl mx-auto flex flex-col items-center text-center relative z-10">
+          <div className="max-w-5xl mx-auto flex flex-col items-center text-center relative z-10 space-y-6">
             {/* Tagline Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#282A2C] border border-white/10 shadow-sm mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1E1F20]/90 backdrop-blur-md border border-white/15 shadow-xl">
               <span className="w-2 h-2 rounded-full bg-[#A8C7FA] animate-ping" />
-              <span className="w-2 h-2 -ml-3.5 rounded-full bg-[#A8C7FA]" />
-              <span className="text-[#C4C7C5] text-xs font-mono">Autonomous Multi-Agent Intelligence • Live v2.5</span>
+              <span className="w-2 h-2 -ml-4 rounded-full bg-[#A8C7FA]" />
+              <span className="text-[#E3E3E3] text-xs font-mono font-medium">Nexus 2.5 Series • Frontier Autonomous Operating System</span>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-[-0.035em] leading-[1.08] max-w-4xl mb-4 text-transparent bg-clip-text bg-gradient-to-b from-[#FFFFFF] via-[#F1F5F9] to-[#94A3B8]">
-              Operations intelligence <span className="text-[#747775] font-light">with verifiable action</span>
+            {/* Main Headline (Gemini Product Page Typography) */}
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-[-0.035em] leading-[1.08] max-w-4xl text-white font-headline">
+              Operations intelligence <br className="hidden sm:inline" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#A8C7FA] via-[#C2E7FF] to-[#FFFFFF]">
+                with verifiable action.
+              </span>
             </h1>
 
             {/* Subheading */}
-            <p className="text-sm sm:text-base text-[#C4C7C5] max-w-2xl mb-8 leading-relaxed font-normal">
-              Specialized domain agents execute supply chain analysis, verify statutory cash reserves, and solve multi-tier split purchase orders deterministically via mathematical integer linear programming.
+            <p className="text-base sm:text-lg text-[#C4C7C5] max-w-2xl leading-relaxed font-normal">
+              Specialized domain agents execute supply chain forecasting, verify statutory cash reserves, and solve multi-tier split purchase orders deterministically via Google OR-Tools integer linear programming.
             </p>
 
             {/* Primary CTA Group */}
-            <div className="flex flex-col sm:flex-row items-center gap-3.5 mb-8">
+            <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
               <button
                 onClick={onGetStarted}
-                className="flex items-center gap-2 px-7 py-3 rounded-full bg-[#C2E7FF] text-[#001E2C] hover:bg-[#A8C7FA] transition-all font-semibold text-xs shadow-lg shadow-[#A8C7FA]/15 group cursor-pointer active:scale-95"
+                className="flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] text-white hover:opacity-95 transition-all font-semibold text-sm shadow-xl shadow-[#1A73E8]/30 group cursor-pointer hover:scale-105 active:scale-95"
               >
-                <span>Launch Interactive Workspace</span>
+                <span>Try Nexus Workspace</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
               <a
                 href="#models"
-                className="px-6 py-3 rounded-full bg-[#1E1F20] border border-white/10 hover:border-white/20 text-white hover:bg-[#282A2C] transition-all text-xs font-semibold"
+                className="px-7 py-3.5 rounded-full bg-[#1E1F20]/80 backdrop-blur-md border border-white/15 hover:border-white/30 text-white hover:bg-[#282A2C] transition-all text-sm font-semibold"
               >
                 Explore 3 Model Tiers
               </a>
             </div>
 
-            {/* Teaser Note */}
-            <p className="text-[#747775] text-[11px] font-mono -mt-4 mb-10 flex items-center gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            {/* Feature Callout Pill */}
+            <div className="pt-2 text-[#747775] text-xs font-mono flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <span>Full TypeScript typing • Vercel Free SPA • Render FastAPI • Neon Cloud PostgreSQL</span>
-            </p>
+            </div>
 
             {/* HERO ARTIFACT: Glassmorphic Interactive Preview & Solver Console */}
-            <div className="w-full max-w-4xl rounded-2xl bg-[#1E1F20]/80 backdrop-blur-xl border border-white/10 shadow-2xl p-4 sm:p-6 text-left overflow-hidden">
+            <div className="w-full max-w-4xl rounded-2xl bg-[#1E1F20]/85 backdrop-blur-xl border border-white/15 shadow-2xl p-4 sm:p-6 text-left overflow-hidden mt-8">
               {/* Terminal / Window Chrome */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 py-2.5 border-b border-white/10 mb-4 bg-[#131314]/80 rounded-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 border-b border-white/10 mb-4 bg-[#131314]/80 rounded-xl">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
@@ -685,7 +805,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </section>
 
         {/* ================= MODEL LINEUP SECTION ================= */}
-        <section className="py-20 px-6 md:px-10 bg-[#131314] border-t border-white/[0.08]" id="models">
+        <section className="py-20 px-6 md:px-10 bg-[#0B0C0E] border-t border-white/[0.08]" id="models">
           <div className="max-w-7xl mx-auto">
             <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
@@ -693,7 +813,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
                   FRONTIER INTELLIGENCE ARCHITECTURES
                 </div>
-                <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-[-0.025em]">
+                <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-[-0.025em] font-headline">
                   Explore the Nexus Model Tiers
                 </h2>
                 <p className="text-[#C4C7C5] mt-1 max-w-xl text-xs sm:text-sm leading-relaxed">
@@ -737,7 +857,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <div className="w-9 h-9 rounded-xl bg-[#131314] border border-white/10 flex items-center justify-center">
                         {tier.icon}
                       </div>
-                      <h3 className="text-lg font-semibold text-white">{tier.name}</h3>
+                      <h3 className="text-lg font-semibold text-white font-headline">{tier.name}</h3>
                     </div>
                     <p className="text-[#C4C7C5] text-xs mb-6 leading-relaxed min-h-[48px]">
                       {tier.description}
@@ -786,14 +906,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </section>
 
         {/* ================= CAPABILITIES BENTO GRID ================= */}
-        <section className="py-20 px-6 md:px-10 bg-[#131313] border-t border-white/[0.08]" id="capabilities">
+        <section className="py-20 px-6 md:px-10 bg-[#0E0E0E] border-t border-white/[0.08]" id="capabilities">
           <div className="max-w-7xl mx-auto space-y-12">
             <div className="text-center space-y-2">
               <div className="text-[#A8C7FA] inline-flex items-center gap-1.5 font-mono text-xs font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#A8C7FA]" />
                 AUTONOMOUS SYSTEM CAPABILITIES
               </div>
-              <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight">
+              <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight font-headline">
                 Architected for Verifiable Operations
               </h2>
               <p className="text-[#C4C7C5] text-xs sm:text-sm max-w-xl mx-auto">
@@ -810,7 +930,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div className={`w-11 h-11 rounded-xl border border-white/10 flex items-center justify-center ${cap.iconBg} ${cap.iconColor}`}>
                     {cap.icon}
                   </div>
-                  <h3 className="text-base font-semibold text-white">{cap.title}</h3>
+                  <h3 className="text-base font-semibold text-white font-headline">{cap.title}</h3>
                   <p className="text-xs text-[#C4C7C5] leading-relaxed">
                     {cap.description}
                   </p>
@@ -825,7 +945,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </section>
 
         {/* ================= RBAC KNOWLEDGE MATRIX SECTION ================= */}
-        <section className="py-20 px-6 md:px-10 bg-[#131314] border-t border-white/[0.08]" id="rbac">
+        <section className="py-20 px-6 md:px-10 bg-[#0B0C0E] border-t border-white/[0.08]" id="rbac">
           <div className="max-w-7xl mx-auto space-y-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
@@ -833,7 +953,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>KNOWLEDGE HUB & POLICY GOVERNANCE</span>
                 </div>
-                <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight">
+                <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight font-headline">
                   Role-Based Knowledge Isolation (RBAC)
                 </h2>
                 <p className="text-[#C4C7C5] text-xs sm:text-sm max-w-2xl mt-1 leading-relaxed">
@@ -957,7 +1077,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </section>
 
         {/* ================= BENCHMARKS RIBBON ================= */}
-        <section className="py-14 px-6 md:px-10 bg-[#131313] border-t border-white/[0.08]" id="benchmarks">
+        <section className="py-14 px-6 md:px-10 bg-[#0B0C0E] border-t border-white/[0.08]" id="benchmarks">
           <div className="max-w-5xl mx-auto">
             <div className="rounded-2xl bg-[#1E1F20] p-8 border border-white/10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               <div className="space-y-1">
@@ -992,14 +1112,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </section>
 
         {/* ================= FAQ ACCORDION SECTION ================= */}
-        <section className="py-20 px-6 md:px-10 bg-[#131314] border-t border-white/[0.08]" id="faq">
+        <section className="py-20 px-6 md:px-10 bg-[#0E0E0E] border-t border-white/[0.08]" id="faq">
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center space-y-2">
               <div className="text-[#A8C7FA] inline-flex items-center gap-1.5 font-mono text-xs font-semibold">
                 <HelpCircle className="w-3.5 h-3.5" />
                 <span>FREQUENTLY ASKED QUESTIONS</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight">
+              <h2 className="text-3xl sm:text-4xl text-white font-semibold tracking-tight font-headline">
                 Everything you need to know
               </h2>
               <p className="text-[#C4C7C5] text-xs sm:text-sm max-w-lg mx-auto">
@@ -1039,29 +1159,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </section>
 
         {/* ================= BOTTOM CTA ================= */}
-        <section className="py-20 px-6 md:px-10 bg-[#0e0e0e] border-t border-white/[0.08]">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1E1F20] border border-white/10 text-xs font-mono text-[#A8C7FA]">
+        <section className="py-24 px-6 md:px-10 bg-[#090A0C] border-t border-white/[0.08] relative overflow-hidden">
+          <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-t from-[#0054CD]/20 to-transparent blur-3xl opacity-40 -z-10" />
+
+          <div className="max-w-3xl mx-auto text-center space-y-6 relative z-10">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#1E1F20] border border-white/10 text-xs font-mono text-[#A8C7FA]">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Free Instant Deployment on Vercel + Render</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+            <h2 className="text-3xl sm:text-5xl font-semibold text-white tracking-tight font-headline">
               Ready to automate operations with Nexus?
             </h2>
             <p className="text-xs sm:text-sm text-[#C4C7C5] max-w-lg mx-auto leading-relaxed">
               Experience deterministic multi-agent swarm orchestration, live Neon PostgreSQL syncing, and zero-hallucination integer optimization.
             </p>
-            <form onSubmit={handleSubscribe} className="max-w-md mx-auto flex flex-col sm:flex-row gap-2">
+            <form onSubmit={handleSubscribe} className="max-w-md mx-auto flex flex-col sm:flex-row gap-2 pt-2">
               <input
                 type="email"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="Enter enterprise email..."
-                className="flex-1 px-4 py-2.5 rounded-full bg-[#1E1F20] border border-white/10 text-white text-xs focus:outline-none focus:border-[#A8C7FA] font-mono placeholder:text-[#747775]"
+                className="flex-1 px-4 py-3 rounded-full bg-[#1E1F20] border border-white/15 text-white text-xs focus:outline-none focus:border-[#A8C7FA] font-mono placeholder:text-[#747775]"
               />
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-full bg-[#C2E7FF] hover:bg-[#A8C7FA] text-[#001E2C] font-semibold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="px-7 py-3 rounded-full bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] hover:opacity-95 text-white font-semibold text-xs shadow-lg shadow-[#1A73E8]/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
               >
                 <span>{subscribed ? 'Access Granted ✓' : 'Get Started Free'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1072,7 +1194,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </main>
 
       {/* ================= FOOTER ================= */}
-      <footer className="border-t border-white/[0.08] bg-[#0c0d10] py-8 px-6 text-xs text-[#747775]">
+      <footer className="border-t border-white/[0.08] bg-[#070809] py-8 px-6 text-xs text-[#747775]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#A8C7FA]" />
