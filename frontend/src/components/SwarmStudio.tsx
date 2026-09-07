@@ -341,9 +341,18 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     window.addEventListener('pointerup', onPointerUp);
   };
 
-  // Canvas Pan Handler
+  // Canvas Smooth Pan Handler
   const handleCanvasPointerDown = (e: React.PointerEvent) => {
-    if (e.target !== canvasContainerRef.current && !(e.target as HTMLElement).classList.contains('canvas-bg')) {
+    const target = e.target as HTMLElement;
+    // Don't initiate background canvas panning if user clicked on node cards, buttons, or input controls
+    if (
+      target.closest('.node-card') ||
+      target.closest('button') ||
+      target.closest('input') ||
+      target.closest('select') ||
+      target.closest('textarea') ||
+      target.closest('aside')
+    ) {
       return;
     }
 
@@ -677,7 +686,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     width: `${node.width}px`,
                     height: `${node.height}px`,
                   }}
-                  className={`absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-200 cursor-grab active:cursor-grabbing shadow-2xl ${
+                  className={`node-card absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-200 cursor-grab active:cursor-grabbing shadow-2xl ${
                     isSelected
                       ? 'border-[#4285F4] ring-2 ring-[#4285F4]/50 scale-[1.02]'
                       : isActiveInStage
