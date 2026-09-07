@@ -108,6 +108,7 @@ When answering:
 3. Formulate the optimal split PO (max Supplier B Net-30, then Supplier C 50% advance) within the ₹1.80L cash cap.
 4. Format using clean Markdown with headings, bullet points, and exact INR (₹) values.`;
 
+    const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'https://nexus-2-0-p7gy.onrender.com';
     const effectiveModel = modelId === 'nexus-3.1-deep-think' ? 'gemini-3.6-flash' : modelId;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${activeKey}`;
 
