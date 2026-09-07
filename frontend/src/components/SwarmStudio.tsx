@@ -454,14 +454,38 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           strokeOpacity={isRunning ? 0.85 : 0.4}
         />
         {isRunning && (
-          <path
-            d={pathD}
-            fill="none"
-            stroke="#A8C7FA"
-            strokeWidth={3}
-            strokeDasharray="6,8"
-            className="animate-pulse"
-          />
+          <>
+            <path
+              d={pathD}
+              fill="none"
+              stroke="#A8C7FA"
+              strokeWidth={3}
+              strokeDasharray="6,8"
+              className="animate-pulse"
+            />
+            {/* Live Moving Data Packet Core 1 */}
+            <circle r="4.5" fill={color || "#A8C7FA"}>
+              <animateMotion
+                path={pathD}
+                dur={isReturnLoop ? "2.2s" : "1.6s"}
+                repeatCount="indefinite"
+                keyPoints={isReturnLoop ? "1;0" : "0;1"}
+                keyTimes="0;1"
+                calcMode="linear"
+              />
+            </circle>
+            {/* Live Moving Data Packet Core 2 (White Highlight) */}
+            <circle r="2.5" fill="#FFFFFF">
+              <animateMotion
+                path={pathD}
+                dur={isReturnLoop ? "2.2s" : "1.6s"}
+                repeatCount="indefinite"
+                keyPoints={isReturnLoop ? "1;0" : "0;1"}
+                keyTimes="0;1"
+                calcMode="linear"
+              />
+            </circle>
+          </>
         )}
       </g>
     );
@@ -597,7 +621,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               {renderPortConnection('node-orchestrator', 'node-finance', '#10B981')}
 
               {/* Inter-Agent & Cloud DB Connections */}
-              {renderPortConnection('node-sales', 'node-[#node-inventory]', '#3B82F6')}
+              {renderPortConnection('node-sales', 'node-inventory', '#3B82F6')}
               {renderPortConnection('node-inventory', 'node-db', '#10B981')}
               {renderPortConnection('node-sales', 'node-solver', '#8B5CF6')}
               {renderPortConnection('node-inventory', 'node-solver', '#8B5CF6')}
@@ -658,9 +682,9 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[#888888]">API Key:</span>
-                        <span className="font-mono text-[#81C995] truncate max-w-[110px]">
-                          {node.apiKey.slice(0, 10)}...
+                        <span className="text-[#888888]">Latency:</span>
+                        <span className="font-mono text-[#81C995] font-medium">
+                          {node.latency}
                         </span>
                       </div>
                     </div>
