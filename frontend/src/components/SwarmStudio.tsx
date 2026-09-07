@@ -246,6 +246,22 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
+  // Auto-trigger Live Swarm Pipeline Animation when switching tabs from Executive Chat
+  const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>('P100 Headphones');
+
+  useEffect(() => {
+    const shouldTrigger = localStorage.getItem('nexus_trigger_swarm_sim');
+    const savedPrompt = localStorage.getItem('nexus_active_prompt');
+    if (savedPrompt) {
+      setActiveQueryPrompt(savedPrompt);
+    }
+    if (shouldTrigger === 'true') {
+      localStorage.removeItem('nexus_trigger_swarm_sim');
+      handleRunSwarmPipeline();
+    }
+  }, [activeView]);
+
+
   // Real-time metrics calculation
   const sim = useMemo(() => {
     const baseDemand = 85;

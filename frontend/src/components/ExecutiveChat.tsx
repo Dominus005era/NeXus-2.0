@@ -213,6 +213,10 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
+    // Save active prompt and flag to trigger live Swarm Studio visualization automatically when switching tabs
+    localStorage.setItem('nexus_active_prompt', promptToSend);
+    localStorage.setItem('nexus_trigger_swarm_sim', 'true');
+
     // Add user message to session
     setSessions((prev) =>
       prev.map((s) =>
