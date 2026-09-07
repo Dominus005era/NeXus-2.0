@@ -97,9 +97,9 @@ const DEFAULT_NODES: NodeData[] = [
     modelProvider: 'Executive',
     latency: '< 1ms',
     x: 60,
-    y: 280,
-    width: 250,
-    height: 185,
+    y: 290,
+    width: 280,
+    height: 195,
     iconBg: 'bg-[#A8C7FA]/10',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]/40',
@@ -116,10 +116,10 @@ const DEFAULT_NODES: NodeData[] = [
     apiKey: 'AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ',
     modelProvider: 'Google',
     latency: '4.2ms',
-    x: 370,
+    x: 440,
     y: 260,
-    width: 270,
-    height: 225,
+    width: 300,
+    height: 235,
     iconBg: 'bg-[#A8C7FA]/20',
     iconColor: 'text-[#A8C7FA]',
     borderColor: 'border-[#A8C7FA]',
@@ -136,10 +136,10 @@ const DEFAULT_NODES: NodeData[] = [
     apiKey: 'AQ.Ab8RN...SalesKey01',
     modelProvider: 'Google',
     latency: '8.2ms',
-    x: 720,
-    y: 80,
-    width: 260,
-    height: 180,
+    x: 880,
+    y: 60,
+    width: 290,
+    height: 190,
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
     borderColor: 'border-blue-500/50',
@@ -156,10 +156,10 @@ const DEFAULT_NODES: NodeData[] = [
     apiKey: 'sk-proj-InventoryKey02',
     modelProvider: 'OpenAI',
     latency: '6.4ms',
-    x: 720,
-    y: 290,
-    width: 260,
-    height: 180,
+    x: 880,
+    y: 300,
+    width: 290,
+    height: 190,
     iconBg: 'bg-amber-500/10',
     iconColor: 'text-amber-400',
     borderColor: 'border-amber-500/50',
@@ -176,10 +176,10 @@ const DEFAULT_NODES: NodeData[] = [
     apiKey: 'AQ.Ab8RN...FinanceKey03',
     modelProvider: 'Google',
     latency: '9.1ms',
-    x: 720,
-    y: 500,
-    width: 260,
-    height: 180,
+    x: 880,
+    y: 540,
+    width: 290,
+    height: 190,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/50',
@@ -196,10 +196,10 @@ const DEFAULT_NODES: NodeData[] = [
     apiKey: 'OR-Tools Native Engine',
     modelProvider: 'Nexus Formal',
     latency: '2.4ms',
-    x: 1070,
+    x: 1320,
     y: 250,
-    width: 275,
-    height: 240,
+    width: 300,
+    height: 245,
     iconBg: 'bg-purple-500/10',
     iconColor: 'text-purple-400',
     borderColor: 'border-purple-500/60',
@@ -216,10 +216,10 @@ const DEFAULT_NODES: NodeData[] = [
     apiKey: 'neon_db_secret_key_live',
     modelProvider: 'Neon',
     latency: '1.8ms',
-    x: 1420,
+    x: 1760,
     y: 270,
-    width: 270,
-    height: 215,
+    width: 295,
+    height: 225,
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/60',
@@ -235,8 +235,9 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
 }) => {
   const [nodes, setNodes] = useState<NodeData[]>(DEFAULT_NODES);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 20, y: 20 });
-  const [zoom, setZoom] = useState<number>(0.88);
+  const [zoom, setZoom] = useState<number>(0.75);
   const [showGrid, setShowGrid] = useState<boolean>(true);
+  const [isInteracting, setIsInteracting] = useState<boolean>(false);
 
   // Simulation & Pipeline Loop State
   const [simSurge, setSimSurge] = useState<number>(70);
@@ -245,6 +246,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const wheelTimerRef = useRef<any>(null);
 
   // Auto-trigger Live Swarm Pipeline Animation when switching tabs from Executive Chat
   const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>('P100 Headphones');
@@ -298,6 +300,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   // Pointer Down Drag Handler
   const handleNodePointerDown = (nodeId: string, e: React.PointerEvent) => {
     e.stopPropagation();
+    setIsInteracting(true);
     const startX = e.clientX;
     const startY = e.clientY;
     const targetNode = nodes.find((n) => n.id === nodeId);
@@ -325,6 +328,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     };
 
     const onPointerUp = () => {
+      setIsInteracting(false);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
 
@@ -343,6 +347,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       return;
     }
 
+    setIsInteracting(true);
     const startX = e.clientX;
     const startY = e.clientY;
     const initialPanX = pan.x;
@@ -355,6 +360,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     };
 
     const onPanUp = () => {
+      setIsInteracting(false);
       window.removeEventListener('pointermove', onPanMove);
       window.removeEventListener('pointerup', onPanUp);
     };
@@ -364,19 +370,41 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      setZoom((prev) => Math.min(1.8, Math.max(0.4, prev * zoomFactor)));
-    } else {
-      setPan((prev) => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
-    }
+    e.preventDefault();
+    setIsInteracting(true);
+    if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    wheelTimerRef.current = setTimeout(() => setIsInteracting(false), 180);
+
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    const deltaZoom = -e.deltaY * 0.0018;
+    setZoom((prevZoom) => {
+      const nextZoom = Math.min(2.2, Math.max(0.3, prevZoom * (1 + deltaZoom)));
+      const scaleRatio = nextZoom / prevZoom;
+      setPan((prevPan) => ({
+        x: cursorX - (cursorX - prevPan.x) * scaleRatio,
+        y: cursorY - (cursorY - prevPan.y) * scaleRatio,
+      }));
+      return nextZoom;
+    });
   };
 
   const handleResetLayout = () => {
+    setIsInteracting(false);
     setNodes(DEFAULT_NODES);
     setPan({ x: 20, y: 20 });
-    setZoom(0.88);
+    setZoom(0.75);
+  };
+
+  const handleFitToView = () => {
+    setIsInteracting(false);
+    setPan({ x: 40, y: 40 });
+    setZoom(0.62);
   };
 
   // Live Bidirectional Swarm Workflow Trigger
@@ -607,13 +635,15 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           }}
         >
           <div
-            className="absolute inset-0 origin-top-left transition-transform duration-75 ease-out"
+            className={`absolute inset-0 origin-top-left ${
+              isInteracting ? 'transition-none' : 'transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1)'
+            }`}
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             }}
           >
             {/* SVG PORT CONNECTIONS LAYER */}
-            <svg className="absolute top-0 left-0 w-[3000px] h-[2000px] pointer-events-none z-0">
+            <svg className="absolute top-0 left-0 w-[3200px] h-[2200px] pointer-events-none z-0">
               {/* Forward Connections */}
               {renderPortConnection('node-ceo', 'node-orchestrator', '#4285F4')}
               {renderPortConnection('node-orchestrator', 'node-sales', '#3B82F6')}
@@ -636,6 +666,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             {/* NODES WITH PORT ANCHORS */}
             {nodes.map((node) => {
               const isSelected = selectedNodeId === node.id;
+              const isActiveInStage = node.stageNum === activeStage;
 
               return (
                 <div
@@ -646,17 +677,19 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     width: `${node.width}px`,
                     height: `${node.height}px`,
                   }}
-                  className={`absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-150 cursor-grab active:cursor-grabbing shadow-2xl ${
+                  className={`absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-200 cursor-grab active:cursor-grabbing shadow-2xl ${
                     isSelected
-                      ? 'border-[#4285F4] ring-2 ring-[#4285F4]/40 scale-[1.02]'
+                      ? 'border-[#4285F4] ring-2 ring-[#4285F4]/50 scale-[1.02]'
+                      : isActiveInStage
+                      ? 'border-[#A8C7FA] ring-2 ring-[#A8C7FA]/40 shadow-[#A8C7FA]/20 scale-[1.01]'
                       : node.borderColor
                   }`}
                 >
                   {/* Left Input Port Dot */}
-                  <div className="w-3 h-3 rounded-full bg-[#4285F4] border-2 border-[#1E1F20] absolute -left-1.5 top-1/2 -translate-y-1/2 shadow-md" />
+                  <div className="w-3.5 h-3.5 rounded-full bg-[#4285F4] border-2 border-[#1E1F20] absolute -left-1.5 top-1/2 -translate-y-1/2 shadow-md" />
 
                   {/* Right Output Port Dot */}
-                  <div className="w-3 h-3 rounded-full bg-[#A8C7FA] border-2 border-[#1E1F20] absolute -right-1.5 top-1/2 -translate-y-1/2 shadow-md" />
+                  <div className="w-3.5 h-3.5 rounded-full bg-[#A8C7FA] border-2 border-[#1E1F20] absolute -right-1.5 top-1/2 -translate-y-1/2 shadow-md" />
 
                   <div className="p-3 border-b border-[#2D2E30]/70 flex items-center justify-between bg-[#18191A]/80 rounded-t-2xl">
                     <div className="flex items-center space-x-2 truncate">
@@ -677,7 +710,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     <div className="pt-1 border-t border-[#2D2E30]/50 space-y-1 text-[10px]">
                       <div className="flex items-center justify-between">
                         <span className="text-[#888888]">AI Model:</span>
-                        <span className="font-mono text-[#A8C7FA] font-medium truncate max-w-[120px]">
+                        <span className="font-mono text-[#A8C7FA] font-medium truncate max-w-[130px]">
                           {node.model}
                         </span>
                       </div>
@@ -697,36 +730,51 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           {/* BOTTOM-LEFT FLOATING CANVAS TOOLBAR */}
           <div className="absolute bottom-6 left-6 z-30 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-full px-3 py-1.5 shadow-2xl">
             <button
-              onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30]"
+              onClick={() => {
+                setIsInteracting(false);
+                setZoom((z) => Math.max(0.3, z - 0.1));
+              }}
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
               title="Zoom Out"
             >
               <ZoomOut className="w-4 h-4" />
             </button>
-            <span className="text-xs font-mono font-medium text-[#A8C7FA] px-2">
+            <span className="text-xs font-mono font-medium text-[#A8C7FA] px-2 min-w-[45px] text-center">
               {Math.round(zoom * 100)}%
             </span>
             <button
-              onClick={() => setZoom((z) => Math.min(1.8, z + 0.1))}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30]"
+              onClick={() => {
+                setIsInteracting(false);
+                setZoom((z) => Math.min(2.2, z + 0.1));
+              }}
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
               title="Zoom In"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
+
             <div className="w-px h-4 bg-[#2D2E30] mx-1" />
+
+            <button
+              onClick={handleFitToView}
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              title="Fit View to Screen"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
             <button
               onClick={handleResetLayout}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30]"
-              title="Reset View"
+              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+              title="Reset Layout & Pan"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowGrid(!showGrid)}
-              className={`p-1.5 rounded-full ${
+              className={`p-1.5 rounded-full transition-colors ${
                 showGrid ? 'text-[#4285F4] bg-[#4285F4]/10' : 'text-[#888888] hover:text-white'
               }`}
-              title="Toggle Grid"
+              title="Toggle Background Grid"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
