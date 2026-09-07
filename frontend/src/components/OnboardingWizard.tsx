@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Building, User, FileText, Database, CheckCircle2, ShieldCheck, Key, Globe } from 'lucide-react';
+import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe } from 'lucide-react';
 
 export interface WorkspaceConfig {
   userName: string;
@@ -7,11 +7,6 @@ export interface WorkspaceConfig {
   companyName: string;
   companyStructure: string;
   cloudDocsLink: string;
-  orchestratorApiKey?: string;
-  salesApiKey?: string;
-  inventoryApiKey?: string;
-  financeApiKey?: string;
-  driveApiKey?: string;
 }
 
 interface OnboardingWizardProps {
@@ -28,13 +23,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   );
   const [cloudDocsLink, setCloudDocsLink] = useState('https://drive.google.com/drive/folders/1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc?usp=sharing');
 
-  // Dedicated API Keys per Agent for Parallel Multi-Agent Execution
-  const [orchestratorApiKey, setOrchestratorApiKey] = useState('AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ');
-  const [salesApiKey, setSalesApiKey] = useState('AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ');
-  const [inventoryApiKey, setInventoryApiKey] = useState('AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ');
-  const [financeApiKey, setFinanceApiKey] = useState('AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ');
-  const [driveApiKey, setDriveApiKey] = useState('AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ');
-
   const handleFinish = () => {
     const config: WorkspaceConfig = {
       userName: userName.trim() || 'Rahul Singh',
@@ -42,11 +30,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
       companyName: companyName.trim() || 'TechMart Electronics',
       companyStructure: companyStructure.trim(),
       cloudDocsLink: cloudDocsLink.trim(),
-      orchestratorApiKey: orchestratorApiKey.trim(),
-      salesApiKey: salesApiKey.trim(),
-      inventoryApiKey: inventoryApiKey.trim(),
-      financeApiKey: financeApiKey.trim(),
-      driveApiKey: driveApiKey.trim(),
     };
     localStorage.setItem('nexus_workspace_config', JSON.stringify(config));
     onComplete(config);
@@ -66,7 +49,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 Enterprise Setup Wizard
               </h2>
               <p className="text-xs text-[#888888]">
-                Step {step} of 3 • Cloud Drive & Agent API Key Registration
+                Step {step} of 3 • Cloud Database Registration
               </p>
             </div>
           </div>
@@ -155,17 +138,20 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           </div>
         )}
 
-        {/* STEP 3: GOOGLE DRIVE LINK & DEDICATED PER-AGENT API KEYS */}
+        {/* STEP 3: GOOGLE DRIVE LINK */}
         {step === 3 && (
           <div className="space-y-4">
             <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider">
-              3. Shared Google Drive Link & Dedicated Agent API Keys
+              3. Enterprise Shared Cloud Database & Docs Link
             </div>
+            <p className="text-xs text-[#888888]">
+              Provide your publicly shared Google Drive folder link containing company records, sales reports, and inventory ledgers.
+            </p>
 
             <div>
               <label className="text-xs text-[#888888] flex items-center space-x-1 mb-1">
                 <Globe className="w-3.5 h-3.5 text-[#34A853]" />
-                <span>Publicly Shared Google Drive Folder Link</span>
+                <span>Shared Google Drive Folder Link</span>
               </label>
               <input
                 type="text"
@@ -174,57 +160,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 placeholder="https://drive.google.com/drive/folders/..."
                 className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
               />
-              <div className="text-[10px] text-[#34A853] mt-1">
-                ✓ Google Drive Shared Link Active (Tech Folder ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc)
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-[#2D2E30]">
-              <div className="text-xs font-bold text-white flex items-center space-x-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-400" />
-                <span>Dedicated API Keys per Agent (Prevents Rate Limits)</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div>
-                  <label className="text-[10px] text-[#888888]">Orchestrator Key (Gemini)</label>
-                  <input
-                    type="password"
-                    value={orchestratorApiKey}
-                    onChange={(e) => setOrchestratorApiKey(e.target.value)}
-                    className="w-full bg-[#131314] text-xs text-white p-2 rounded-lg border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[#888888]">Sales Agent Key (Gemini Flash)</label>
-                  <input
-                    type="password"
-                    value={salesApiKey}
-                    onChange={(e) => setSalesApiKey(e.target.value)}
-                    className="w-full bg-[#131314] text-xs text-white p-2 rounded-lg border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[#888888]">Inventory Agent Key (Gemini Flash / OpenAI)</label>
-                  <input
-                    type="password"
-                    value={inventoryApiKey}
-                    onChange={(e) => setInventoryApiKey(e.target.value)}
-                    className="w-full bg-[#131314] text-xs text-white p-2 rounded-lg border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[#888888]">Finance Agent Key (Gemini Pro)</label>
-                  <input
-                    type="password"
-                    value={financeApiKey}
-                    onChange={(e) => setFinanceApiKey(e.target.value)}
-                    className="w-full bg-[#131314] text-xs text-white p-2 rounded-lg border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-                  />
-                </div>
+              <div className="text-[10px] text-[#34A853] mt-2 flex items-center space-x-1">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Google Drive Shared Link Active (Tech Folder ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc)</span>
               </div>
             </div>
           </div>
@@ -257,7 +195,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
               className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A855F7] text-xs font-bold text-white flex items-center space-x-2 shadow-lg shadow-[#1A73E8]/30"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Register Keys & Launch Workspace</span>
+              <span>Launch Workspace</span>
             </button>
           )}
         </div>

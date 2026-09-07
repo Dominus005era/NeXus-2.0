@@ -418,9 +418,9 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                 </div>
               </div>
               <button
-                onClick={() => setApiKeyModalOpen(true)}
+                onClick={() => {}}
                 className="p-1.5 text-[#888888] hover:text-white hover:bg-[#2D2E30] rounded-lg transition-colors"
-                title="Gemini API Key Settings"
+                title="Workspace Information"
               >
                 <Settings className="w-4 h-4" />
               </button>
@@ -428,9 +428,9 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
           ) : (
             <div className="flex flex-col items-center space-y-3">
               <button
-                onClick={() => setApiKeyModalOpen(true)}
+                onClick={() => {}}
                 className="p-1.5 text-[#888888] hover:text-white hover:bg-[#2D2E30] rounded-lg transition-colors"
-                title="API Settings"
+                title="Workspace Information"
               >
                 <Settings className="w-4 h-4" />
               </button>
