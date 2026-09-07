@@ -2,8 +2,9 @@ services:
   - type: web
     name: nexus-backend-v2
     env: python
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: SWARM_ORCHESTRATOR_API_KEY
         value: AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ
