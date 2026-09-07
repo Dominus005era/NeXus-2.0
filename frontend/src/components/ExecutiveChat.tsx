@@ -93,6 +93,107 @@ const SUGGESTED_PROMPTS = [
   },
 ];
 
+// Helper function to parse inline markdown (bold **text**, `code`, etc.)
+const parseInlineFormatting = (text: string) => {
+  if (!text) return '';
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-bold text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={index} className="px-1.5 py-0.5 rounded bg-[#131314] font-mono text-[11px] text-[#A8C7FA] border border-[#2D2E30]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+};
+
+// Rich Markdown Formatter for Assistant Briefs
+const renderFormattedMarkdown = (content: string) => {
+  if (!content) return null;
+  const lines = content.split('\n');
+
+  return (
+    <div className="space-y-2 font-sans leading-relaxed text-[#E3E3E3]">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        // Headings (#, ##, ###, ####)
+        if (trimmed.startsWith('# ')) {
+          return (
+            <h1 key={idx} className="text-lg font-bold text-white mt-3 mb-1 pb-1 border-b border-[#2D2E30] font-heading">
+              {parseInlineFormatting(trimmed.replace(/^#\s+/, ''))}
+            </h1>
+          );
+        }
+        if (trimmed.startsWith('## ')) {
+          return (
+            <h2 key={idx} className="text-base font-bold text-white mt-3 mb-1 flex items-center space-x-2 font-heading">
+              <span className="w-1.5 h-3.5 bg-[#4285F4] rounded-full inline-block"></span>
+              <span>{parseInlineFormatting(trimmed.replace(/^##\s+/, ''))}</span>
+            </h2>
+          );
+        }
+        if (trimmed.startsWith('### ')) {
+          return (
+            <h3 key={idx} className="text-sm font-bold text-[#A8C7FA] mt-2 mb-1 uppercase tracking-wider font-heading">
+              {parseInlineFormatting(trimmed.replace(/^###\s+/, ''))}
+            </h3>
+          );
+        }
+        if (trimmed.startsWith('#### ')) {
+          return (
+            <h4 key={idx} className="text-xs font-semibold text-[#A8C7FA] mt-2 mb-1">
+              {parseInlineFormatting(trimmed.replace(/^####\s+/, ''))}
+            </h4>
+          );
+        }
+
+        // Bullet Lists (- or *)
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const bulletContent = trimmed.replace(/^[-*]\s+/, '');
+          return (
+            <div key={idx} className="flex items-start space-x-2 my-1 pl-1 text-xs sm:text-sm text-[#C4C7C5]">
+              <span className="text-[#4285F4] font-bold mt-1 text-xs shrink-0">•</span>
+              <span className="flex-1">{parseInlineFormatting(bulletContent)}</span>
+            </div>
+          );
+        }
+
+        // Numbered Lists (1. 2. etc)
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+        if (numMatch) {
+          return (
+            <div key={idx} className="flex items-start space-x-2 my-1 pl-1 text-xs sm:text-sm text-[#E3E3E3]">
+              <span className="px-1.5 py-0.2 rounded bg-[#131314] text-[#A8C7FA] font-mono text-[10px] border border-[#2D2E30] font-bold shrink-0 mt-0.5">
+                {numMatch[1]}
+              </span>
+              <span className="flex-1">{parseInlineFormatting(numMatch[2])}</span>
+            </div>
+          );
+        }
+
+        // Default Paragraph
+        return (
+          <p key={idx} className="my-1 text-xs sm:text-sm text-[#D8D8D8]">
+            {parseInlineFormatting(trimmed)}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
+
 export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
   onBackToLanding,
   onSwitchToSwarm,
@@ -683,36 +784,8 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
 
                         {/* Main Response Markdown Container */}
                         <div className="bg-[#1E1F20] text-sm text-[#E3E3E3] p-5 rounded-2xl border border-[#2D2E30] shadow-xl space-y-3 leading-relaxed">
-                          <div className="prose prose-invert max-w-none text-xs sm:text-sm">
-                            {msg.content.split('\n').map((line, idx) => {
-                              if (line.startsWith('### ')) {
-                                return (
-                                  <h3 key={idx} className="text-base font-bold text-white mt-2 mb-1">
-                                    {line.replace('### ', '')}
-                                  </h3>
-                                );
-                              }
-                              if (line.startsWith('#### ')) {
-                                return (
-                                  <h4 key={idx} className="text-sm font-semibold text-[#A8C7FA] mt-3 mb-1">
-                                    {line.replace('#### ', '')}
-                                  </h4>
-                                );
-                              }
-                              if (line.startsWith('- ')) {
-                                return (
-                                  <div key={idx} className="flex items-start space-x-2 my-1 text-[#C4C7C5]">
-                                    <span className="text-[#4285F4] mt-1">•</span>
-                                    <span>{line.replace('- ', '')}</span>
-                                  </div>
-                                );
-                              }
-                              return (
-                                <p key={idx} className="my-1">
-                                  {line}
-                                </p>
-                              );
-                            })}
+                          <div>
+                            {renderFormattedMarkdown(msg.content)}
                           </div>
 
                           {/* INTERACTIVE PO SPLIT ALLOCATION CARD */}
