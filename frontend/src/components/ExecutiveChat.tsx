@@ -96,17 +96,18 @@ const SUGGESTED_PROMPTS = [
 // Helper function to parse inline markdown (bold **text**, `code`, etc.)
 const parseInlineFormatting = (text: string) => {
   if (!text) return '';
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  // Split by bold (**...**) or code (`...`)
+  const parts = text.split(/(\*\*[\s\S]*?\*\*|`[^`]+`)/g);
 
   return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
       return (
         <strong key={index} className="font-bold text-white">
           {part.slice(2, -2)}
         </strong>
       );
     }
-    if (part.startsWith('`') && part.endsWith('`')) {
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
       return (
         <code key={index} className="px-1.5 py-0.5 rounded bg-[#131314] font-mono text-[11px] text-[#A8C7FA] border border-[#2D2E30]">
           {part.slice(1, -1)}
