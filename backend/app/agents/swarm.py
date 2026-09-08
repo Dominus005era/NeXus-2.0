@@ -52,7 +52,7 @@ class SwarmOrchestratorEngine:
         # Dynamic topic header & tailored focus based on prompt
         prompt_lower = prompt.lower()
 
-        if any(k in prompt_lower for k in ["strategy", "increase sale", "increase sales", "scale", "growth", "boost sale", "boost sales", "marketing"]):
+        if any(k in prompt_lower for k in ["strateg", "increase", "scale", "growth", "boost", "marketing", "revenue", "50%"]):
             topic_title = "Executive Sales Acceleration & Growth Strategy (+50% Target)"
             focus_section = (
                 f"#### 1. Strategic Revenue Acceleration Plan\n"
