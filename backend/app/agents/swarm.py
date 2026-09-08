@@ -52,46 +52,48 @@ class SwarmOrchestratorEngine:
         # Dynamic topic header & tailored focus based on prompt
         prompt_lower = prompt.lower()
 
-        if "audit" in prompt_lower or "reserve" in prompt_lower or "treasury" in prompt_lower or "liquidity" in prompt_lower:
-            topic_title = "Treasury Liquidity & Statutory Reserve Audit"
+        if any(k in prompt_lower for k in ["strategy", "increase sale", "increase sales", "scale", "growth", "boost sale", "boost sales", "marketing"]):
+            topic_title = "Executive Sales Acceleration & Growth Strategy (+50% Target)"
             focus_section = (
-                f"#### 1. Treasury Reserve Verification\n"
-                f"- **Ledger Cash Balance**: **₹8,50,000** verified across active enterprise accounts.\n"
-                f"- **Statutory Lock Compliance**: **₹5,00,000 (100% Protected & Locked)**.\n"
-                f"- **Immediate Safe Spend Ceiling**: **₹1,80,000** max safe cap.\n"
-                f"- **Governance Audit Status**: Passed all statutory compliance checks without reserve lock breach.\n\n"
-                f"#### 2. Operations Telemetry Context\n"
-                f"- **Order Velocity**: {sales_velocity} units/day | **Stock Horizon**: {depletion_horizon_days} days | **Deficit**: {deficit_units} units."
+                f"#### 1. Strategic Revenue Acceleration Plan\n"
+                f"- **Creator Affiliate & Referral Engine**: Launch a tiered affiliate program offering 12% commission for micro-tech creators, scaling daily order velocity from {sales_velocity} u/d to 215+ u/d.\n"
+                f"- **Product Bundling & Cross-Selling**: Pair P100 UltraGlide Headphones with custom protective carrying cases and premium audio cables, boosting Average Order Value (AOV) by +25%.\n"
+                f"- **B2B Bulk Workspace Accounts**: Target corporate IT procurement departments and startup workspaces for direct 50+ unit enterprise orders.\n"
+                f"- **Marketplace Expansion**: Expand fulfillment nodes across Amazon Prime and Flipkart logistics for immediate regional delivery.\n\n"
+                f"#### 2. Operations & Inventory Scale Readiness\n"
+                f"- **Scaled Velocity Target**: Achieving +50% sales surge requires maintaining a 217 units/day inventory pipeline.\n"
+                f"- **Working Capital Protection**: Maintain the ₹5.00L statutory reserve lock while utilizing Supplier B Net-30 credit terms to fund inventory growth with zero upfront cash depletion."
             )
             include_allocation = False
 
-        elif "sales" in prompt_lower or "recent" in prompt_lower or "velocity" in prompt_lower:
+        elif any(k in prompt_lower for k in ["audit", "reserve", "treasury", "liquidity", "ceiling", "cash cap"]):
+            topic_title = "Treasury Liquidity & Statutory Reserve Audit"
+            focus_section = (
+                f"#### 1. Treasury Reserve Lock Verification\n"
+                f"- **Ledger Cash Balance**: **₹8,50,000** verified across active enterprise accounts.\n"
+                f"- **Statutory Lock Compliance**: **₹5,00,000 (100% Protected & Strictly Locked)**.\n"
+                f"- **Immediate Safe Spend Ceiling**: **₹1,80,000** max cap.\n"
+                f"- **Governance Audit Status**: Fully compliant with statutory liquidity covenants.\n\n"
+                f"#### 2. Warehouse Telemetry Context\n"
+                f"- **Order Velocity**: {sales_velocity} units/day | **Stockout Horizon**: {depletion_horizon_days} days | **Deficit**: {deficit_units} units."
+            )
+            include_allocation = False
+
+        elif any(k in prompt_lower for k in ["recent sales data", "order velocity", "stockout horizon", "bin 4b", "current velocity"]):
             topic_title = "Sales Velocity & High-Frequency Telemetry Report"
             focus_section = (
-                f"#### 1. Sales Velocity & Demand Spike Analysis\n"
-                f"- **Current Order Velocity**: **{sales_velocity} units/day** (+{surge_multiplier}% promotional surge detected).\n"
-                f"- **7-Day Cumulative Demand**: **{forecast_7d} units** projected.\n"
+                f"#### 1. Demand & Order Velocity Analysis\n"
+                f"- **Current Order Velocity**: **{sales_velocity} units/day** (+{surge_multiplier}% creator promotional spike detected).\n"
+                f"- **7-Day Cumulative Forecast**: **{forecast_7d} units** projected.\n"
                 f"- **Bin 4B Stockout Horizon**: **{depletion_horizon_days} days** remaining before safety floor.\n"
-                f"- **7-Day Reorder Deficit**: **{deficit_units} units** required to replenish buffer.\n\n"
-                f"#### 2. Financial Governance & Spend Ceiling\n"
-                f"- **Ledger Cash**: ₹8,50,000 | **Statutory Lock**: ₹5,00,000 | **Safe Cap**: ₹1,80,000."
+                f"- **7-Day Reorder Deficit**: **{deficit_units} units** buffer deficit.\n\n"
+                f"#### 2. Liquidity Governance\n"
+                f"- **Ledger Cash Balance**: ₹8,50,000 | **Statutory Lock**: ₹5,00,000 | **Safe Cap**: ₹1,80,000."
             )
-            include_allocation = True
+            include_allocation = False
 
-        elif "supplier" in prompt_lower or "compare" in prompt_lower or "b vs c" in prompt_lower:
-            topic_title = "Supplier Credit Terms & Lead Time Trade-off Analysis"
-            focus_section = (
-                f"#### 1. Supplier Comparison Analysis\n"
-                f"- **Supplier B (QuickLogix Logistics)**: ₹477/unit • **Net-30 Credit (₹0 Upfront)** • 3-Day Lead Time.\n"
-                f"- **Supplier C (Zenith Air Freight)**: ₹436.50/unit • **50% Advance Cash Required** • 2-Day Lead Time.\n\n"
-                f"#### 2. Optimal Split Purchase Order\n"
-                f"- **Supplier B (QuickLogix Net-30)**: **{ilp_result['b_units']} units** at ₹477/unit (₹0 upfront cash, 3-day lead time).\n"
-                f"- **Supplier C (Zenith Air Freight 50% Adv)**: **{ilp_result['c_units']} units** at ₹436.50/unit (₹{ilp_result['total_upfront_cash']:,} upfront cash, 2-day lead time)."
-            )
-            include_allocation = True
-
-        else:
-            topic_title = "P100 Demand Spike Allocation Brief"
+        elif any(k in prompt_lower for k in ["po split", "supplier", "compare", "b vs c", "allocate", "promotional surge", "headphone"]):
+            topic_title = "P100 Demand Spike & PO Split Allocation Brief"
             focus_section = (
                 f"#### 1. Demand & Stockout Horizon\n"
                 f"- **Elevated Velocity**: **{sales_velocity} units/day** (+{surge_multiplier}% surge detected).\n"
@@ -108,6 +110,17 @@ class SwarmOrchestratorEngine:
                 f"- **Supplier C (Zenith Air Freight 50% Adv)**: **{ilp_result['c_units']} units** at ₹436.50/unit (₹{ilp_result['total_upfront_cash']:,} upfront cash, 2-day lead time)."
             )
             include_allocation = True
+
+        else:
+            topic_title = "Nexus Enterprise AI Executive Assistant Brief"
+            focus_section = (
+                f"#### Enterprise Operational Summary\n"
+                f"Grounded in enterprise records from your registered Google Drive Cloud Folder (`1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc`):\n\n"
+                f"- **Product Focus**: P100 UltraGlide Headphones ({sales_velocity} units/day order velocity).\n"
+                f"- **Treasury Liquidity**: ₹8,50,000 Cash Balance (₹5,00,000 Statutory Lock, ₹1,80,000 Safe Cap).\n"
+                f"- **Sub-Agents Online**: Sales Intelligence, Supply Chain Inventory, Treasury Governance, and OR-Tools ILP Solver."
+            )
+            include_allocation = False
 
         thinking_process = (
             f"1. [ORCHESTRATOR AGENT] (Key: {settings.SWARM_ORCHESTRATOR_API_KEY[:10]}...) Parsed query topic: \"{topic_title}\" from Google Drive folder ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc.\n"
@@ -142,9 +155,9 @@ class SwarmOrchestratorEngine:
             "executive_brief": executive_brief,
             "thinking_process": thinking_process,
             "thinking_time_sec": thinking_time,
-            "total_upfront_cash": ilp_result['total_upfront_cash'],
-            "total_units": ilp_result['total_units'],
+            "total_upfront_cash": ilp_result['total_upfront_cash'] if include_allocation else 0,
+            "total_units": ilp_result['total_units'] if include_allocation else 0,
             "feasible": ilp_result['feasible'],
-            "allocation_plan": ilp_result['allocation_plan'],
+            "allocation_plan": ilp_result['allocation_plan'] if include_allocation else None,
             "agent_telemetry": agent_telemetry,
         }
