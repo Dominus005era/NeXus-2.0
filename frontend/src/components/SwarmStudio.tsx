@@ -10,16 +10,13 @@ import {
   Cpu,
   Layers,
   Activity,
-  Terminal,
-  FileText,
   CheckCircle2,
   AlertTriangle,
   Flame,
-  Sliders,
   Play,
-  RotateCw,
-  Copy,
-  Check,
+  Pause,
+  SkipForward,
+  RotateCcw,
   Zap,
   Network,
   Database,
@@ -36,19 +33,11 @@ import {
   UserCheck,
   ZoomIn,
   ZoomOut,
-  Maximize2,
-  Move,
-  LayoutGrid,
   RefreshCw,
-  MousePointer,
-  HelpCircle,
-  GripHorizontal,
-  ChevronDown,
-  Key,
-  Globe,
   Send,
   Radio,
-  Eye
+  Sliders,
+  ChevronDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
@@ -81,50 +70,28 @@ export interface NodeData {
   stageNum: number;
 }
 
-interface DynamicWire {
+export interface DynamicPipelineStep {
   id: string;
   sourceId: string;
   targetId: string;
   label: string;
   color: string;
-  requiredForRoutes: SwarmRouteType[];
-  stageStep: number; // In which stage this wire transmits
+  stepType: 'dispatch' | 'decompose' | 'consult' | 'peer_consult' | 'solve' | 'deliver';
+  sourceThought?: string;
+  targetThought: string;
+  telemetryBadge?: string;
 }
 
-type SwarmRouteType = 'full_surge_milp' | 'treasury_audit' | 'inventory_deficit' | 'sales_velocity' | 'db_catalog';
-
-const ROUTE_INFO: Record<SwarmRouteType, { title: string; desc: string; color: string; badge: string }> = {
-  full_surge_milp: {
-    title: 'Full Surge & MILP Allocation DAG',
-    desc: 'Parallel routing to Sales, Inventory & Treasury feeding SciPy HiGHS Solver',
-    color: '#4285F4',
-    badge: 'Multi-Agent + MILP'
-  },
-  treasury_audit: {
-    title: 'Treasury & Statutory Lock Audit',
-    desc: 'Direct compliance path through DB & Treasury; Sales and Inventory Standby',
-    color: '#10B981',
-    badge: 'Governance Audit'
-  },
-  inventory_deficit: {
-    title: 'Supply Chain & Stockout Horizon',
-    desc: 'Targeted logistics query to DB & Inventory; Solver & Finance Standby',
-    color: '#F59E0B',
-    badge: 'Logistics Stream'
-  },
-  sales_velocity: {
-    title: 'Demand Surge & Forecast Curve',
-    desc: 'Commercial routing to DB & Sales Intelligence Agent',
-    color: '#3B82F6',
-    badge: 'Demand Analytics'
-  },
-  db_catalog: {
-    title: 'Google Drive Database Retrieval',
-    desc: 'Direct grounding extraction across connected Drive datasets',
-    color: '#8B5CF6',
-    badge: 'Knowledge RAG'
-  }
-};
+export interface SwarmScenario {
+  id: string;
+  title: string;
+  badge: string;
+  badgeColor: string;
+  prompt: string;
+  description: string;
+  steps: DynamicPipelineStep[];
+  participatingNodeIds: string[];
+}
 
 const AVAILABLE_MODELS_BY_TYPE: Record<string, string[]> = {
   orchestrator: ['Gemini 3.6 Flash (Default)', 'Gemini 3.8 Flash (Turbo)', 'Gemini 2.5 Pro', 'GPT-4o'],
@@ -134,6 +101,34 @@ const AVAILABLE_MODELS_BY_TYPE: Record<string, string[]> = {
   solver: ['SciPy HiGHS MILP Engine (Exact)', 'Google OR-Tools ILP v9.8', 'Nexus 3.1 Deep Think'],
   db: ['SQLite / Neon Postgres (SQLAlchemy)', 'Google Drive Cloud Docs API', 'Supabase Realtime'],
 };
+
+// Realistic Random Enterprise Directives (Unscripted & independent of hardcoded databases)
+const RANDOM_ENTERPRISE_COMMANDS = [
+  {
+    prompt: 'Audit cross-border supplier tariffs and import duties across active vendor contracts.',
+    scenarioType: 'dual_governance' as const,
+  },
+  {
+    prompt: 'Formulate weekend flash-sale discount ceiling without degrading minimum gross margin.',
+    scenarioType: 'single_sales' as const,
+  },
+  {
+    prompt: 'Analyze critical component shortage on assembly line and negotiate expedited emergency supplier allocation.',
+    scenarioType: 'emergency_stockout' as const,
+  },
+  {
+    prompt: 'Stress-test 30-day corporate burn rate against worst-case creator promotional dropoff.',
+    scenarioType: 'collab_surge_milp' as const,
+  },
+  {
+    prompt: 'Evaluate automated warehouse robotics picking throughput and bin replenishment cycles.',
+    scenarioType: 'emergency_stockout' as const,
+  },
+  {
+    prompt: 'Model customer acquisition velocity vs fulfillment SLA guarantees for tier-1 distribution hubs.',
+    scenarioType: 'single_sales' as const,
+  }
+];
 
 export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   onBackToLanding,
@@ -159,7 +154,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const authorityLevel = workspaceConfig?.authorityLevel || 'LEVEL_4_EXECUTIVE';
   const primaryProduct = workspaceConfig?.primaryProduct || 'P100 Headphones';
 
-  // Dynamic Initial Nodes formulated from company structure
+  // Dynamic Initial Nodes formulated from company structure (Clean 5-tier architecture)
   const initialNodes: NodeData[] = useMemo(() => [
     {
       id: 'node-ceo',
@@ -191,7 +186,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       department: 'AI Operations Command',
       modelProvider: 'Google',
       latency: '3.8ms',
-      x: 440,
+      x: 430,
       y: 250,
       width: 320,
       height: 240,
@@ -211,7 +206,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       department: 'Commercial & Sales',
       modelProvider: 'Google',
       latency: '5.4ms',
-      x: 910,
+      x: 880,
       y: 50,
       width: 300,
       height: 200,
@@ -231,7 +226,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       department: 'Logistics & Warehouse',
       modelProvider: 'OpenAI',
       latency: '4.9ms',
-      x: 910,
+      x: 880,
       y: 290,
       width: 300,
       height: 200,
@@ -246,12 +241,12 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       type: 'finance',
       title: 'Treasury & Governance',
       subtitle: 'Statutory Reserve & Safe Cash Cap',
-      role: 'Ledger Audit & ₹1.80L Spend Ceiling Guard',
+      role: 'Ledger Audit & Spend Ceiling Guard',
       model: 'Gemini 1.5 Pro (2M Context)',
       department: 'Treasury & Compliance',
       modelProvider: 'Google',
       latency: '6.1ms',
-      x: 910,
+      x: 880,
       y: 530,
       width: 300,
       height: 200,
@@ -260,26 +255,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       borderColor: 'border-emerald-500/50',
       accentGlow: 'rgba(34, 197, 94, 0.25)',
       stageNum: 3,
-    },
-    {
-      id: 'node-solver',
-      type: 'solver',
-      title: 'SciPy HiGHS Decision Solver',
-      subtitle: 'Deterministic MILP Optimization',
-      role: 'Mixed-Integer Linear Supplier Split Formulation',
-      model: 'SciPy HiGHS MILP Engine (Exact)',
-      department: 'Operations Optimization',
-      modelProvider: 'Nexus Formal',
-      latency: '3.9ms',
-      x: 1360,
-      y: 250,
-      width: 320,
-      height: 245,
-      iconBg: 'bg-purple-500/10',
-      iconColor: 'text-purple-500 dark:text-purple-400',
-      borderColor: 'border-purple-500/60',
-      accentGlow: 'rgba(168, 85, 247, 0.3)',
-      stageNum: 4,
     },
     {
       id: 'node-db',
@@ -291,120 +266,332 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       department: 'Enterprise Data Layer',
       modelProvider: 'Neon',
       latency: '1.2ms',
-      x: 1810,
-      y: 270,
+      x: 880,
+      y: 770,
       width: 300,
-      height: 230,
-      iconBg: 'bg-emerald-500/10',
-      iconColor: 'text-emerald-500 dark:text-emerald-400',
-      borderColor: 'border-emerald-500/60',
-      accentGlow: 'rgba(16, 185, 129, 0.25)',
+      height: 200,
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-500 dark:text-purple-400',
+      borderColor: 'border-purple-500/50',
+      accentGlow: 'rgba(168, 85, 247, 0.25)',
       stageNum: 2,
+    },
+    {
+      id: 'node-solver',
+      type: 'solver',
+      title: 'SciPy HiGHS Decision Solver',
+      subtitle: 'Deterministic MILP Optimization',
+      role: 'Mixed-Integer Linear Supplier Split Formulation',
+      model: 'SciPy HiGHS MILP Engine (Exact)',
+      department: 'Operations Optimization',
+      modelProvider: 'Nexus Formal',
+      latency: '3.9ms',
+      x: 1310,
+      y: 250,
+      width: 320,
+      height: 245,
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-500 dark:text-purple-400',
+      borderColor: 'border-purple-500/60',
+      accentGlow: 'rgba(168, 85, 247, 0.3)',
+      stageNum: 4,
     },
   ], [userName, userRole, authorityLevel, companyName, primaryProduct]);
 
-  // Master Wire Definitions Linking Nodes
-  const dynamicWires: DynamicWire[] = useMemo(() => [
+  // Comprehensive Scenarios showcasing True Agenting Workflow & Inter-Agent Peer Consultation
+  const scenarios: SwarmScenario[] = useMemo(() => [
     {
-      id: 'wire-ceo-to-orchestrator',
-      sourceId: 'node-ceo',
-      targetId: 'node-orchestrator',
-      label: 'Executive Query Dispatch',
-      color: '#4285F4',
-      requiredForRoutes: ['full_surge_milp', 'treasury_audit', 'inventory_deficit', 'sales_velocity', 'db_catalog'],
-      stageStep: 1,
+      id: 'collab_surge_milp',
+      title: 'Collaborative Swarm (Peer Consultation)',
+      badge: 'Multi-Agent + Peer Consult',
+      badgeColor: 'border-blue-400 bg-blue-500/10 text-blue-600 dark:text-[#A8C7FA]',
+      prompt: `Analyze sudden demand surge (+70%) on ${primaryProduct}, consult inventory & finance covenants, and formulate optimal supplier PO split within liquidity cap.`,
+      description: 'Executive directive flows to Orchestrator -> Sales -> Peer consults Inventory -> Peer consults Finance -> SciPy Solver proves optimal integer split -> Delivered to Executive.',
+      participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-sales', 'node-inventory', 'node-finance', 'node-solver'],
+      steps: [
+        {
+          id: 'step-1-ceo-to-orchestrator',
+          sourceId: 'node-ceo',
+          targetId: 'node-orchestrator',
+          label: '1. Executive Directive Dispatch',
+          color: '#4285F4',
+          stepType: 'dispatch',
+          sourceThought: 'Executive dispatched urgent growth & replenishment mandate.',
+          targetThought: `Decomposing directive: Requires Sales surge forecast, Warehouse stock verification, and Statutory spend limits for ${primaryProduct}.`,
+          telemetryBadge: 'Directive: Formulate surge PO split',
+        },
+        {
+          id: 'step-2-orchestrator-to-sales',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-sales',
+          label: '2. Task: Sales Velocity Analytics',
+          color: '#3B82F6',
+          stepType: 'consult',
+          sourceThought: 'Orchestrator delegating commercial analytics to Sales Agent.',
+          targetThought: `Promo surge modeling complete: Daily velocity elevated to 145 u/d (+70%). 7-day projected demand = 1,015 units.`,
+          telemetryBadge: 'Sales: Velocity 145 u/d (+70%)',
+        },
+        {
+          id: 'step-3-sales-to-inventory-peer',
+          sourceId: 'node-sales',
+          targetId: 'node-inventory',
+          label: '3. Peer Consult: Request Bin Stock',
+          color: '#F59E0B',
+          stepType: 'peer_consult',
+          sourceThought: 'Sales Agent querying Supply Chain Agent for buffer stock...',
+          targetThought: `Warehouse Bin-4B audited: 170 units on hand (Safety floor: 150u). Net deficit = 960 units urgently needed!`,
+          telemetryBadge: 'Inventory: Net Deficit 960 units',
+        },
+        {
+          id: 'step-4-inventory-to-finance-peer',
+          sourceId: 'node-inventory',
+          targetId: 'node-finance',
+          label: '4. Peer Consult: Check Cash Ceiling',
+          color: '#10B981',
+          stepType: 'peer_consult',
+          sourceThought: 'Inventory Agent consulting Treasury for maximum upfront cash disbursement...',
+          targetThought: `Treasury covenant check: ₹5.00L statutory reserve locked. Upfront cash disbursement capped at ₹1.80L.`,
+          telemetryBadge: 'Finance: ₹1.80L Spend Cap Approved',
+        },
+        {
+          id: 'step-5-finance-to-solver',
+          sourceId: 'node-finance',
+          targetId: 'node-solver',
+          label: '5. Submit Multi-Agent Constraints to MILP',
+          color: '#A855F7',
+          stepType: 'solve',
+          sourceThought: 'Passing demand objective (1,015u), deficit constraint (960u), and ₹1.80L cash cap to Decision Solver.',
+          targetThought: `SciPy HiGHS Solver: Min Cost s.t. 960u deficit & ₹1.80L cap -> Optimal: 160u (Beta) + 800u (Gamma) = ₹1,74,600. Solved in 3.9ms!`,
+          telemetryBadge: 'HiGHS: 160u Beta + 800u Gamma (Feasible)',
+        },
+        {
+          id: 'step-6-solver-to-orchestrator',
+          sourceId: 'node-solver',
+          targetId: 'node-orchestrator',
+          label: '6. Mathematical Proof Verification',
+          color: '#4285F4',
+          stepType: 'solve',
+          sourceThought: 'Transmitting exact integer solution proof to Swarm Orchestrator.',
+          targetThought: `Proof verified against statutory liquidity reserve. Formatting executive synthesis brief.`,
+          telemetryBadge: 'Orchestrator: Solution verified',
+        },
+        {
+          id: 'step-7-orchestrator-to-ceo',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-ceo',
+          label: '7. Final Verified Brief Delivery',
+          color: '#10B981',
+          stepType: 'deliver',
+          sourceThought: 'Delivering verified multi-agent procurement brief to Executive.',
+          targetThought: `Executive Directive Fulfilled: Optimal 2-supplier PO split verified and ready for board dispatch.`,
+          telemetryBadge: 'Executive: Brief Received & Verified',
+        },
+      ],
     },
     {
-      id: 'wire-orchestrator-to-db',
-      sourceId: 'node-orchestrator',
-      targetId: 'node-db',
-      label: 'Drive Grounding & Catalog RAG',
-      color: '#10B981',
-      requiredForRoutes: ['full_surge_milp', 'treasury_audit', 'inventory_deficit', 'sales_velocity', 'db_catalog'],
-      stageStep: 2,
+      id: 'single_sales',
+      title: 'Single-Agent Direct Flow (Sales Only)',
+      badge: 'Single-Agent Direct',
+      badgeColor: 'border-blue-400 bg-blue-500/10 text-blue-600 dark:text-[#A8C7FA]',
+      prompt: `Project quarterly regional sales run-rate and creator campaign velocity for ${primaryProduct}.`,
+      description: 'Orchestrator identifies task only requires Commercial Sales Agent. Other agents remain idle with zero lines.',
+      participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-sales', 'node-solver'],
+      steps: [
+        {
+          id: 'step-1-ceo-to-orchestrator',
+          sourceId: 'node-ceo',
+          targetId: 'node-orchestrator',
+          label: '1. Executive Directive Dispatch',
+          color: '#4285F4',
+          stepType: 'dispatch',
+          targetThought: `Prompt decomposed: Commercial forecast inquiry. Routing directly to Sales Intelligence Agent.`,
+          telemetryBadge: 'Executive: Sales velocity forecast requested',
+        },
+        {
+          id: 'step-2-orchestrator-to-sales',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-sales',
+          label: '2. Direct Commercial Routing',
+          color: '#3B82F6',
+          stepType: 'consult',
+          targetThought: `Sales velocity curve calculated: Projected quarterly run-rate = 4,200 units across regional tier-1 channels.`,
+          telemetryBadge: 'Sales: 4,200 units quarterly forecast',
+        },
+        {
+          id: 'step-3-sales-to-solver',
+          sourceId: 'node-sales',
+          targetId: 'node-solver',
+          label: '3. Statistical Bounds Validation',
+          color: '#A855F7',
+          stepType: 'solve',
+          targetThought: `Deterministic confidence interval computed: 95% certainty bounds [3,950u - 4,450u]. No constraint violations.`,
+          telemetryBadge: 'Solver: Statistical confidence verified',
+        },
+        {
+          id: 'step-4-solver-to-orchestrator',
+          sourceId: 'node-solver',
+          targetId: 'node-orchestrator',
+          label: '4. Return Validated Commercial Forecast',
+          color: '#4285F4',
+          stepType: 'solve',
+          targetThought: `Synthesizing executive commercial brief with confidence metrics.`,
+          telemetryBadge: 'Orchestrator: Forecast approved',
+        },
+        {
+          id: 'step-5-orchestrator-to-ceo',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-ceo',
+          label: '5. Deliver Executive Sales Report',
+          color: '#10B981',
+          stepType: 'deliver',
+          targetThought: `Commercial report delivered to Executive: Projected revenue growth +32% YoY.`,
+          telemetryBadge: 'Executive: Commercial report delivered',
+        },
+      ],
     },
     {
-      id: 'wire-orchestrator-to-sales',
-      sourceId: 'node-orchestrator',
-      targetId: 'node-sales',
-      label: 'Forecast Surge Demand (+70%)',
-      color: '#3B82F6',
-      requiredForRoutes: ['full_surge_milp', 'sales_velocity'],
-      stageStep: 3,
+      id: 'dual_governance',
+      title: 'Dual-Agent Governance (DB + Treasury)',
+      badge: 'Dual-Agent Audit',
+      badgeColor: 'border-emerald-400 bg-emerald-500/10 text-emerald-600 dark:text-[#34A853]',
+      prompt: `Audit statutory liquidity covenants and SEBI reserve compliance against connected cloud records for ${companyName}.`,
+      description: 'Orchestrator activates Enterprise DB and Treasury Agent. DB streams bank records directly to Treasury via peer consultation.',
+      participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-db', 'node-finance', 'node-solver'],
+      steps: [
+        {
+          id: 'step-1-ceo-to-orchestrator',
+          sourceId: 'node-ceo',
+          targetId: 'node-orchestrator',
+          label: '1. Compliance Directive Dispatch',
+          color: '#4285F4',
+          stepType: 'dispatch',
+          targetThought: `Decomposing directive: Requires cloud ledger extraction from DB and Treasury statutory audit.`,
+          telemetryBadge: 'Executive: Statutory covenant audit initiated',
+        },
+        {
+          id: 'step-2-orchestrator-to-db',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-db',
+          label: '2. Query Cloud Ledger & Escrow Records',
+          color: '#10B981',
+          stepType: 'consult',
+          targetThought: `Google Drive RAG: Extracted verified bank statements, escrow balances, and statutory reserve agreements.`,
+          telemetryBadge: 'DB: Escrow ledger extracted',
+        },
+        {
+          id: 'step-3-db-to-finance-peer',
+          sourceId: 'node-db',
+          targetId: 'node-finance',
+          label: '3. Peer Channel: Stream Records to Treasury',
+          color: '#10B981',
+          stepType: 'peer_consult',
+          targetThought: `Auditing statutory accounts: ₹5.00L statutory lock confirmed 100% intact. Operational buffer = ₹1.80L.`,
+          telemetryBadge: 'Finance: ₹5.00L Lock Confirmed',
+        },
+        {
+          id: 'step-4-finance-to-solver',
+          sourceId: 'node-finance',
+          targetId: 'node-solver',
+          label: '4. Prove Covenant Compliance',
+          color: '#A855F7',
+          stepType: 'solve',
+          targetThought: `HiGHS Solver verified: 0 covenant violations. Solvency coverage ratio = 2.45x (exceeds SEBI statutory threshold).`,
+          telemetryBadge: 'Solver: Solvency ratio 2.45x compliant',
+        },
+        {
+          id: 'step-5-solver-to-orchestrator',
+          sourceId: 'node-solver',
+          targetId: 'node-orchestrator',
+          label: '5. Compliance Certificate Delivered',
+          color: '#4285F4',
+          stepType: 'solve',
+          targetThought: `Audit verification complete. Assembling formal governance certificate.`,
+          telemetryBadge: 'Orchestrator: Audit certificate approved',
+        },
+        {
+          id: 'step-6-orchestrator-to-ceo',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-ceo',
+          label: '6. Deliver Governance Brief',
+          color: '#10B981',
+          stepType: 'deliver',
+          targetThought: `Governance certification delivered to Executive. Company in 100% regulatory compliance.`,
+          telemetryBadge: 'Executive: Compliance certified',
+        },
+      ],
     },
     {
-      id: 'wire-orchestrator-to-inventory',
-      sourceId: 'node-orchestrator',
-      targetId: 'node-inventory',
-      label: 'Compute Net Deficit & Burn',
-      color: '#F59E0B',
-      requiredForRoutes: ['full_surge_milp', 'inventory_deficit'],
-      stageStep: 3,
+      id: 'emergency_stockout',
+      title: 'Emergency Stockout (Inventory ↔ Finance)',
+      badge: 'Emergency Mitigation',
+      badgeColor: 'border-amber-400 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+      prompt: `Warehouse safety stock floor breached for ${primaryProduct}. Formulate emergency restocking authorization.`,
+      description: 'Inventory Agent detects critical safety stock breach, peer-consults Finance Agent for emergency PO funding.',
+      participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-inventory', 'node-finance', 'node-solver'],
+      steps: [
+        {
+          id: 'step-1-ceo-to-orchestrator',
+          sourceId: 'node-ceo',
+          targetId: 'node-orchestrator',
+          label: '1. Emergency Directive Dispatch',
+          color: '#4285F4',
+          stepType: 'dispatch',
+          targetThought: `Emergency stockout directive received. Routing priority task to Supply Chain & Inventory Agent.`,
+          telemetryBadge: 'Executive: Stockout emergency declared',
+        },
+        {
+          id: 'step-2-orchestrator-to-inventory',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-inventory',
+          label: '2. Task: Audit Safety Stock Floor',
+          color: '#F59E0B',
+          stepType: 'consult',
+          targetThought: `Critical stock alert: Stock dropped below 150u threshold (Current: 170u). Stockout horizon is under 3.5 hours!`,
+          telemetryBadge: 'Inventory: Stockout in 3.5 hours!',
+        },
+        {
+          id: 'step-3-inventory-to-finance-peer',
+          sourceId: 'node-inventory',
+          targetId: 'node-finance',
+          label: '3. Peer Consult: Request Emergency PO Budget',
+          color: '#10B981',
+          stepType: 'peer_consult',
+          targetThought: `Emergency PO funding evaluated: Authorized expedited emergency tranche of ₹1.25L from operational reserves.`,
+          telemetryBadge: 'Finance: Authorized emergency ₹1.25L',
+        },
+        {
+          id: 'step-4-finance-to-solver',
+          sourceId: 'node-finance',
+          targetId: 'node-solver',
+          label: '4. Solve Minimum Lead Time Restock',
+          color: '#A855F7',
+          stepType: 'solve',
+          targetThought: `HiGHS Solved: 300 units from Supplier Beta (3-day delivery). Total cost = ₹1.19L. Lead time minimized!`,
+          telemetryBadge: 'Solver: 300u expedited via Beta',
+        },
+        {
+          id: 'step-5-solver-to-orchestrator',
+          sourceId: 'node-solver',
+          targetId: 'node-orchestrator',
+          label: '5. Emergency Mitigation Proof',
+          color: '#4285F4',
+          stepType: 'solve',
+          targetThought: `Restocking allocation feasible. Packaging immediate action dispatch.`,
+          telemetryBadge: 'Orchestrator: Mitigation plan proved',
+        },
+        {
+          id: 'step-6-orchestrator-to-ceo',
+          sourceId: 'node-orchestrator',
+          targetId: 'node-ceo',
+          label: '6. Emergency Action Plan Delivered',
+          color: '#10B981',
+          stepType: 'deliver',
+          targetThought: `Emergency PO split authorized. Expedited restock order dispatched to supplier.`,
+          telemetryBadge: 'Executive: Emergency PO authorized',
+        },
+      ],
     },
-    {
-      id: 'wire-orchestrator-to-finance',
-      sourceId: 'node-orchestrator',
-      targetId: 'node-finance',
-      label: 'Check ₹1.80L Spend & Reserves',
-      color: '#10B981',
-      requiredForRoutes: ['full_surge_milp', 'treasury_audit'],
-      stageStep: 3,
-    },
-    {
-      id: 'wire-sales-to-solver',
-      sourceId: 'node-sales',
-      targetId: 'node-solver',
-      label: '1,015 u Demand Objective',
-      color: '#A855F7',
-      requiredForRoutes: ['full_surge_milp'],
-      stageStep: 4,
-    },
-    {
-      id: 'wire-inventory-to-solver',
-      sourceId: 'node-inventory',
-      targetId: 'node-solver',
-      label: '960 u Deficit Target Constraint',
-      color: '#A855F7',
-      requiredForRoutes: ['full_surge_milp'],
-      stageStep: 4,
-    },
-    {
-      id: 'wire-finance-to-solver',
-      sourceId: 'node-finance',
-      targetId: 'node-solver',
-      label: '₹1.80L Cash Cap Constraint',
-      color: '#A855F7',
-      requiredForRoutes: ['full_surge_milp'],
-      stageStep: 4,
-    },
-    {
-      id: 'wire-solver-to-db',
-      sourceId: 'node-solver',
-      targetId: 'node-db',
-      label: 'Persist Optimal PO Split',
-      color: '#10B981',
-      requiredForRoutes: ['full_surge_milp'],
-      stageStep: 5,
-    },
-    {
-      id: 'wire-solver-to-orchestrator',
-      sourceId: 'node-solver',
-      targetId: 'node-orchestrator',
-      label: 'HiGHS Mathematical Solution Proof',
-      color: '#4285F4',
-      requiredForRoutes: ['full_surge_milp'],
-      stageStep: 5,
-    },
-    {
-      id: 'wire-orchestrator-to-ceo',
-      sourceId: 'node-orchestrator',
-      targetId: 'node-ceo',
-      label: 'Final Verified Brief Delivery',
-      color: '#4285F4',
-      requiredForRoutes: ['full_surge_milp', 'treasury_audit', 'inventory_deficit', 'sales_velocity', 'db_catalog'],
-      stageStep: 5,
-    },
-  ], []);
+  ], [companyName, primaryProduct, userName, userRole]);
 
   const [nodes, setNodes] = useState<NodeData[]>(initialNodes);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 20, y: 20 });
@@ -418,132 +605,26 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     zoomRef.current = zoom;
   }, [zoom]);
 
-  // Dynamic Prompt & Intent State
-  const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>(
-    `Analyze ${primaryProduct} demand surge (+70%) & formulate split PO`
-  );
-  const [simSurge, setSimSurge] = useState<number>(70);
-  const [activeStage, setActiveStage] = useState<number>(0);
-  const [simulationPhase, setSimulationPhase] = useState<'idle' | 'running' | 'complete'>('idle');
+  // Dynamic Pipeline Simulation State
+  const [currentScenario, setCurrentScenario] = useState<SwarmScenario>(scenarios[0]);
+  const [activeStepIndex, setActiveStepIndex] = useState<number>(-1); // -1 = Idle, not started
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [customPromptInput, setCustomPromptInput] = useState<string>('');
-  const [activeTelemetryPayload, setActiveTelemetryPayload] = useState<Record<string, string>>({});
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const wheelTimerRef = useRef<any>(null);
 
-  // Intent Classifier: Inspects prompt and tailors the active DAG route
-  const currentRouteType: SwarmRouteType = useMemo(() => {
-    const p = activeQueryPrompt.toLowerCase();
-    if (
-      p.includes('surge') ||
-      p.includes('split') ||
-      p.includes('supplier') ||
-      p.includes('po') ||
-      p.includes('milp') ||
-      p.includes('optimize') ||
-      p.includes('order')
-    ) {
-      return 'full_surge_milp';
+  // Active step in the running pipeline
+  const currentStep = useMemo(() => {
+    if (activeStepIndex >= 0 && activeStepIndex < currentScenario.steps.length) {
+      return currentScenario.steps[activeStepIndex];
     }
-    if (
-      p.includes('treasury') ||
-      p.includes('reserve') ||
-      p.includes('cash') ||
-      p.includes('spend ceiling') ||
-      p.includes('liquidity') ||
-      p.includes('statutory') ||
-      p.includes('covenant')
-    ) {
-      return 'treasury_audit';
-    }
-    if (
-      p.includes('inventory') ||
-      p.includes('stockout') ||
-      p.includes('horizon') ||
-      p.includes('burn rate') ||
-      p.includes('warehouse') ||
-      p.includes('bin') ||
-      p.includes('stock')
-    ) {
-      return 'inventory_deficit';
-    }
-    if (
-      p.includes('sales') ||
-      p.includes('promo') ||
-      p.includes('demand') ||
-      p.includes('creator') ||
-      p.includes('velocity')
-    ) {
-      return 'sales_velocity';
-    }
-    return 'db_catalog';
-  }, [activeQueryPrompt]);
+    return null;
+  }, [activeStepIndex, currentScenario]);
 
-  // Which nodes participate in the current route
-  const participatingNodeIds = useMemo(() => {
-    switch (currentRouteType) {
-      case 'full_surge_milp':
-        return ['node-ceo', 'node-orchestrator', 'node-db', 'node-sales', 'node-inventory', 'node-finance', 'node-solver'];
-      case 'treasury_audit':
-        return ['node-ceo', 'node-orchestrator', 'node-db', 'node-finance'];
-      case 'inventory_deficit':
-        return ['node-ceo', 'node-orchestrator', 'node-db', 'node-inventory'];
-      case 'sales_velocity':
-        return ['node-ceo', 'node-orchestrator', 'node-db', 'node-sales'];
-      case 'db_catalog':
-        return ['node-ceo', 'node-orchestrator', 'node-db'];
-      default:
-        return ['node-ceo', 'node-orchestrator', 'node-db'];
-    }
-  }, [currentRouteType]);
-
-  // Real-time formal metrics calculation for telemetry
-  const sim = useMemo(() => {
-    const baseDemand = 85;
-    const velocity = Math.round(baseDemand * (1 + simSurge / 100));
-    const forecast7d = velocity * 7;
-    const currentStock = 170;
-    const safetyStock = 150;
-    const rawHorizon = (currentStock - safetyStock) / velocity;
-    const horizonDays = Number(Math.max(0.1, rawHorizon).toFixed(2));
-    const deficitUnits = Math.max(0, forecast7d + safetyStock - currentStock);
-
-    const supplierCUnits = Math.min(800, deficitUnits);
-    const supplierBUnits = Math.max(0, deficitUnits - supplierCUnits);
-    const costB = supplierBUnits * 477;
-    const costC = supplierCUnits * 436.5;
-    const upfrontCash = Math.round(supplierCUnits * 218.25);
-    const totalSpend = costB + costC;
-
-    return {
-      velocity,
-      forecast7d,
-      horizonDays,
-      deficitUnits,
-      supplierBUnits,
-      supplierCUnits,
-      costB,
-      costC,
-      totalSpend,
-      upfrontCash,
-      isFeasible: upfrontCash <= 180000,
-    };
-  }, [simSurge]);
-
-  // Auto-trigger simulation if navigated from chat
-  useEffect(() => {
-    const shouldTrigger = localStorage.getItem('nexus_trigger_swarm_sim');
-    const savedPrompt = localStorage.getItem('nexus_active_prompt');
-    if (savedPrompt) {
-      setActiveQueryPrompt(savedPrompt);
-    }
-    if (shouldTrigger === 'true') {
-      localStorage.removeItem('nexus_trigger_swarm_sim');
-      handleRunSwarmPipeline();
-    }
-  }, [activeView]);
-
+  // Node lookup map for O(1) wire coordinate calculations
   const nodeMap = useMemo(() => {
     const map = new Map<string, NodeData>();
     for (const node of nodes) {
@@ -551,6 +632,90 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     }
     return map;
   }, [nodes]);
+
+  // Completed nodes in current run
+  const completedNodeIds = useMemo(() => {
+    const set = new Set<string>();
+    if (activeStepIndex <= 0) return set;
+    const limit = Math.min(activeStepIndex, currentScenario.steps.length);
+    for (let i = 0; i < limit; i++) {
+      set.add(currentScenario.steps[i].sourceId);
+      set.add(currentScenario.steps[i].targetId);
+    }
+    return set;
+  }, [activeStepIndex, currentScenario]);
+
+  // Active real-time thoughts per node
+  const activeThoughts = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (currentStep) {
+      map[currentStep.targetId] = currentStep.targetThought;
+      if (currentStep.sourceThought) {
+        map[currentStep.sourceId] = currentStep.sourceThought;
+      }
+    }
+    return map;
+  }, [currentStep]);
+
+  // Active telemetry labels for finished hops
+  const activeTelemetry = useMemo(() => {
+    const map: Record<string, string> = {};
+    const limit = Math.min(activeStepIndex, currentScenario.steps.length - 1);
+    for (let i = 0; i <= limit; i++) {
+      const step = currentScenario.steps[i];
+      if (step.telemetryBadge) {
+        map[step.targetId] = step.telemetryBadge;
+      }
+    }
+    return map;
+  }, [activeStepIndex, currentScenario]);
+
+  // Auto-play timer loop for smooth animated step progression
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    if (activeStepIndex >= currentScenario.steps.length) {
+      setIsPlaying(false);
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+      return;
+    }
+
+    const duration = Math.round(1800 / playbackSpeed);
+    const timer = setTimeout(() => {
+      setActiveStepIndex((prev) => {
+        const next = prev + 1;
+        if (next >= currentScenario.steps.length) {
+          setIsPlaying(false);
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+          });
+        }
+        return next;
+      });
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [isPlaying, activeStepIndex, currentScenario, playbackSpeed]);
+
+  // Auto-trigger simulation if navigated from Executive Chat
+  useEffect(() => {
+    const shouldTrigger = localStorage.getItem('nexus_trigger_swarm_sim');
+    const savedPrompt = localStorage.getItem('nexus_active_prompt');
+    if (savedPrompt) {
+      handleApplyCustomPrompt(savedPrompt);
+    }
+    if (shouldTrigger === 'true') {
+      localStorage.removeItem('nexus_trigger_swarm_sim');
+      setActiveStepIndex(0);
+      setIsPlaying(true);
+    }
+  }, [activeView]);
 
   // Reset entire DAG node positions to pristine state
   const handleResetLayout = () => {
@@ -582,7 +747,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     let cx2: number;
 
     if (sRight + 20 <= tLeft) {
-      // S is clearly to the left of T
+      // S is clearly to the left of T (Forward flow)
       p1x = sRight;
       p2x = tLeft;
       const dx = p2x - p1x;
@@ -590,7 +755,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       cx1 = p1x + curvature;
       cx2 = p2x - curvature;
     } else if (tRight + 20 <= sLeft) {
-      // T is clearly to the left of S (reversed)
+      // T is clearly to the left of S (Reversed flow)
       p1x = sLeft;
       p2x = tRight;
       const dx = p1x - p2x;
@@ -598,22 +763,22 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       cx1 = p1x - curvature;
       cx2 = p2x + curvature;
     } else {
-      // Overlapping or vertically stacked - route via outer facing flank
+      // Overlapping or vertically stacked (Peer-to-peer vertical consultation flow!)
       const sCenterX = s.x + s.width / 2;
       const tCenterX = t.x + t.width / 2;
 
       if (sCenterX <= tCenterX) {
-        // S is slightly left of T: loop on the outer right
+        // Loop on the outer right flank
         p1x = sRight;
         p2x = tRight;
-        const curvature = 65;
+        const curvature = 75;
         cx1 = Math.max(p1x, p2x) + curvature;
         cx2 = Math.max(p1x, p2x) + curvature;
       } else {
-        // S is slightly right of T: loop on the outer left
+        // Loop on the outer left flank
         p1x = sLeft;
         p2x = tLeft;
-        const curvature = 65;
+        const curvature = 75;
         cx1 = Math.min(p1x, p2x) - curvature;
         cx2 = Math.min(p1x, p2x) - curvature;
       }
@@ -787,105 +952,129 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     });
   };
 
-  // Live Prompt Traveling Pipeline Execution
-  const handleRunSwarmPipeline = () => {
-    if (simulationPhase === 'running') return;
-
-    setSimulationPhase('running');
-    setActiveStage(1);
-    setActiveTelemetryPayload({
-      'node-ceo': `Directive: "${activeQueryPrompt.slice(0, 48)}..." dispatched`,
-    });
-
-    // Step 1 -> Step 2: Orchestrator queries DB Grounding
-    setTimeout(() => {
-      setActiveStage(2);
-      setActiveTelemetryPayload((prev) => ({
-        ...prev,
-        'node-orchestrator': `Decomposed: Route "${ROUTE_INFO[currentRouteType].badge}". Querying Drive DB...`,
-        'node-db': `Drive RAG: Loaded Bin-4B inventory (${simSurge}% surge context) & vendor contracts`,
-      }));
-    }, 900);
-
-    // Step 2 -> Step 3: Concurrently Dispatches to Targeted Agents
-    setTimeout(() => {
-      setActiveStage(3);
-      if (currentRouteType === 'full_surge_milp') {
-        setActiveTelemetryPayload((prev) => ({
-          ...prev,
-          'node-sales': `Surge +${simSurge}%: Velocity ${sim.velocity} u/d. 7d Forecast: ${sim.forecast7d} u`,
-          'node-inventory': `Stockout: ${sim.horizonDays} days! Net deficit: ${sim.deficitUnits} units needed`,
-          'node-finance': `₹5.00L Statutory Lock confirmed. Upfront spend cap: ₹1.80L approved`,
-        }));
-      } else if (currentRouteType === 'treasury_audit') {
-        setActiveTelemetryPayload((prev) => ({
-          ...prev,
-          'node-finance': `Audit Verified: ₹5.00L statutory lock active. Available cash cap: ₹1.80L`,
-        }));
-      } else if (currentRouteType === 'inventory_deficit') {
-        setActiveTelemetryPayload((prev) => ({
-          ...prev,
-          'node-inventory': `Stockout Horizon: ${sim.horizonDays} days. Deficit: ${sim.deficitUnits} units`,
-        }));
-      } else if (currentRouteType === 'sales_velocity') {
-        setActiveTelemetryPayload((prev) => ({
-          ...prev,
-          'node-sales': `Sales Velocity: ${sim.velocity} u/day under +${simSurge}% creator surge`,
-        }));
-      } else {
-        setActiveTelemetryPayload((prev) => ({
-          ...prev,
-          'node-db': `Drive Catalog: Verified active models and inventory documents`,
-        }));
-      }
-    }, 1900);
-
-    // Step 3 -> Step 4: Dispatch to SciPy HiGHS Solver (if full surge) or return
-    setTimeout(() => {
-      setActiveStage(4);
-      if (currentRouteType === 'full_surge_milp') {
-        setActiveTelemetryPayload((prev) => ({
-          ...prev,
-          'node-solver': `HiGHS Solved (3.9ms): ${sim.supplierBUnits}u (Beta) + ${sim.supplierCUnits}u (Gamma) = ₹${sim.upfrontCash.toLocaleString()} (Feasible)`,
-        }));
-      }
-    }, 2900);
-
-    // Step 4 -> Step 5: Proof returned to Orchestrator -> Final Delivery to CEO
-    setTimeout(() => {
-      setActiveStage(5);
-      setActiveTelemetryPayload((prev) => ({
-        ...prev,
-        'node-orchestrator': `Solution proof verified against statutory constraints. Delivering to Executive.`,
-      }));
-    }, 3800);
-
-    // Completion
-    setTimeout(() => {
-      setSimulationPhase('complete');
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-    }, 4600);
+  // Simulation Playback Controls
+  const handleTogglePlay = () => {
+    if (activeStepIndex < 0 || activeStepIndex >= currentScenario.steps.length) {
+      setActiveStepIndex(0);
+      setIsPlaying(true);
+    } else {
+      setIsPlaying((prev) => !prev);
+    }
   };
 
-  const handleApplyPreset = (prompt: string, surgeVal = 70) => {
-    setActiveQueryPrompt(prompt);
-    setSimSurge(surgeVal);
-    setActiveStage(0);
-    setSimulationPhase('idle');
-    setActiveTelemetryPayload({});
+  const handleNextStep = () => {
+    setIsPlaying(false);
+    setActiveStepIndex((prev) => {
+      const next = prev + 1;
+      if (next >= currentScenario.steps.length) {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        return currentScenario.steps.length;
+      }
+      return next;
+    });
+  };
+
+  const handleRestart = () => {
+    setActiveStepIndex(0);
+    setIsPlaying(true);
+  };
+
+  const handleResetSimulation = () => {
+    setActiveStepIndex(-1);
+    setIsPlaying(false);
+  };
+
+  const handleSelectScenario = (scenario: SwarmScenario) => {
+    setCurrentScenario(scenario);
+    setActiveStepIndex(0);
+    setIsPlaying(true);
+  };
+
+  // Random Unscripted Enterprise Directive Generator
+  const handleTriggerRandomDirective = () => {
+    const randomCmd = RANDOM_ENTERPRISE_COMMANDS[Math.floor(Math.random() * RANDOM_ENTERPRISE_COMMANDS.length)];
+    const base = scenarios.find((s) => s.id === randomCmd.scenarioType) || scenarios[0];
+    const dynamicScenario: SwarmScenario = {
+      ...base,
+      id: `random-${Date.now()}`,
+      title: 'Dynamic Directive',
+      prompt: randomCmd.prompt,
+      steps: base.steps.map((step, idx) => {
+        if (idx === 0) {
+          return {
+            ...step,
+            sourceThought: `Executive dispatched unscripted directive: "${randomCmd.prompt.slice(0, 48)}..."`,
+            targetThought: `Orchestrator decomposing: "${randomCmd.prompt.slice(0, 52)}..."`,
+            telemetryBadge: `Directive: "${randomCmd.prompt.slice(0, 24)}..."`,
+          };
+        }
+        return step;
+      }),
+    };
+
+    setCurrentScenario(dynamicScenario);
+    setActiveStepIndex(0);
+    setIsPlaying(true);
+  };
+
+  // Custom User Prompt Dispatcher
+  const handleApplyCustomPrompt = (prompt: string) => {
+    const lower = prompt.toLowerCase();
+    let targetScenarioId = 'collab_surge_milp';
+    if (
+      lower.includes('covenant') ||
+      lower.includes('reserve') ||
+      lower.includes('treasury') ||
+      lower.includes('sebi') ||
+      lower.includes('compliance') ||
+      lower.includes('audit')
+    ) {
+      targetScenarioId = 'dual_governance';
+    } else if (
+      lower.includes('stockout') ||
+      lower.includes('shortage') ||
+      lower.includes('emergency') ||
+      lower.includes('warehouse')
+    ) {
+      targetScenarioId = 'emergency_stockout';
+    } else if (
+      lower.includes('sales') ||
+      lower.includes('velocity') ||
+      lower.includes('promo') ||
+      lower.includes('roi') ||
+      lower.includes('revenue')
+    ) {
+      targetScenarioId = 'single_sales';
+    }
+
+    const base = scenarios.find((s) => s.id === targetScenarioId) || scenarios[0];
+    const customScenario: SwarmScenario = {
+      ...base,
+      id: `custom-${Date.now()}`,
+      title: `Custom Directive`,
+      prompt: prompt,
+      steps: base.steps.map((step, idx) => {
+        if (idx === 0) {
+          return {
+            ...step,
+            sourceThought: `Executive dispatched custom directive: "${prompt.slice(0, 48)}..."`,
+            targetThought: `Orchestrator decomposing: "${prompt.slice(0, 52)}..."`,
+            telemetryBadge: `Directive: "${prompt.slice(0, 24)}..."`,
+          };
+        }
+        return step;
+      }),
+    };
+
+    setCurrentScenario(customScenario);
+    setActiveStepIndex(0);
+    setIsPlaying(true);
   };
 
   const handleCustomPromptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customPromptInput.trim()) return;
-    setActiveQueryPrompt(customPromptInput.trim());
-    setActiveStage(0);
-    setSimulationPhase('idle');
-    setActiveTelemetryPayload({});
+    handleApplyCustomPrompt(customPromptInput.trim());
     setCustomPromptInput('');
   };
 
@@ -912,7 +1101,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                 <span className="font-bold text-sm text-slate-900 dark:text-white font-headline">Swarm Studio</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-[#34A853]/15 text-emerald-700 dark:text-[#34A853] border border-emerald-300 dark:border-[#34A853]/30 font-semibold flex items-center space-x-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Dynamic Multi-Agent DAG</span>
+                  <span>Dynamic Agenting DAG</span>
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-[#2D2E30] text-blue-600 dark:text-[#A8C7FA] font-mono border border-slate-200 dark:border-white/5">
                   {companyName}
@@ -923,26 +1112,49 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
         </div>
 
         {/* Live Active Query & Dynamic Pipeline Controls */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {/* Active Route Badge */}
           <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-xs">
             <Radio className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-            <span className="text-slate-500 dark:text-[#888888]">Routing:</span>
+            <span className="text-slate-500 dark:text-[#888888]">Mode:</span>
             <span className="font-semibold text-blue-600 dark:text-[#A8C7FA] truncate max-w-xs">
-              {ROUTE_INFO[currentRouteType].badge}
+              {currentScenario.badge}
             </span>
           </div>
 
-          {/* Simulate Button */}
+          {/* Primary Play/Pause Button */}
           <button
-            onClick={handleRunSwarmPipeline}
-            disabled={simulationPhase === 'running'}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A855F7] text-white font-semibold text-xs flex items-center space-x-2 shadow-md shadow-blue-500/25 hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
+            onClick={handleTogglePlay}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A855F7] text-white font-semibold text-xs flex items-center space-x-2 shadow-md shadow-blue-500/25 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
-            <Play className={`w-3.5 h-3.5 ${simulationPhase === 'running' ? 'animate-spin' : ''}`} />
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             <span>
-              {simulationPhase === 'running' ? `Stage ${activeStage}: Traveling...` : 'Simulate Swarm Travel'}
+              {isPlaying
+                ? `Step ${activeStepIndex + 1}/${currentScenario.steps.length}: Traveling...`
+                : activeStepIndex >= 0 && activeStepIndex < currentScenario.steps.length
+                ? 'Resume Workflow'
+                : 'Simulate Swarm Travel'}
             </span>
+          </button>
+
+          {/* Next Step Manual Advance */}
+          <button
+            onClick={handleNextStep}
+            disabled={activeStepIndex >= currentScenario.steps.length}
+            className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#2A2B2D] hover:bg-slate-200 dark:hover:bg-[#35373A] text-slate-700 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white text-xs font-semibold flex items-center space-x-1.5 border border-slate-200 dark:border-[#3A3B3E]/60 transition-all cursor-pointer disabled:opacity-40"
+            title="Advance One Step Manually"
+          >
+            <SkipForward className="w-3.5 h-3.5 text-blue-500 dark:text-[#A8C7FA]" />
+            <span className="hidden sm:inline">Step Next</span>
+          </button>
+
+          {/* Restart Button */}
+          <button
+            onClick={handleRestart}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-[#2A2B2D] hover:bg-slate-200 dark:hover:bg-[#35373A] text-slate-600 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-[#3A3B3E]/60 transition-all cursor-pointer"
+            title="Restart Active Scenario"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
           {/* Theme Toggle */}
@@ -951,69 +1163,46 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           {/* Switch to Chat */}
           <button
             onClick={onSwitchToChat}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-[#2A2B2D] hover:bg-slate-200 dark:hover:bg-[#35373A] text-slate-700 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white text-xs font-medium flex items-center space-x-1.5 border border-slate-200 dark:border-[#3A3B3E]/60 transition-all cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#2A2B2D] hover:bg-slate-200 dark:hover:bg-[#35373A] text-slate-700 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white text-xs font-medium flex items-center space-x-1.5 border border-slate-200 dark:border-[#3A3B3E]/60 transition-all cursor-pointer shadow-sm"
           >
             <Bot className="w-3.5 h-3.5 text-blue-500 dark:text-[#A8C7FA]" />
-            <span>Executive Chat</span>
+            <span className="hidden md:inline">Executive Chat</span>
           </button>
         </div>
       </header>
 
-      {/* Preset & Custom Prompt Bar */}
+      {/* Dynamic Scenario Bar + Random Directive + Custom Test Query Input */}
       <div className="bg-white/80 dark:bg-[#131314]/90 border-b border-slate-200 dark:border-[#2D2E30] px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20 backdrop-blur-sm">
         <div className="flex items-center space-x-2 overflow-x-auto py-0.5">
           <span className="text-[11px] font-semibold text-slate-500 dark:text-[#888888] uppercase tracking-wider shrink-0">
-            Presets:
+            Scenarios:
           </span>
+
+          {scenarios.map((sc) => {
+            const isSelected = currentScenario.id === sc.id;
+            return (
+              <button
+                key={sc.id}
+                onClick={() => handleSelectScenario(sc)}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer shrink-0 ${
+                  isSelected
+                    ? `${sc.badgeColor} font-semibold shadow-sm`
+                    : 'bg-slate-50 dark:bg-[#1E1F20] text-slate-600 dark:text-[#C4C7C5] border-slate-200 dark:border-[#2D2E30] hover:bg-slate-100 dark:hover:bg-[#282A2C]'
+                }`}
+              >
+                {sc.title}
+              </button>
+            );
+          })}
+
+          {/* Random Enterprise Directive Generator */}
           <button
-            onClick={() => handleApplyPreset(`Analyze ${primaryProduct} demand surge (+70%) & formulate split PO`, 70)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-              currentRouteType === 'full_surge_milp'
-                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-300 dark:border-blue-500/50 font-medium'
-                : 'bg-slate-50 dark:bg-[#1E1F20] text-slate-600 dark:text-[#C4C7C5] border-slate-200 dark:border-[#2D2E30] hover:bg-slate-100 dark:hover:bg-[#282A2C]'
-            }`}
+            onClick={handleTriggerRandomDirective}
+            className="text-xs px-2.5 py-1 rounded-lg border border-purple-300 dark:border-purple-500/50 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 hover:bg-purple-100 font-medium transition-all cursor-pointer flex items-center space-x-1 shrink-0"
+            title="Simulate Random Real-World Enterprise Directive"
           >
-            🔥 +70% Surge & Split PO
-          </button>
-          <button
-            onClick={() => handleApplyPreset(`Audit treasury liquidity, statutory reserve lock (₹5.00L) & spend ceiling`)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-              currentRouteType === 'treasury_audit'
-                ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/50 font-medium'
-                : 'bg-slate-50 dark:bg-[#1E1F20] text-slate-600 dark:text-[#C4C7C5] border-slate-200 dark:border-[#2D2E30] hover:bg-slate-100 dark:hover:bg-[#282A2C]'
-            }`}
-          >
-            🛡️ Treasury & Reserve Audit
-          </button>
-          <button
-            onClick={() => handleApplyPreset(`Calculate exact stockout horizon for ${primaryProduct} warehouse stock`)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-              currentRouteType === 'inventory_deficit'
-                ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 border-amber-300 dark:border-amber-500/50 font-medium'
-                : 'bg-slate-50 dark:bg-[#1E1F20] text-slate-600 dark:text-[#C4C7C5] border-slate-200 dark:border-[#2D2E30] hover:bg-slate-100 dark:hover:bg-[#282A2C]'
-            }`}
-          >
-            📦 Inventory Stockout Risk
-          </button>
-          <button
-            onClick={() => handleApplyPreset(`Forecast daily sales velocity and creator promo calendar for ${primaryProduct}`)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-              currentRouteType === 'sales_velocity'
-                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-300 dark:border-blue-500/50 font-medium'
-                : 'bg-slate-50 dark:bg-[#1E1F20] text-slate-600 dark:text-[#C4C7C5] border-slate-200 dark:border-[#2D2E30] hover:bg-slate-100 dark:hover:bg-[#282A2C]'
-            }`}
-          >
-            📈 Sales Velocity Forecast
-          </button>
-          <button
-            onClick={() => handleApplyPreset(`List connected Google Drive database catalog & active vendor contracts`)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-              currentRouteType === 'db_catalog'
-                ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-500/50 font-medium'
-                : 'bg-slate-50 dark:bg-[#1E1F20] text-slate-600 dark:text-[#C4C7C5] border-slate-200 dark:border-[#2D2E30] hover:bg-slate-100 dark:hover:bg-[#282A2C]'
-            }`}
-          >
-            📁 Drive DB Grounding
+            <Sparkles className="w-3 h-3 text-purple-500" />
+            <span>🎲 Random Directive</span>
           </button>
         </div>
 
@@ -1021,7 +1210,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
         <form onSubmit={handleCustomPromptSubmit} className="flex items-center space-x-1.5 flex-1 max-w-md ml-auto">
           <input
             type="text"
-            placeholder="Type custom test prompt (e.g. audit cash, check stockout)..."
+            placeholder="Type any custom executive directive..."
             value={customPromptInput}
             onChange={(e) => setCustomPromptInput(e.target.value)}
             className="flex-1 bg-slate-50 dark:bg-[#1E1F20] text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-[#747775] text-xs px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#2D2E30] focus:outline-none focus:border-blue-500"
@@ -1031,110 +1220,101 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs flex items-center space-x-1 shadow-sm transition-all"
           >
             <Send className="w-3 h-3" />
-            <span>Apply</span>
+            <span>Dispatch</span>
           </button>
         </form>
       </div>
 
-      {/* Main Studio Area */}
+      {/* Main Studio Canvas Area */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left Telemetry Panel */}
+        {/* Left Telemetry & Step Progression Panel */}
         <aside className="w-72 border-r border-slate-200 dark:border-[#2D2E30] bg-white/90 dark:bg-[#1E1F20]/70 backdrop-blur-md p-4 space-y-4 shrink-0 overflow-y-auto z-20 shadow-sm">
+          {/* Active Directive Info */}
           <div>
             <h3 className="text-xs font-bold text-blue-600 dark:text-[#A8C7FA] uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Telemetry & Surge Input</span>
+              <span>Executive Directive</span>
               <Activity className="w-3.5 h-3.5 text-blue-500" />
             </h3>
 
-            <div className="space-y-3 bg-slate-50 dark:bg-[#131314] p-3 rounded-2xl border border-slate-200 dark:border-[#2D2E30]">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-500 dark:text-[#888888]">Demand Surge:</span>
-                  <span className="text-blue-600 dark:text-[#4285F4] font-bold font-mono">+{simSurge}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={200}
-                  step={5}
-                  value={simSurge}
-                  onChange={(e) => setSimSurge(Number(e.target.value))}
-                  className="w-full h-1.5 bg-slate-200 dark:bg-[#2D2E30] rounded-lg appearance-none cursor-pointer accent-[#4285F4]"
-                />
+            <div className="p-3 bg-slate-50 dark:bg-[#131314] rounded-2xl border border-slate-200 dark:border-[#2D2E30] text-xs space-y-2">
+              <div className="text-slate-900 dark:text-white font-medium leading-relaxed">
+                "{currentScenario.prompt}"
               </div>
-
-              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200 dark:border-[#2D2E30]/60">
-                <div>
-                  <span className="text-slate-500 dark:text-[#888888] block">Order Velocity:</span>
-                  <span className="text-slate-900 dark:text-white font-mono font-semibold">{sim.velocity} u/d</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-[#888888] block">Stockout Horizon:</span>
-                  <span className="text-amber-600 dark:text-amber-400 font-mono font-semibold">{sim.horizonDays} days</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-[#888888] block">Buffer Deficit:</span>
-                  <span className="text-slate-900 dark:text-white font-mono font-semibold">{sim.deficitUnits} units</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-[#888888] block">Upfront Cash:</span>
-                  <span className={`font-mono font-semibold ${sim.isFeasible ? 'text-emerald-600 dark:text-[#34A853]' : 'text-red-500'}`}>
-                    ₹{sim.upfrontCash.toLocaleString()}
-                  </span>
-                </div>
+              <div className="text-[10.5px] text-slate-500 dark:text-[#888888] pt-1 border-t border-slate-200 dark:border-[#2D2E30]">
+                {currentScenario.description}
               </div>
             </div>
           </div>
 
-          {/* Active Route Step Progression */}
+          {/* Dynamic Live Step Progression */}
           <div>
             <h3 className="text-xs font-bold text-blue-600 dark:text-[#A8C7FA] uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>{ROUTE_INFO[currentRouteType].badge} Path</span>
+              <span>Dynamic Pipeline Path</span>
               <GitBranch className="w-3.5 h-3.5 text-blue-500" />
             </h3>
 
             <div className="space-y-1.5 text-xs">
-              {[
-                { stage: 1, label: '1. Executive Dispatch', desc: 'Prompt routed to Orchestrator' },
-                { stage: 2, label: '2. Drive DB Grounding', desc: 'Verify catalog & inventory records' },
-                { stage: 3, label: '3. Targeted Agent Execution', desc: currentRouteType === 'full_surge_milp' ? 'Sales, Inventory & Treasury calculate' : 'Targeted sub-agent analyzes task' },
-                { stage: 4, label: '4. Decision Formulation', desc: currentRouteType === 'full_surge_milp' ? 'SciPy HiGHS solves integer split' : 'Sub-agent formulates verified reply' },
-                { stage: 5, label: '5. Verification & Delivery', desc: 'Orchestrator validates & delivers to CEO' },
-              ].map((item) => (
-                <div
-                  key={item.stage}
-                  className={`p-2 rounded-xl border transition-all ${
-                    activeStage === item.stage
-                      ? 'bg-blue-50 dark:bg-[#4285F4]/15 border-blue-400 dark:border-[#4285F4] text-slate-900 dark:text-white shadow-sm ring-1 ring-blue-400/30'
-                      : activeStage > item.stage
-                      ? 'bg-slate-50 dark:bg-[#131314] border-emerald-300 dark:border-[#34A853]/40 text-slate-700 dark:text-[#C4C7C5]'
-                      : 'bg-slate-50 dark:bg-[#131314] border-slate-200 dark:border-[#2D2E30] text-slate-400 dark:text-[#888888]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-semibold text-[11px]">
-                    <span>{item.label}</span>
-                    {activeStage === item.stage && (
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                    )}
-                    {activeStage > item.stage && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-[#34A853]" />
-                    )}
+              {currentScenario.steps.map((step, idx) => {
+                const isStepActive = activeStepIndex === idx;
+                const isStepDone = activeStepIndex > idx;
+                const isPeerConsult = step.stepType === 'peer_consult';
+
+                return (
+                  <div
+                    key={step.id}
+                    className={`p-2.5 rounded-xl border transition-all ${
+                      isStepActive
+                        ? isPeerConsult
+                          ? 'bg-purple-50 dark:bg-purple-900/25 border-purple-400 dark:border-purple-500 text-slate-900 dark:text-white shadow-sm ring-1 ring-purple-400/40'
+                          : 'bg-blue-50 dark:bg-[#4285F4]/15 border-blue-400 dark:border-[#4285F4] text-slate-900 dark:text-white shadow-sm ring-1 ring-blue-400/30'
+                        : isStepDone
+                        ? 'bg-slate-50 dark:bg-[#131314] border-emerald-300 dark:border-[#34A853]/40 text-slate-700 dark:text-[#C4C7C5]'
+                        : 'bg-slate-50 dark:bg-[#131314] border-slate-200 dark:border-[#2D2E30] text-slate-400 dark:text-[#888888] opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between font-semibold text-[11px]">
+                      <span className="flex items-center space-x-1.5">
+                        {isPeerConsult && (
+                          <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+                        )}
+                        <span>{step.label}</span>
+                      </span>
+                      {isStepActive && (
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                      )}
+                      {isStepDone && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-[#34A853]" />
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-[#888888] mt-0.5 line-clamp-2">
+                      {step.targetThought}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-slate-500 dark:text-[#888888]">{item.desc}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* Quick RBAC Info */}
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-[11px] space-y-1">
+          {/* Multi-Agent Network Statistics */}
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-[11px] space-y-1.5">
             <div className="text-blue-600 dark:text-[#A8C7FA] font-semibold flex items-center space-x-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 dark:text-[#34A853]" />
               <span>Authority: {authorityLevel}</span>
             </div>
-            <p className="text-[10px] text-slate-500 dark:text-[#888888] leading-relaxed">
-              Drag nodes anywhere. Wires and animated packets dynamically track node positions in real-time.
-            </p>
+            <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 dark:text-[#888888] pt-1 border-t border-slate-200 dark:border-[#2D2E30]">
+              <div>
+                <span>Active Nodes:</span>
+                <span className="block font-mono text-slate-900 dark:text-white font-semibold">
+                  {currentScenario.participatingNodeIds.length} / 7
+                </span>
+              </div>
+              <div>
+                <span>Peer Channels:</span>
+                <span className="block font-mono text-purple-600 dark:text-purple-400 font-semibold">
+                  {currentScenario.steps.filter((s) => s.stepType === 'peer_consult').length} Active
+                </span>
+              </div>
+            </div>
           </div>
         </aside>
 
@@ -1145,15 +1325,28 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
           onWheel={handleWheel}
           className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
           style={{
-            backgroundImage: showGrid
-              ? undefined
-              : 'none',
+            backgroundImage: showGrid ? undefined : 'none',
           }}
         >
           {/* Canvas Dot Pattern via CSS class */}
           <div className="absolute inset-0 bg-canvas-dots pointer-events-none opacity-80" />
 
-          {/* Canvas Zoom & Pan Controls */}
+          {/* Active Flow Notification Pill at top center */}
+          {activeStepIndex >= 0 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+              <div className="px-4 py-2 rounded-2xl bg-white/95 dark:bg-[#1E1F20]/95 backdrop-blur-md border border-blue-400/40 dark:border-blue-500/40 shadow-xl flex items-center space-x-2 text-xs">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                <span className="font-semibold text-slate-900 dark:text-white font-mono">
+                  Step {activeStepIndex + 1}/{currentScenario.steps.length}:
+                </span>
+                <span className="text-blue-600 dark:text-[#A8C7FA] font-medium">
+                  {currentStep ? currentStep.label : 'Workflow Completed'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Canvas Zoom & Layout Controls */}
           <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-white/90 dark:bg-[#1E1F20]/90 backdrop-blur-md border border-slate-200 dark:border-[#2D2E30] p-1.5 rounded-2xl shadow-lg">
             <button
               onClick={() => setZoom((z) => Math.min(2.0, z + 0.1))}
@@ -1162,7 +1355,9 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             >
               <ZoomIn className="w-4 h-4" />
             </button>
-            <span className="text-xs font-mono text-blue-600 dark:text-[#A8C7FA] px-1 font-semibold">{Math.round(zoom * 100)}%</span>
+            <span className="text-xs font-mono text-blue-600 dark:text-[#A8C7FA] px-1 font-semibold">
+              {Math.round(zoom * 100)}%
+            </span>
             <button
               onClick={() => setZoom((z) => Math.max(0.3, z - 0.1))}
               className="p-1.5 rounded-lg text-slate-600 dark:text-[#888888] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30]"
@@ -1189,6 +1384,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             }}
           >
             {/* SVG Connecting Paths with Dynamic Anchoring & Animated Traveling Packets */}
+            {/* NO DORMANT SPIDERWEBS! ONLY RENDER ACTIVE & COMPLETED WIRES */}
             <svg className="absolute inset-0 w-[3000px] h-[1500px] pointer-events-none">
               <defs>
                 <linearGradient id="activeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -1196,31 +1392,31 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   <stop offset="50%" stopColor="#A855F7" stopOpacity="0.9" />
                   <stop offset="100%" stopColor="#10B981" stopOpacity="0.8" />
                 </linearGradient>
-                <linearGradient id="dormantGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#94A3B8" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="#94A3B8" stopOpacity="0.2" />
-                </linearGradient>
               </defs>
 
-              {/* Render dynamic wires */}
-              {dynamicWires.map((wire) => {
-                const isWireRequired = wire.requiredForRoutes.includes(currentRouteType);
-                const isWireActive = isWireRequired && activeStage >= wire.stageStep;
-                const isWireTransmitting = isWireRequired && activeStage === wire.stageStep;
-                const { path: pathD, midX, midY } = getDynamicWirePath(wire.sourceId, wire.targetId);
+              {/* Dynamically render ONLY active and completed wires for current scenario */}
+              {currentScenario.steps.map((step, idx) => {
+                const isCompleted = activeStepIndex > idx;
+                const isTransmitting = activeStepIndex === idx;
 
+                // Do not render wires that have not been reached yet!
+                if (!isCompleted && !isTransmitting) return null;
+
+                const { path: pathD, midX, midY } = getDynamicWirePath(step.sourceId, step.targetId);
                 if (!pathD) return null;
 
+                const isPeerConsult = step.stepType === 'peer_consult';
+
                 return (
-                  <g key={wire.id}>
-                    {/* Outer Glow Halo for Active/Transmitting Wires */}
-                    {isWireActive && (
+                  <g key={step.id}>
+                    {/* Outer Glow Halo for Active Transmitting Wires */}
+                    {isTransmitting && (
                       <path
                         d={pathD}
                         fill="none"
-                        stroke={wire.color}
-                        strokeWidth={isWireTransmitting ? '8' : '5'}
-                        strokeOpacity={isWireTransmitting ? '0.25' : '0.12'}
+                        stroke={step.color}
+                        strokeWidth={isPeerConsult ? '10' : '8'}
+                        strokeOpacity="0.28"
                         strokeLinecap="round"
                       />
                     )}
@@ -1229,57 +1425,58 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     <path
                       d={pathD}
                       fill="none"
-                      stroke={isWireActive ? wire.color : '#64748B'}
-                      strokeWidth={isWireTransmitting ? '3.5' : isWireActive ? '2.5' : '1.5'}
-                      strokeOpacity={isWireActive ? (isWireTransmitting ? 1.0 : 0.8) : 0.35}
-                      strokeDasharray={isWireTransmitting ? '6 4' : 'none'}
+                      stroke={step.color}
+                      strokeWidth={isTransmitting ? '3.5' : '2.5'}
+                      strokeOpacity={isTransmitting ? 1.0 : 0.75}
+                      strokeDasharray={isTransmitting ? '6 4' : isPeerConsult ? '5 3' : 'none'}
                       strokeLinecap="round"
-                      className={isWireTransmitting ? 'flow-wire-animated' : ''}
+                      className={isTransmitting ? 'flow-wire-animated' : ''}
                     />
 
                     {/* Mid-wire Transmission Label Badge */}
-                    {isWireTransmitting && !draggingNodeId && (
+                    {isTransmitting && !draggingNodeId && (
                       <g transform={`translate(${midX}, ${midY})`} className="pointer-events-none">
                         <rect
-                          x="-70"
-                          y="-11"
-                          width="140"
-                          height="22"
-                          rx="11"
-                          fill="rgba(15, 23, 42, 0.92)"
-                          stroke={wire.color}
+                          x={-Math.min(190, step.label.length * 4.4 + 24) / 2}
+                          y="-12"
+                          width={Math.min(190, step.label.length * 4.4 + 24)}
+                          height="24"
+                          rx="12"
+                          fill="rgba(15, 23, 42, 0.95)"
+                          stroke={step.color}
                           strokeWidth="1.5"
+                          className="shadow-xl"
                         />
                         <text
                           x="0"
-                          y="3.5"
+                          y="4"
                           textAnchor="middle"
                           fill="#FFFFFF"
-                          fontSize="9"
+                          fontSize="9.5"
                           fontWeight="600"
                           fontFamily="sans-serif"
                         >
-                          {wire.label.length > 22 ? wire.label.slice(0, 20) + '…' : wire.label}
+                          {step.label}
                         </text>
                       </g>
                     )}
 
-                    {/* PHYSICAL TRAVELING PACKET: Animated dot flowing along the exact bezier path (bypassed during drag for 120 FPS performance) */}
-                    {isWireTransmitting && pathD && !draggingNodeId && (
+                    {/* PHYSICAL TRAVELING PACKET: Animated dot flowing along the exact bezier path */}
+                    {isTransmitting && pathD && !draggingNodeId && (
                       <g>
-                        <circle r="6" fill={wire.color} className="packet-glow">
+                        <circle r={isPeerConsult ? '7' : '6'} fill={step.color} className="packet-glow">
                           <animateMotion
                             path={pathD}
-                            dur="1.2s"
+                            dur="1.1s"
                             repeatCount="indefinite"
                           />
                         </circle>
                         {/* Secondary trailing particle */}
-                        <circle r="3.5" fill="#FFFFFF" opacity="0.9">
+                        <circle r="3.5" fill="#FFFFFF" opacity="0.95">
                           <animateMotion
                             path={pathD}
-                            dur="1.2s"
-                            begin="0.15s"
+                            dur="1.1s"
+                            begin="0.12s"
                             repeatCount="indefinite"
                           />
                         </circle>
@@ -1290,13 +1487,16 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               })}
             </svg>
 
-            {/* Dynamic Agent Node Cards with Connection Ports and Telemetry Bubbles */}
+            {/* Dynamic Agent Node Cards with Connection Ports, Live Thought Bubbles & Telemetry */}
             {nodes.map((node) => {
-              const isParticipating = participatingNodeIds.includes(node.id);
-              const isNodeActive = activeStage === node.stageNum && isParticipating;
-              const hasCompleted = activeStage > node.stageNum && isParticipating;
+              const isParticipating = currentScenario.participatingNodeIds.includes(node.id);
+              const isTargetOfActive = currentStep?.targetId === node.id;
+              const isSourceOfActive = currentStep?.sourceId === node.id;
+              const isPeerConsulting = isSourceOfActive && currentStep?.stepType === 'peer_consult';
+              const hasCompleted = completedNodeIds.has(node.id) && !isTargetOfActive;
               const isDragging = draggingNodeId === node.id;
-              const telemetry = activeTelemetryPayload[node.id];
+              const liveThought = activeThoughts[node.id];
+              const telemetry = activeTelemetry[node.id];
 
               return (
                 <div
@@ -1311,18 +1511,22 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     isDragging ? 'is-dragging shadow-2xl scale-[1.02]' : ''
                   } ${
                     !isParticipating
-                      ? 'bg-slate-100/80 dark:bg-[#1E1F20]/50 border-dashed border-slate-300 dark:border-[#2D2E30] opacity-60'
+                      ? 'bg-slate-100/70 dark:bg-[#1E1F20]/40 border-dashed border-slate-300 dark:border-[#2D2E30] opacity-50'
+                      : isTargetOfActive
+                      ? `bg-white dark:bg-[#1E1F20] ${node.borderColor} ring-2 ring-blue-500 shadow-2xl shadow-blue-500/30 scale-[1.01] animate-active-node`
+                      : isPeerConsulting
+                      ? 'bg-white dark:bg-[#1E1F20] border-purple-500 ring-2 ring-purple-500/40 shadow-xl shadow-purple-500/20'
+                      : hasCompleted
+                      ? 'bg-white dark:bg-[#1E1F20] border-emerald-400 dark:border-emerald-500/60 shadow-md ring-1 ring-emerald-400/20'
                       : selectedNodeId === node.id
-                      ? 'bg-white dark:bg-[#1E1F20] border-blue-500 ring-2 ring-blue-500/30 shadow-2xl scale-[1.01]'
-                      : isNodeActive
-                      ? `bg-white dark:bg-[#1E1F20] ${node.borderColor} ring-2 ring-blue-500/50 shadow-xl shadow-blue-500/20 animate-active-node`
-                      : 'bg-white dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] hover:border-slate-300 dark:hover:border-[#3A3B3E] shadow-md hover:shadow-lg'
+                      ? 'bg-white dark:bg-[#1E1F20] border-blue-500 ring-2 ring-blue-500/30 shadow-xl'
+                      : 'bg-white dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] hover:border-slate-300 dark:hover:border-[#3A3B3E] shadow-sm hover:shadow-md'
                   }`}
                 >
                   {/* Left Connection Anchor Port */}
                   <div
                     className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 flex items-center justify-center pointer-events-none ${
-                      isNodeActive
+                      isTargetOfActive
                         ? 'bg-blue-500 border-white shadow-md'
                         : isParticipating
                         ? 'bg-slate-300 dark:bg-[#2D2E30] border-white dark:border-[#1E1F20]'
@@ -1336,7 +1540,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   {/* Right Connection Anchor Port */}
                   <div
                     className={`absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 flex items-center justify-center pointer-events-none ${
-                      isNodeActive
+                      isTargetOfActive || isPeerConsulting
                         ? 'bg-blue-500 border-white shadow-md'
                         : isParticipating
                         ? 'bg-slate-300 dark:bg-[#2D2E30] border-white dark:border-[#1E1F20]'
@@ -1347,12 +1551,18 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                     <div className="w-1.5 h-1.5 rounded-full bg-white dark:bg-slate-400" />
                   </div>
 
-                  {/* Live Telemetry Floating Bubble */}
-                  {telemetry && (
-                    <div className="absolute -top-11 left-0 right-0 z-30 flex justify-center animate-bounce">
-                      <div className="px-3 py-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-semibold shadow-lg shadow-blue-500/30 flex items-center space-x-1.5 truncate max-w-full">
-                        <Zap className="w-3 h-3 shrink-0 text-amber-300" />
-                        <span className="truncate">{telemetry}</span>
+                  {/* Live Thought Floating Bubble */}
+                  {liveThought && (
+                    <div className="absolute -top-12 left-0 right-0 z-30 flex justify-center animate-bounce">
+                      <div
+                        className={`px-3 py-1.5 rounded-xl text-white text-[10.5px] font-semibold shadow-xl flex items-center space-x-1.5 truncate max-w-[95%] ${
+                          isPeerConsulting
+                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 shadow-purple-500/30'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/30'
+                        }`}
+                      >
+                        <Zap className="w-3 h-3 shrink-0 text-amber-300 animate-pulse" />
+                        <span className="truncate">{liveThought}</span>
                       </div>
                     </div>
                   )}
@@ -1380,17 +1590,33 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                       </div>
 
                       <div className="flex items-center space-x-1">
-                        {isNodeActive && (
-                          <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping mr-1" />
+                        {isTargetOfActive && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-semibold flex items-center space-x-1 border border-blue-300 dark:border-blue-500/40">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                            <span>Thinking...</span>
+                          </span>
+                        )}
+                        {isPeerConsulting && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 font-semibold border border-purple-300 dark:border-purple-500/40">
+                            Consulting
+                          </span>
                         )}
                         {hasCompleted && (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mr-1" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-[#34A853]" />
                         )}
                         <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#131314] text-blue-600 dark:text-[#A8C7FA] font-mono border border-slate-200 dark:border-[#2D2E30]">
                           {node.latency}
                         </span>
                       </div>
                     </div>
+
+                    {/* Telemetry Result Banner if Completed */}
+                    {telemetry && (
+                      <div className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-[10.5px] font-mono text-emerald-600 dark:text-[#81C995] flex items-center space-x-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <span className="truncate">{telemetry}</span>
+                      </div>
+                    )}
 
                     {/* Role Description */}
                     <p className="text-[11px] text-slate-600 dark:text-[#C4C7C5] line-clamp-2 leading-relaxed">
