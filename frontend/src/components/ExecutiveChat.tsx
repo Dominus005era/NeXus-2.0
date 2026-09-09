@@ -58,6 +58,7 @@ import {
   GEMINI_MODELS,
 } from '../services/gemini';
 import { OverviewMetrics, AgentModelConfig } from '../types';
+import { api } from '../services/api';
 
 interface ExecutiveChatProps {
   onBackToLanding: () => void;
@@ -200,6 +201,24 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
   onSwitchToSwarm,
   activeView,
 }) => {
+  // Dynamic workspace config
+  const workspaceConfig = React.useMemo(() => {
+    const saved = localStorage.getItem('nexus_workspace_config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
+  const userName = workspaceConfig?.userName || 'Rahul Singh';
+  const userRole = workspaceConfig?.userRole || 'CEO & Founder';
+  const authorityLevel = workspaceConfig?.authorityLevel || 'LEVEL_4_EXECUTIVE';
+  const companyName = workspaceConfig?.companyName || 'TechMart Electronics';
+
   // Sidebar & Sessions State (Starting completely fresh without dummy chats)
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
@@ -378,13 +397,18 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
   };
 
   // Execute PO Split Action
-  const handleExecutePOSplit = (msgId: string) => {
+  const handleExecutePOSplit = async (msgId: string) => {
     confetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
     });
     setExecutedPOs((prev) => ({ ...prev, [msgId]: true }));
+    try {
+      await api.reviewDecision(msgId, 'APPROVED', `Purchase Order executed by ${userRole} (${userName})`);
+    } catch (err) {
+      console.warn('Backend decision audit sync error:', err);
+    }
   };
 
   // Filter sessions by search
@@ -516,11 +540,11 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2.5 truncate">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-xs shadow-md">
-                  R
+                  {userName ? userName.charAt(0).toUpperCase() : 'E'}
                 </div>
                 <div className="truncate">
-                  <div className="text-xs font-semibold text-white truncate">Rahul Singh</div>
-                  <div className="text-[10px] text-[#A8C7FA] font-medium">CEO • TechMart</div>
+                  <div className="text-xs font-semibold text-white truncate">{userName}</div>
+                  <div className="text-[10px] text-[#A8C7FA] font-medium truncate">{userRole} • {companyName}</div>
                 </div>
               </div>
               <button
@@ -541,7 +565,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                 <Settings className="w-4 h-4" />
               </button>
               <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-[11px]">
-                R
+                {userName ? userName.charAt(0).toUpperCase() : 'E'}
               </div>
             </div>
           )}
@@ -589,6 +613,16 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
 
           {/* Model Switcher & Live KPI Badges */}
           <div className="flex items-center space-x-3">
+            {/* Active Role & Authority Badge */}
+            <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#34A853]" />
+              <span className="text-[#888888]">Role:</span>
+              <span className="font-semibold text-white truncate max-w-[130px]">{userRole}</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#34A853]/15 text-[#34A853] font-mono font-bold">
+                {authorityLevel}
+              </span>
+            </div>
+
             {/* Model Dropdown Selector */}
             <div className="relative">
               <select

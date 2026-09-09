@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe } from 'lucide-react';
+import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe, Lock, Cpu, Layers } from 'lucide-react';
+import { api } from '../services/api';
 
 export interface WorkspaceConfig {
   userName: string;
   userRole: string;
+  authorityLevel: string;
   companyName: string;
   companyStructure: string;
   cloudDocsLink: string;
@@ -13,13 +15,43 @@ interface OnboardingWizardProps {
   onComplete: (config: WorkspaceConfig) => void;
 }
 
+const ROLES_LIST = [
+  {
+    role: 'CEO & Founder',
+    authority: 'LEVEL_4_EXECUTIVE',
+    description: 'Full Enterprise Authority: Unrestricted strategy, statutory locks, and PO approvals',
+    badge: 'Full Access'
+  },
+  {
+    role: 'Finance VP / CFO',
+    authority: 'LEVEL_3_FINANCE',
+    description: 'Treasury & Liquidity: Balance sheet audit, spend ceilings, payment terms approval',
+    badge: 'Treasury'
+  },
+  {
+    role: 'Supply Chain Director',
+    authority: 'LEVEL_3_SUPPLY',
+    description: 'Operations & Inventory: Stockout horizon, reorder calculations, vendor allocation',
+    badge: 'Logistics'
+  },
+  {
+    role: 'Sales & Growth Director',
+    authority: 'LEVEL_2_SALES',
+    description: 'Commercial & Demand: Promotional elasticity, affiliate campaigns, velocity spikes',
+    badge: 'Commercial'
+  },
+];
+
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const [step, setStep] = useState<number>(1);
   const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState('');
+  const [selectedRoleIndex, setSelectedRoleIndex] = useState<number>(0);
   const [companyName, setCompanyName] = useState('');
-  const [companyStructure, setCompanyStructure] = useState('');
-  const [cloudDocsLink, setCloudDocsLink] = useState('');
+  const [companyStructure, setCompanyStructure] = useState(
+    'CEO -> Swarm Orchestrator\n  ├── Sales Intelligence (Promotional Elasticity)\n  ├── Inventory & Logistics (Bin 4B Stockout Horizon)\n  └── Treasury & Governance (Statutory Reserve Lock)'
+  );
+  const [cloudDocsLink, setCloudDocsLink] = useState('https://drive.google.com/drive/folders/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs7');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const extractFolderId = (url: string) => {
     const match = url.match(/folders\/([a-zA-Z0-9_-]+)/);
@@ -27,16 +59,37 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   };
   const activeFolderId = extractFolderId(cloudDocsLink);
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    setIsSubmitting(true);
+    const chosenRoleObj = ROLES_LIST[selectedRoleIndex];
     const config: WorkspaceConfig = {
       userName: userName.trim() || 'Executive User',
-      userRole: userRole.trim() || 'CEO & Founder',
+      userRole: chosenRoleObj.role,
+      authorityLevel: chosenRoleObj.authority,
       companyName: companyName.trim() || 'TechMart Electronics',
-      companyStructure: companyStructure.trim() || `CEO -> Swarm Orchestrator\n  ├── Sales Intelligence\n  ├── Inventory & Supply Chain\n  └── Treasury & Governance`,
+      companyStructure: companyStructure.trim(),
       cloudDocsLink: cloudDocsLink.trim(),
     };
+
+    // Save to local storage for instant access
     localStorage.setItem('nexus_workspace_config', JSON.stringify(config));
-    onComplete(config);
+
+    // Register with backend persistence
+    try {
+      await api.onboardWorkspace({
+        user_name: config.userName,
+        user_role: config.userRole,
+        authority_level: config.authorityLevel,
+        company_name: config.companyName,
+        company_structure: config.companyStructure,
+        cloud_docs_link: config.cloudDocsLink,
+      });
+    } catch (err) {
+      console.warn('Backend onboard sync non-blocking error:', err);
+    } finally {
+      setIsSubmitting(false);
+      onComplete(config);
+    }
   };
 
   return (
@@ -53,7 +106,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 Enterprise Setup Wizard
               </h2>
               <p className="text-xs text-[#888888]">
-                Step {step} of 3 • Cloud Database Registration
+                Step {step} of 3 • Autonomous Operating System Initialization
               </p>
             </div>
           </div>
@@ -74,38 +127,25 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           </div>
         </div>
 
-        {/* STEP 1: IDENTITY */}
+        {/* STEP 1: IDENTITY & ROLE AUTHORITY */}
         {step === 1 && (
           <div className="space-y-4">
-            <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider">
-              1. Executive Profile & Enterprise Identity
-            </div>
-
-            <div>
-              <label className="text-xs text-[#888888] flex items-center space-x-1 mb-1">
-                <User className="w-3.5 h-3.5 text-[#4285F4]" />
-                <span>Executive Full Name</span>
-              </label>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="e.g. Rahul Singh"
-                className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-              />
+            <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider flex items-center justify-between">
+              <span>1. Executive Profile & Role Authority</span>
+              <span className="text-[10px] text-[#34A853] bg-[#34A853]/10 px-2 py-0.5 rounded-full">RBAC Governed</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-[#888888] flex items-center space-x-1 mb-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#4285F4]" />
-                  <span>Executive Role</span>
+                  <User className="w-3.5 h-3.5 text-[#4285F4]" />
+                  <span>Executive Full Name</span>
                 </label>
                 <input
                   type="text"
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value)}
-                  placeholder="e.g. CEO & Founder"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="e.g. Rahul Singh"
                   className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
                 />
               </div>
@@ -124,42 +164,94 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 />
               </div>
             </div>
+
+            <div>
+              <label className="text-xs text-[#888888] flex items-center space-x-1 mb-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#4285F4]" />
+                <span>Select Your Role & Authority Level (Governs AI Access)</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {ROLES_LIST.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedRoleIndex(idx)}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      selectedRoleIndex === idx
+                        ? 'border-[#4285F4] bg-[#4285F4]/10 shadow-sm'
+                        : 'border-[#2D2E30] bg-[#131314] hover:border-[#3A3B3E]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-white">{item.role}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#2D2E30] text-[#A8C7FA] font-mono">
+                        {item.badge}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[#888888] line-clamp-2 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* STEP 2: COMPANY STRUCTURE */}
+        {/* STEP 2: COMPANY STRUCTURE & AGENT INITIALIZATION */}
         {step === 2 && (
           <div className="space-y-4">
-            <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider">
-              2. Company Structure Hierarchy (AI Swarm DAG Input)
+            <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider flex items-center justify-between">
+              <span>2. Department Hierarchy & Swarm Agents</span>
+              <span className="text-[10px] text-[#4285F4] bg-[#4285F4]/10 px-2 py-0.5 rounded-full">DAG Generation</span>
             </div>
             <p className="text-xs text-[#888888]">
-              Paste your organizational hierarchy text below. Swarm Studio will construct parallel agent nodes matching your structure.
+              Swarm Studio will automatically construct parallel agent nodes matching your enterprise departments:
             </p>
+
+            <div className="grid grid-cols-3 gap-2 py-1">
+              <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30] text-center">
+                <Cpu className="w-4 h-4 text-blue-400 mx-auto mb-1" />
+                <div className="text-[11px] font-semibold text-white">Sales Intelligence</div>
+                <div className="text-[9px] text-[#888888]">Velocity & Surge</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30] text-center">
+                <Layers className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+                <div className="text-[11px] font-semibold text-white">Supply Chain</div>
+                <div className="text-[9px] text-[#888888]">Bin Stockout Horizon</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#131314] border border-[#2D2E30] text-center">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                <div className="text-[11px] font-semibold text-white">Treasury Audit</div>
+                <div className="text-[9px] text-[#888888]">₹5.00L Statutory Lock</div>
+              </div>
+            </div>
+
             <textarea
-              rows={5}
+              rows={4}
               value={companyStructure}
               onChange={(e) => setCompanyStructure(e.target.value)}
-              placeholder="e.g. CEO -> Swarm Orchestrator&#10;  ├── Sales Intelligence&#10;  ├── Inventory & Supply Chain&#10;  └── Treasury & Governance"
+              placeholder="e.g. CEO -> Swarm Orchestrator..."
               className="w-full bg-[#131314] text-xs font-mono text-[#C4C7C5] p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4] resize-none leading-relaxed"
             />
           </div>
         )}
 
-        {/* STEP 3: GOOGLE DRIVE LINK */}
+        {/* STEP 3: CLOUD DATABASE & GOOGLE DRIVE */}
         {step === 3 && (
           <div className="space-y-4">
-            <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider">
-              3. Enterprise Shared Cloud Database & Docs Link
+            <div className="text-xs text-[#A8C7FA] font-semibold uppercase tracking-wider flex items-center justify-between">
+              <span>3. Enterprise Cloud Database (Google Drive Link)</span>
+              <span className="text-[10px] text-[#34A853] bg-[#34A853]/10 px-2 py-0.5 rounded-full">Ground Truth</span>
             </div>
             <p className="text-xs text-[#888888]">
-              Provide your publicly shared Google Drive folder link containing company records, sales reports, and inventory ledgers.
+              Connect your department records (Sales reports, Inventory ledgers, Finance reserve policies). All AI agents ground their calculations in these files:
             </p>
 
             <div>
               <label className="text-xs text-[#888888] flex items-center space-x-1 mb-1">
                 <Globe className="w-3.5 h-3.5 text-[#34A853]" />
-                <span>Shared Google Drive Folder Link</span>
+                <span>Google Drive Shared Folder Link</span>
               </label>
               <input
                 type="text"
@@ -168,19 +260,19 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 placeholder="https://drive.google.com/drive/folders/your_folder_id"
                 className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
               />
-              {cloudDocsLink.trim() ? (
-                <div className="text-[10px] text-[#34A853] mt-2 flex items-center space-x-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>
-                    Google Drive Shared Link Active {activeFolderId ? `(Folder ID: ${activeFolderId})` : ''}
-                  </span>
+
+              <div className="mt-3 p-3 rounded-xl bg-[#131314] border border-[#2D2E30] space-y-1.5">
+                <div className="text-[11px] font-semibold text-white flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#34A853]" />
+                  <span>Recognized Departmental Documents:</span>
                 </div>
-              ) : (
-                <div className="text-[10px] text-[#888888] mt-2 flex items-center space-x-1">
-                  <ShieldCheck className="w-3 h-3 text-[#A8C7FA]" />
-                  <span>Enter your shared Google Drive folder link to connect enterprise data.</span>
+                <div className="grid grid-cols-2 gap-1 text-[10px] text-[#A8C7FA] font-mono">
+                  <div>• q3_promotional_calendar.md</div>
+                  <div>• bin_4b_stock_ledger.csv</div>
+                  <div>• cash_reserve_governance.md</div>
+                  <div>• supplier_contracts_master.json</div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -209,10 +301,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           ) : (
             <button
               onClick={handleFinish}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A855F7] text-xs font-bold text-white flex items-center space-x-2 shadow-lg shadow-[#1A73E8]/30"
+              disabled={isSubmitting}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A855F7] text-xs font-bold text-white flex items-center space-x-2 shadow-lg shadow-[#1A73E8]/30 disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Launch Workspace</span>
+              <span>{isSubmitting ? 'Initializing Swarm...' : 'Launch Operating System'}</span>
             </button>
           )}
         </div>

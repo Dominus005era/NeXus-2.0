@@ -48,6 +48,7 @@ import {
   Globe
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { api } from '../services/api';
 
 interface SwarmStudioProps {
   onBackToLanding: () => void;
@@ -62,7 +63,7 @@ interface NodeData {
   subtitle: string;
   role: string;
   model: string;
-  apiKey: string;
+  department: string;
   modelProvider: 'Google' | 'OpenAI' | 'Nexus Formal' | 'Neon' | 'Executive';
   latency: string;
   x: number;
@@ -81,176 +82,194 @@ const AVAILABLE_MODELS_BY_TYPE: Record<string, string[]> = {
   sales: ['Gemini 3.6 Flash (High-Throughput)', 'GPT-4o Mini', 'Gemini 3.8 Flash'],
   inventory: ['GPT-4o Mini (Tactical)', 'Gemini 3.6 Flash', 'Claude 3.5 Sonnet'],
   finance: ['Gemini 1.5 Pro (2M Context)', 'Gemini 2.5 Pro', 'GPT-4o (Audit)'],
-  solver: ['Google OR-Tools ILP v9.8 (Exact)', 'Nexus 3.1 Deep Think ILP', 'SciPy Linear Solver'],
-  db: ['Neon Cloud Postgres (asyncpg)', 'Google Drive Cloud Docs API', 'Supabase Realtime'],
+  solver: ['SciPy HiGHS MILP Engine (Exact)', 'Google OR-Tools ILP v9.8', 'Nexus 3.1 Deep Think'],
+  db: ['SQLite / Neon Postgres (SQLAlchemy)', 'Google Drive Cloud Docs API', 'Supabase Realtime'],
 };
-
-const DEFAULT_NODES: NodeData[] = [
-  {
-    id: 'node-ceo',
-    type: 'ceo',
-    title: 'Executive Directive',
-    subtitle: 'CEO & Business Trigger',
-    role: 'CEO / Business Executive (Rahul)',
-    model: 'Executive Directive Stream',
-    apiKey: 'System Exec',
-    modelProvider: 'Executive',
-    latency: '< 1ms',
-    x: 60,
-    y: 290,
-    width: 280,
-    height: 195,
-    iconBg: 'bg-[#A8C7FA]/10',
-    iconColor: 'text-[#A8C7FA]',
-    borderColor: 'border-[#A8C7FA]/40',
-    accentGlow: 'rgba(168, 199, 250, 0.2)',
-    stageNum: 1,
-  },
-  {
-    id: 'node-orchestrator',
-    type: 'orchestrator',
-    title: 'Nexus Swarm Orchestrator',
-    subtitle: 'Hierarchical Task & Refinement',
-    role: 'DAG Planner, Agent Router & Final Synthesizer',
-    model: 'Gemini 3.6 Flash (Default)',
-    apiKey: 'AQ.Ab8RN6Iwn8dy5gj95VOKNleCbeExj6tIQ9CJW9zp8J2ZAssXqQ',
-    modelProvider: 'Google',
-    latency: '4.2ms',
-    x: 440,
-    y: 260,
-    width: 300,
-    height: 235,
-    iconBg: 'bg-[#A8C7FA]/20',
-    iconColor: 'text-[#A8C7FA]',
-    borderColor: 'border-[#A8C7FA]',
-    accentGlow: 'rgba(168, 199, 250, 0.35)',
-    stageNum: 2,
-  },
-  {
-    id: 'node-sales',
-    type: 'sales',
-    title: 'Sales Intelligence Agent',
-    subtitle: 'Promotions & Order Velocity',
-    role: 'Demand Forecast & Elasticity Analysis',
-    model: 'Gemini 3.6 Flash (High-Throughput)',
-    apiKey: 'AQ.Ab8RN...SalesKey01',
-    modelProvider: 'Google',
-    latency: '8.2ms',
-    x: 880,
-    y: 60,
-    width: 290,
-    height: 190,
-    iconBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-400',
-    borderColor: 'border-blue-500/50',
-    accentGlow: 'rgba(59, 130, 246, 0.25)',
-    stageNum: 3,
-  },
-  {
-    id: 'node-inventory',
-    type: 'inventory',
-    title: 'Supply Chain & Inventory',
-    subtitle: 'Bin 4B Depletion & Safety Floor',
-    role: 'Stockout Horizon & Reorder Deficit',
-    model: 'GPT-4o Mini (Tactical)',
-    apiKey: 'sk-proj-InventoryKey02',
-    modelProvider: 'OpenAI',
-    latency: '6.4ms',
-    x: 880,
-    y: 300,
-    width: 290,
-    height: 190,
-    iconBg: 'bg-amber-500/10',
-    iconColor: 'text-amber-400',
-    borderColor: 'border-amber-500/50',
-    accentGlow: 'rgba(245, 158, 11, 0.25)',
-    stageNum: 3,
-  },
-  {
-    id: 'node-finance',
-    type: 'finance',
-    title: 'Treasury & Governance',
-    subtitle: 'Statutory Reserve & Cash Cap',
-    role: 'Ledger Audit & Spend Cap Compliance',
-    model: 'Gemini 1.5 Pro (2M Context)',
-    apiKey: 'AQ.Ab8RN...FinanceKey03',
-    modelProvider: 'Google',
-    latency: '9.1ms',
-    x: 880,
-    y: 540,
-    width: 290,
-    height: 190,
-    iconBg: 'bg-emerald-500/10',
-    iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/50',
-    accentGlow: 'rgba(34, 197, 94, 0.25)',
-    stageNum: 3,
-  },
-  {
-    id: 'node-solver',
-    type: 'solver',
-    title: 'Google OR-Tools ILP Solver',
-    subtitle: 'Deterministic Matrix Optimization',
-    role: 'Integer Linear Programming Supplier Split',
-    model: 'Google OR-Tools ILP v9.8 (Exact)',
-    apiKey: 'OR-Tools Native Engine',
-    modelProvider: 'Nexus Formal',
-    latency: '2.4ms',
-    x: 1320,
-    y: 250,
-    width: 300,
-    height: 245,
-    iconBg: 'bg-purple-500/10',
-    iconColor: 'text-purple-400',
-    borderColor: 'border-purple-500/60',
-    accentGlow: 'rgba(168, 85, 247, 0.3)',
-    stageNum: 4,
-  },
-  {
-    id: 'node-db',
-    type: 'db',
-    title: 'Neon DB & Enterprise Cloud Docs',
-    subtitle: 'Shared Google Drive & Postgres Sync',
-    role: 'Immutable Ledger Commit & Document Fetch',
-    model: 'Neon Cloud Postgres (asyncpg)',
-    apiKey: 'neon_db_secret_key_live',
-    modelProvider: 'Neon',
-    latency: '1.8ms',
-    x: 1760,
-    y: 270,
-    width: 295,
-    height: 225,
-    iconBg: 'bg-emerald-500/10',
-    iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/60',
-    accentGlow: 'rgba(16, 185, 129, 0.25)',
-    stageNum: 5,
-  },
-];
 
 export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   onBackToLanding,
   onSwitchToChat,
   activeView,
 }) => {
-  const [nodes, setNodes] = useState<NodeData[]>(DEFAULT_NODES);
+  // Read dynamic company config from localStorage
+  const workspaceConfig = useMemo(() => {
+    const saved = localStorage.getItem('nexus_workspace_config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
+  const companyName = workspaceConfig?.companyName || 'TechMart Electronics';
+  const userName = workspaceConfig?.userName || 'Executive User';
+  const userRole = workspaceConfig?.userRole || 'CEO & Founder';
+  const authorityLevel = workspaceConfig?.authorityLevel || 'LEVEL_4_EXECUTIVE';
+
+  // Dynamic Nodes formulated from company structure
+  const initialNodes: NodeData[] = useMemo(() => [
+    {
+      id: 'node-ceo',
+      type: 'ceo',
+      title: 'Executive Directive',
+      subtitle: `${userName} (${userRole})`,
+      role: `Business Executive Authority (${authorityLevel})`,
+      model: 'Operational Directive Stream',
+      department: 'Executive Governance',
+      modelProvider: 'Executive',
+      latency: '< 1ms',
+      x: 60,
+      y: 280,
+      width: 290,
+      height: 200,
+      iconBg: 'bg-[#A8C7FA]/10',
+      iconColor: 'text-[#A8C7FA]',
+      borderColor: 'border-[#A8C7FA]/40',
+      accentGlow: 'rgba(168, 199, 250, 0.2)',
+      stageNum: 1,
+    },
+    {
+      id: 'node-orchestrator',
+      type: 'orchestrator',
+      title: 'Nexus Swarm Orchestrator',
+      subtitle: 'Hierarchical Task & Constraint Router',
+      role: 'Prompt Decomposer, Agent Router & Solution Verifier',
+      model: 'Gemini 3.6 Flash (Default)',
+      department: 'AI Operations Command',
+      modelProvider: 'Google',
+      latency: '3.8ms',
+      x: 450,
+      y: 250,
+      width: 310,
+      height: 240,
+      iconBg: 'bg-[#A8C7FA]/20',
+      iconColor: 'text-[#A8C7FA]',
+      borderColor: 'border-[#A8C7FA]',
+      accentGlow: 'rgba(168, 199, 250, 0.35)',
+      stageNum: 2,
+    },
+    {
+      id: 'node-sales',
+      type: 'sales',
+      title: 'Sales Intelligence Agent',
+      subtitle: 'Promotions & Demand Forecasting',
+      role: 'Viral Elasticity & Demand Surge Analytics',
+      model: 'Gemini 3.6 Flash (High-Throughput)',
+      department: 'Commercial & Sales',
+      modelProvider: 'Google',
+      latency: '5.4ms',
+      x: 900,
+      y: 50,
+      width: 300,
+      height: 195,
+      iconBg: 'bg-blue-500/10',
+      iconColor: 'text-blue-400',
+      borderColor: 'border-blue-500/50',
+      accentGlow: 'rgba(59, 130, 246, 0.25)',
+      stageNum: 3,
+    },
+    {
+      id: 'node-inventory',
+      type: 'inventory',
+      title: 'Supply Chain & Inventory',
+      subtitle: 'Bin 4B Stockout Horizon & Deficit',
+      role: 'Burn Rate & Net Unit Deficit Formulation',
+      model: 'GPT-4o Mini (Tactical)',
+      department: 'Logistics & Warehouse',
+      modelProvider: 'OpenAI',
+      latency: '4.9ms',
+      x: 900,
+      y: 290,
+      width: 300,
+      height: 195,
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-400',
+      borderColor: 'border-amber-500/50',
+      accentGlow: 'rgba(245, 158, 11, 0.25)',
+      stageNum: 3,
+    },
+    {
+      id: 'node-finance',
+      type: 'finance',
+      title: 'Treasury & Governance',
+      subtitle: 'Statutory Reserve & Safe Cash Cap',
+      role: 'Ledger Audit & ₹1.80L Spend Ceiling Guard',
+      model: 'Gemini 1.5 Pro (2M Context)',
+      department: 'Treasury & Compliance',
+      modelProvider: 'Google',
+      latency: '6.1ms',
+      x: 900,
+      y: 530,
+      width: 300,
+      height: 195,
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-400',
+      borderColor: 'border-emerald-500/50',
+      accentGlow: 'rgba(34, 197, 94, 0.25)',
+      stageNum: 3,
+    },
+    {
+      id: 'node-solver',
+      type: 'solver',
+      title: 'SciPy HiGHS Decision Solver',
+      subtitle: 'Deterministic MILP Optimization',
+      role: 'Mixed-Integer Linear Supplier Split Formulation',
+      model: 'SciPy HiGHS MILP Engine (Exact)',
+      department: 'Operations Optimization',
+      modelProvider: 'Nexus Formal',
+      latency: '3.9ms',
+      x: 1350,
+      y: 250,
+      width: 310,
+      height: 245,
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-400',
+      borderColor: 'border-purple-500/60',
+      accentGlow: 'rgba(168, 85, 247, 0.3)',
+      stageNum: 4,
+    },
+    {
+      id: 'node-db',
+      type: 'db',
+      title: 'Enterprise DB & Cloud Docs',
+      subtitle: `${companyName} Data Store`,
+      role: 'SQLAlchemy Persistence & Google Drive RAG',
+      model: 'SQLite / Neon Postgres (SQLAlchemy)',
+      department: 'Enterprise Data Layer',
+      modelProvider: 'Neon',
+      latency: '1.2ms',
+      x: 1800,
+      y: 270,
+      width: 300,
+      height: 230,
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-400',
+      borderColor: 'border-emerald-500/60',
+      accentGlow: 'rgba(16, 185, 129, 0.25)',
+      stageNum: 5,
+    },
+  ], [userName, userRole, authorityLevel, companyName]);
+
+  const [nodes, setNodes] = useState<NodeData[]>(initialNodes);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 20, y: 20 });
-  const [zoom, setZoom] = useState<number>(0.75);
+  const [zoom, setZoom] = useState<number>(0.72);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [isInteracting, setIsInteracting] = useState<boolean>(false);
 
   // Simulation & Pipeline Loop State
   const [simSurge, setSimSurge] = useState<number>(70);
   const [activeStage, setActiveStage] = useState<number>(0);
-  const [simulationPhase, setSimulationPhase] = useState<'idle' | 'forward' | 'consultation' | 'return' | 'complete'>('idle');
+  const [simulationPhase, setSimulationPhase] = useState<'idle' | 'forward' | 'consultation' | 'solver' | 'return' | 'complete'>('idle');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>('Analyze P100 demand surge (+70%) & formulate split PO');
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const wheelTimerRef = useRef<any>(null);
 
-  // Auto-trigger Live Swarm Pipeline Animation when switching tabs from Executive Chat
-  const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>('P100 Headphones');
-
+  // Auto-trigger live visualization if requested from chat
   useEffect(() => {
     const shouldTrigger = localStorage.getItem('nexus_trigger_swarm_sim');
     const savedPrompt = localStorage.getItem('nexus_active_prompt');
@@ -263,8 +282,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     }
   }, [activeView]);
 
-
-  // Real-time metrics calculation
+  // Real-time formal metrics calculation
   const sim = useMemo(() => {
     const baseDemand = 85;
     const velocity = Math.round(baseDemand * (1 + simSurge / 100));
@@ -275,8 +293,9 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     const horizonDays = Number(Math.max(0.1, rawHorizon).toFixed(2));
     const deficitUnits = Math.max(0, forecast7d + safetyStock - currentStock);
 
-    const supplierBUnits = Math.min(400, deficitUnits);
-    const supplierCUnits = Math.max(0, deficitUnits - supplierBUnits);
+    // Exact SciPy MILP outcome for default suppliers
+    const supplierCUnits = Math.min(800, deficitUnits);
+    const supplierBUnits = Math.max(0, deficitUnits - supplierCUnits);
     const costB = supplierBUnits * 477;
     const costC = supplierCUnits * 436.5;
     const upfrontCash = Math.round(supplierCUnits * 218.25);
@@ -344,7 +363,6 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   // Canvas Smooth Pan Handler
   const handleCanvasPointerDown = (e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
-    // Don't initiate background canvas panning if user clicked on node cards, buttons, or input controls
     if (
       target.closest('.node-card') ||
       target.closest('button') ||
@@ -403,53 +421,43 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     });
   };
 
-  const handleResetLayout = () => {
-    setIsInteracting(false);
-    setNodes(DEFAULT_NODES);
-    setPan({ x: 20, y: 20 });
-    setZoom(0.75);
-  };
-
-  const handleFitToView = () => {
-    setIsInteracting(false);
-    setPan({ x: 40, y: 40 });
-    setZoom(0.62);
-  };
-
-  // Live Bidirectional Swarm Workflow Trigger
+  // Live Swarm Workflow Trigger: Visualizes Prompt Traveling across the Pipeline
   const handleRunSwarmPipeline = () => {
     if (simulationPhase !== 'idle' && simulationPhase !== 'complete') return;
 
-    // Phase 1: Forward Dispatch (CEO -> Orchestrator -> Sub-Agents)
+    // Stage 1: User Directive -> Orchestrator
     setSimulationPhase('forward');
     setActiveStage(1);
 
+    // Stage 2: Orchestrator decomposes query -> dispatches to Sales, Inventory, Finance
     setTimeout(() => {
       setActiveStage(2);
-    }, 700);
+    }, 750);
 
+    // Stage 3: Sub-Agents execute & consult on constraints
     setTimeout(() => {
       setActiveStage(3);
       setSimulationPhase('consultation');
-    }, 1400);
+    }, 1500);
 
-    // Phase 2: Inter-Agent & Cloud DB Consultation
+    // Stage 4: Dispatched to SciPy HiGHS MILP Decision Solver
     setTimeout(() => {
       setActiveStage(4);
-    }, 2200);
+      setSimulationPhase('solver');
+    }, 2300);
 
-    // Phase 3: Return Loop to Orchestrator for Refinement
+    // Stage 5: Decision Solver returns proof to Orchestrator for Executive Verification
     setTimeout(() => {
       setSimulationPhase('return');
       setActiveStage(5);
-    }, 3000);
+    }, 3100);
 
-    // Phase 4: Final Refinement back to User
+    // Stage 6: Orchestrator verifies compliance & delivers brief to User
     setTimeout(() => {
       setSimulationPhase('complete');
       confetti({
-        particleCount: 90,
-        spread: 70,
+        particleCount: 75,
+        spread: 60,
         origin: { y: 0.6 },
       });
     }, 3800);
@@ -457,185 +465,172 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
-  // SVG Direct Port-to-Port Bezier Connection Renderer
-  const renderPortConnection = (
-    fromId: string,
-    toId: string,
-    color: string,
-    isReturnLoop = false
-  ) => {
-    const fromNode = nodes.find((n) => n.id === fromId);
-    const toNode = nodes.find((n) => n.id === toId);
-    if (!fromNode || !toNode) return null;
-
-    // Direct Port coordinates (Right Output -> Left Input or Return Loop Left -> Right)
-    const x1 = isReturnLoop ? fromNode.x : fromNode.x + fromNode.width;
-    const y1 = fromNode.y + fromNode.height / 2;
-    const x2 = isReturnLoop ? toNode.x + toNode.width : toNode.x;
-    const y2 = toNode.y + toNode.height / 2;
-
-    const dx = Math.max(50, Math.abs(x2 - x1) * 0.45);
-    const pathD = isReturnLoop
-      ? `M ${x1} ${y1} C ${x1 - dx} ${y1 + 40}, ${x2 + dx} ${y2 + 40}, ${x2} ${y2}`
-      : `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-
-    const isRunning = simulationPhase !== 'idle';
-
-    return (
-      <g key={`${fromId}-${toId}-${isReturnLoop ? 'return' : 'fwd'}`}>
-        <path
-          d={pathD}
-          fill="none"
-          stroke={isRunning ? color : '#2D2E30'}
-          strokeWidth={isRunning ? 2.5 : 1.5}
-          strokeOpacity={isRunning ? 0.85 : 0.4}
-        />
-        {isRunning && (
-          <>
-            <path
-              d={pathD}
-              fill="none"
-              stroke="#A8C7FA"
-              strokeWidth={3}
-              strokeDasharray="6,8"
-              className="animate-pulse"
-            />
-            {/* Live Moving Data Packet Core 1 */}
-            <circle r="4.5" fill={color || "#A8C7FA"}>
-              <animateMotion
-                path={pathD}
-                dur={isReturnLoop ? "2.2s" : "1.6s"}
-                repeatCount="indefinite"
-                keyPoints={isReturnLoop ? "1;0" : "0;1"}
-                keyTimes="0;1"
-                calcMode="linear"
-              />
-            </circle>
-            {/* Live Moving Data Packet Core 2 (White Highlight) */}
-            <circle r="2.5" fill="#FFFFFF">
-              <animateMotion
-                path={pathD}
-                dur={isReturnLoop ? "2.2s" : "1.6s"}
-                repeatCount="indefinite"
-                keyPoints={isReturnLoop ? "1;0" : "0;1"}
-                keyTimes="0;1"
-                calcMode="linear"
-              />
-            </circle>
-          </>
-        )}
-      </g>
-    );
-  };
-
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0B0C0E] text-[#E3E3E3] font-sans overflow-hidden select-none">
-      {/* EXECUTIVE HEADER */}
-      <header className="h-14 border-b border-[#2D2E30]/70 bg-[#131314]/90 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0">
+    <div className="flex flex-col h-screen w-full bg-[#0B0C0E] text-[#E3E3E3] font-sans overflow-hidden">
+      {/* Top Header */}
+      <header className="h-14 border-b border-[#2D2E30] bg-[#1E1F20]/90 backdrop-blur-md px-4 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBackToLanding}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#1E1F20] hover:bg-[#2A2B2D] text-[#C4C7C5] hover:text-white text-xs font-medium border border-[#2D2E30] transition-colors"
+            className="p-1.5 rounded-lg text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+            title="Back to Overview"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Landing Page</span>
+            <ArrowLeft className="w-4 h-4" />
           </button>
-
-          <div className="flex items-center bg-[#1E1F20] p-0.5 rounded-full border border-[#2D2E30]">
-            <button
-              onClick={onSwitchToChat}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                activeView === 'chat'
-                  ? 'bg-[#1A73E8] text-white shadow-md'
-                  : 'text-[#888888] hover:text-white'
-              }`}
-            >
-              Executive Chat
-            </button>
-            <button
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                activeView === 'swarm'
-                  ? 'bg-[#1A73E8] text-white shadow-md'
-                  : 'text-[#888888] hover:text-white'
-              }`}
-            >
-              Agent Swarm Studio
-            </button>
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] flex items-center justify-center shadow-md">
+              <Network className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-sm text-white font-heading">Swarm Studio</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#34A853]/15 text-[#34A853] border border-[#34A853]/30 font-semibold">
+                  Autonomous Multi-Agent DAG
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-[#2D2E30] text-[#A8C7FA] font-mono">
+                  {companyName}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Live Active Query & Pipeline Controls */}
         <div className="flex items-center space-x-3">
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-            <span className="text-[#888888]">Swarm State:</span>
-            <span className="font-semibold text-[#A8C7FA] capitalize">
-              {simulationPhase === 'idle' ? 'Ready' : simulationPhase}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#1E1F20] border border-[#2D2E30] text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-            <span className="text-[#C4C7C5] font-medium">Parallel Multi-Agent Network</span>
-          </div>
-        </div>
-      </header>
-
-      {/* MAIN CANVAS FIELD */}
-      <div className="flex-1 flex relative overflow-hidden">
-        {/* OVERLAY CONTROLS PANEL */}
-        <div className="absolute top-4 left-4 z-20 w-72 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-2xl p-4 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between border-b border-[#2D2E30] pb-2.5">
-            <div className="flex items-center space-x-2">
-              <Zap className="w-4 h-4 text-[#A8C7FA]" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                Swarm Simulation
-              </h3>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#131314] text-[#81C995] border border-[#2D2E30]">
-              Bidirectional Loop
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[#888888]">Promotional Surge:</span>
-              <span className="font-bold text-amber-400 font-mono">+{simSurge}%</span>
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="200"
-              step="5"
-              value={simSurge}
-              onChange={(e) => setSimSurge(Number(e.target.value))}
-              className="w-full h-1.5 bg-[#2D2E30] rounded-lg appearance-none cursor-pointer accent-[#1A73E8]"
-            />
+          <div className="hidden lg:flex items-center space-x-2 px-3 py-1 rounded-full bg-[#131314] border border-[#2D2E30] text-xs">
+            <span className="text-[#888888]">Active Inquiry:</span>
+            <span className="text-[#A8C7FA] font-medium truncate max-w-xs">{activeQueryPrompt}</span>
           </div>
 
           <button
             onClick={handleRunSwarmPipeline}
             disabled={simulationPhase !== 'idle' && simulationPhase !== 'complete'}
-            className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 bg-[#1A73E8] hover:bg-[#4285F4] text-white shadow-lg"
+            className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A855F7] text-white font-semibold text-xs flex items-center space-x-1.5 shadow-md shadow-[#1A73E8]/20 disabled:opacity-50 hover:brightness-110"
           >
-            {simulationPhase !== 'idle' && simulationPhase !== 'complete' ? (
-              <>
-                <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                <span className="capitalize">{simulationPhase} Processing...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Run Live Bidirectional Swarm</span>
-              </>
-            )}
+            <Play className={`w-3.5 h-3.5 ${simulationPhase !== 'idle' && simulationPhase !== 'complete' ? 'animate-spin' : ''}`} />
+            <span>
+              {simulationPhase === 'idle' || simulationPhase === 'complete' ? 'Simulate Swarm Travel' : `Stage ${activeStage}: Processing...`}
+            </span>
+          </button>
+
+          <button
+            onClick={onSwitchToChat}
+            className="px-3 py-1.5 rounded-xl bg-[#2A2B2D] hover:bg-[#35373A] text-[#C4C7C5] hover:text-white text-xs font-medium flex items-center space-x-1.5 border border-[#3A3B3E]/60 transition-all"
+          >
+            <Bot className="w-3.5 h-3.5 text-[#A8C7FA]" />
+            <span>Switch to Executive Chat</span>
           </button>
         </div>
+      </header>
 
-        {/* CANVAS BG */}
+      {/* Main Workspace Area */}
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* Left Parameter Panel (Collapsible) */}
+        <aside className="w-72 border-r border-[#2D2E30] bg-[#1E1F20]/70 backdrop-blur-md p-4 space-y-4 shrink-0 overflow-y-auto z-20">
+          <div>
+            <h3 className="text-xs font-bold text-[#A8C7FA] uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Telemetry & Surge Input</span>
+              <Activity className="w-3.5 h-3.5 text-[#4285F4]" />
+            </h3>
+
+            <div className="space-y-3 bg-[#131314] p-3 rounded-2xl border border-[#2D2E30]">
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-[#888888]">Simulated Demand Surge:</span>
+                  <span className="text-[#4285F4] font-bold font-mono">+{simSurge}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={10}
+                  max={200}
+                  step={5}
+                  value={simSurge}
+                  onChange={(e) => setSimSurge(Number(e.target.value))}
+                  className="w-full h-1.5 bg-[#2D2E30] rounded-lg appearance-none cursor-pointer accent-[#4285F4]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-[#2D2E30]/60">
+                <div>
+                  <span className="text-[#888888] block">Order Velocity:</span>
+                  <span className="text-white font-mono font-semibold">{sim.velocity} u/d</span>
+                </div>
+                <div>
+                  <span className="text-[#888888] block">Stockout Horizon:</span>
+                  <span className="text-amber-400 font-mono font-semibold">{sim.horizonDays} days</span>
+                </div>
+                <div>
+                  <span className="text-[#888888] block">Buffer Deficit:</span>
+                  <span className="text-white font-mono font-semibold">{sim.deficitUnits} units</span>
+                </div>
+                <div>
+                  <span className="text-[#888888] block">Upfront Cash:</span>
+                  <span className={`font-mono font-semibold ${sim.isFeasible ? 'text-[#34A853]' : 'text-red-400'}`}>
+                    ₹{sim.upfrontCash.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time Multi-Agent Travel Stage Legend */}
+          <div>
+            <h3 className="text-xs font-bold text-[#A8C7FA] uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Live Prompt Travel Stages</span>
+              <GitBranch className="w-3.5 h-3.5 text-[#A8C7FA]" />
+            </h3>
+
+            <div className="space-y-1.5 text-xs">
+              {[
+                { stage: 1, label: '1. Executive Dispatch', desc: 'User prompt -> Orchestrator' },
+                { stage: 2, label: '2. Task Breakdown', desc: 'Orchestrator fans out tasks' },
+                { stage: 3, label: '3. Agent Consensus', desc: 'Sales, Inventory & Finance negotiate' },
+                { stage: 4, label: '4. SciPy MILP Solver', desc: 'Optimal supplier matrix calculation' },
+                { stage: 5, label: '5. Verification Loop', desc: 'Orchestrator validates & delivers' },
+              ].map((item) => (
+                <div
+                  key={item.stage}
+                  className={`p-2 rounded-xl border transition-all ${
+                    activeStage === item.stage
+                      ? 'bg-[#4285F4]/15 border-[#4285F4] text-white'
+                      : activeStage > item.stage
+                      ? 'bg-[#131314] border-[#34A853]/40 text-[#C4C7C5]'
+                      : 'bg-[#131314] border-[#2D2E30] text-[#888888]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-[11px]">
+                    <span>{item.label}</span>
+                    {activeStage === item.stage && (
+                      <span className="w-2 h-2 rounded-full bg-[#4285F4] animate-ping" />
+                    )}
+                    {activeStage > item.stage && (
+                      <CheckCircle2 className="w-3 h-3 text-[#34A853]" />
+                    )}
+                  </div>
+                  <div className="text-[10px] text-[#888888]">{item.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick RBAC Info */}
+          <div className="p-3 rounded-2xl bg-[#131314] border border-[#2D2E30] text-[11px] space-y-1">
+            <div className="text-[#A8C7FA] font-semibold flex items-center space-x-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#34A853]" />
+              <span>Active Authority: {authorityLevel}</span>
+            </div>
+            <p className="text-[10px] text-[#888888] leading-relaxed">
+              Logged in as {userName} ({userRole}). Department models respect Role-Based Access Control tokens.
+            </p>
+          </div>
+        </aside>
+
+        {/* Dynamic Interactive Canvas */}
         <div
           ref={canvasContainerRef}
           onPointerDown={handleCanvasPointerDown}
           onWheel={handleWheel}
-          className="canvas-bg flex-1 w-full h-full relative overflow-hidden bg-[#0B0C0E]"
+          className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
           style={{
             backgroundImage: showGrid
               ? 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)'
@@ -643,40 +638,116 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
             backgroundSize: '24px 24px',
           }}
         >
+          {/* Zoom & Canvas Controls */}
+          <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-md border border-[#2D2E30] p-1.5 rounded-2xl shadow-lg">
+            <button
+              onClick={() => setZoom((z) => Math.min(2.0, z + 0.1))}
+              className="p-1.5 rounded-lg text-[#888888] hover:text-white hover:bg-[#2D2E30]"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-mono text-[#A8C7FA] px-1">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom((z) => Math.max(0.3, z - 0.1))}
+              className="p-1.5 rounded-lg text-[#888888] hover:text-white hover:bg-[#2D2E30]"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { setPan({ x: 20, y: 20 }); setZoom(0.72); }}
+              className="p-1.5 rounded-lg text-[#888888] hover:text-white hover:bg-[#2D2E30]"
+              title="Reset View"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Transform Canvas Layer */}
           <div
-            className={`absolute inset-0 origin-top-left ${
-              isInteracting ? 'transition-none' : 'transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1)'
-            }`}
+            className="absolute inset-0 origin-top-left"
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transition: isInteracting ? 'none' : 'transform 0.1s ease-out',
             }}
           >
-            {/* SVG PORT CONNECTIONS LAYER */}
-            <svg className="absolute top-0 left-0 w-[3200px] h-[2200px] pointer-events-none z-0">
-              {/* Forward Connections */}
-              {renderPortConnection('node-ceo', 'node-orchestrator', '#4285F4')}
-              {renderPortConnection('node-orchestrator', 'node-sales', '#3B82F6')}
-              {renderPortConnection('node-orchestrator', 'node-inventory', '#F59E0B')}
-              {renderPortConnection('node-orchestrator', 'node-finance', '#10B981')}
+            {/* SVG Connecting Paths with Traveling Pulse */}
+            <svg className="absolute inset-0 w-[2400px] h-[1000px] pointer-events-none">
+              <defs>
+                <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#4285F4" stopOpacity="0.4" />
+                  <stop offset="50%" stopColor="#A855F7" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#34A853" stopOpacity="0.4" />
+                </linearGradient>
+              </defs>
 
-              {/* Inter-Agent & Cloud DB Connections */}
-              {renderPortConnection('node-sales', 'node-inventory', '#3B82F6')}
-              {renderPortConnection('node-inventory', 'node-db', '#10B981')}
-              {renderPortConnection('node-sales', 'node-solver', '#8B5CF6')}
-              {renderPortConnection('node-inventory', 'node-solver', '#8B5CF6')}
-              {renderPortConnection('node-finance', 'node-solver', '#8B5CF6')}
-              {renderPortConnection('node-solver', 'node-db', '#10B981')}
+              {/* Path 1: CEO -> Orchestrator */}
+              <path
+                d={`M 350 380 C 400 380, 400 370, 450 370`}
+                fill="none"
+                stroke={activeStage >= 1 ? '#4285F4' : '#2D2E30'}
+                strokeWidth={activeStage >= 1 ? '3' : '1.5'}
+                strokeDasharray={activeStage === 1 ? '6 4' : 'none'}
+                className={activeStage === 1 ? 'animate-pulse' : ''}
+              />
 
-              {/* Return Loop Back to Orchestrator & User */}
-              {renderPortConnection('node-solver', 'node-orchestrator', '#A8C7FA', true)}
-              {renderPortConnection('node-orchestrator', 'node-ceo', '#A8C7FA', true)}
+              {/* Path 2a: Orchestrator -> Sales */}
+              <path
+                d={`M 760 370 C 830 370, 830 145, 900 145`}
+                fill="none"
+                stroke={activeStage >= 2 ? '#3B82F6' : '#2D2E30'}
+                strokeWidth={activeStage >= 2 ? '2.5' : '1.5'}
+              />
+
+              {/* Path 2b: Orchestrator -> Inventory */}
+              <path
+                d={`M 760 370 C 830 370, 830 385, 900 385`}
+                fill="none"
+                stroke={activeStage >= 2 ? '#F59E0B' : '#2D2E30'}
+                strokeWidth={activeStage >= 2 ? '2.5' : '1.5'}
+              />
+
+              {/* Path 2c: Orchestrator -> Finance */}
+              <path
+                d={`M 760 370 C 830 370, 830 625, 900 625`}
+                fill="none"
+                stroke={activeStage >= 2 ? '#10B981' : '#2D2E30'}
+                strokeWidth={activeStage >= 2 ? '2.5' : '1.5'}
+              />
+
+              {/* Path 3: Sub-Agents -> SciPy MILP Solver */}
+              <path
+                d={`M 1200 145 C 1280 145, 1280 370, 1350 370`}
+                fill="none"
+                stroke={activeStage >= 3 ? '#A855F7' : '#2D2E30'}
+                strokeWidth={activeStage >= 3 ? '2.5' : '1.5'}
+              />
+              <path
+                d={`M 1200 385 C 1280 385, 1280 370, 1350 370`}
+                fill="none"
+                stroke={activeStage >= 3 ? '#A855F7' : '#2D2E30'}
+                strokeWidth={activeStage >= 3 ? '2.5' : '1.5'}
+              />
+              <path
+                d={`M 1200 625 C 1280 625, 1280 370, 1350 370`}
+                fill="none"
+                stroke={activeStage >= 3 ? '#A855F7' : '#2D2E30'}
+                strokeWidth={activeStage >= 3 ? '2.5' : '1.5'}
+              />
+
+              {/* Path 4: SciPy Solver -> Enterprise DB & Back to Orchestrator */}
+              <path
+                d={`M 1660 370 C 1730 370, 1730 385, 1800 385`}
+                fill="none"
+                stroke={activeStage >= 4 ? '#10B981' : '#2D2E30'}
+                strokeWidth={activeStage >= 4 ? '2.5' : '1.5'}
+              />
             </svg>
 
-            {/* NODES WITH PORT ANCHORS */}
+            {/* Dynamic Agent Node Cards */}
             {nodes.map((node) => {
-              const isSelected = selectedNodeId === node.id;
-              const isActiveInStage = node.stageNum === activeStage;
-
+              const isNodeActive = activeStage === node.stageNum;
               return (
                 <div
                   key={node.id}
@@ -684,190 +755,112 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   style={{
                     transform: `translate(${node.x}px, ${node.y}px)`,
                     width: `${node.width}px`,
-                    height: `${node.height}px`,
                   }}
-                  className={`node-card absolute z-10 rounded-2xl bg-[#1E1F20]/95 backdrop-blur-xl border transition-all duration-200 cursor-grab active:cursor-grabbing shadow-2xl ${
-                    isSelected
-                      ? 'border-[#4285F4] ring-2 ring-[#4285F4]/50 scale-[1.02]'
-                      : isActiveInStage
-                      ? 'border-[#A8C7FA] ring-2 ring-[#A8C7FA]/40 shadow-[#A8C7FA]/20 scale-[1.01]'
-                      : node.borderColor
+                  className={`node-card absolute rounded-3xl bg-[#1E1F20] border transition-shadow cursor-pointer ${
+                    selectedNodeId === node.id
+                      ? 'border-[#4285F4] ring-2 ring-[#4285F4]/30 shadow-2xl'
+                      : isNodeActive
+                      ? `${node.borderColor} ring-2 ring-[#4285F4]/50 shadow-xl shadow-[#1A73E8]/20`
+                      : 'border-[#2D2E30] hover:border-[#3A3B3E] shadow-lg'
                   }`}
                 >
-                  {/* Left Input Port Dot */}
-                  <div className="w-3.5 h-3.5 rounded-full bg-[#4285F4] border-2 border-[#1E1F20] absolute -left-1.5 top-1/2 -translate-y-1/2 shadow-md" />
-
-                  {/* Right Output Port Dot */}
-                  <div className="w-3.5 h-3.5 rounded-full bg-[#A8C7FA] border-2 border-[#1E1F20] absolute -right-1.5 top-1/2 -translate-y-1/2 shadow-md" />
-
-                  <div className="p-3 border-b border-[#2D2E30]/70 flex items-center justify-between bg-[#18191A]/80 rounded-t-2xl">
-                    <div className="flex items-center space-x-2 truncate">
-                      <div className={`w-6 h-6 rounded-lg ${node.iconBg} ${node.iconColor} flex items-center justify-center shrink-0`}>
-                        <Bot className="w-3.5 h-3.5" />
+                  <div className="p-4 space-y-2.5">
+                    {/* Node Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2.5">
+                        <div className={`w-8 h-8 rounded-xl ${node.iconBg} flex items-center justify-center`}>
+                          <Bot className={`w-4 h-4 ${node.iconColor}`} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white leading-tight">{node.title}</h4>
+                          <span className="text-[10px] text-[#888888]">{node.department}</span>
+                        </div>
                       </div>
-                      <span className="text-xs font-bold text-white truncate font-heading">
-                        {node.title}
+
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#131314] text-[#A8C7FA] font-mono border border-[#2D2E30]">
+                        {node.latency}
                       </span>
                     </div>
-                  </div>
 
-                  <div className="p-3 space-y-2 text-xs">
-                    <div className="text-[11px] text-[#C4C7C5] line-clamp-2 leading-tight">
+                    {/* Role Description */}
+                    <p className="text-[11px] text-[#C4C7C5] line-clamp-2 leading-relaxed">
                       {node.role}
-                    </div>
+                    </p>
 
-                    <div className="pt-1 border-t border-[#2D2E30]/50 space-y-1 text-[10px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#888888]">AI Model:</span>
-                        <span className="font-mono text-[#A8C7FA] font-medium truncate max-w-[130px]">
-                          {node.model}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#888888]">Latency:</span>
-                        <span className="font-mono text-[#81C995] font-medium">
-                          {node.latency}
-                        </span>
-                      </div>
+                    {/* Model Info Badge */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#2D2E30]/70 text-[10px]">
+                      <span className="text-[#888888]">Engine:</span>
+                      <span className="text-[#A8C7FA] font-mono font-medium truncate max-w-[170px]">
+                        {node.model}
+                      </span>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* BOTTOM-LEFT FLOATING CANVAS TOOLBAR */}
-          <div className="absolute bottom-6 left-6 z-30 flex items-center space-x-1.5 bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-full px-3 py-1.5 shadow-2xl">
-            <button
-              onClick={() => {
-                setIsInteracting(false);
-                setZoom((z) => Math.max(0.3, z - 0.1));
-              }}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-mono font-medium text-[#A8C7FA] px-2 min-w-[45px] text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => {
-                setIsInteracting(false);
-                setZoom((z) => Math.min(2.2, z + 0.1));
-              }}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-
-            <div className="w-px h-4 bg-[#2D2E30] mx-1" />
-
-            <button
-              onClick={handleFitToView}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
-              title="Fit View to Screen"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleResetLayout}
-              className="p-1.5 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
-              title="Reset Layout & Pan"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowGrid(!showGrid)}
-              className={`p-1.5 rounded-full transition-colors ${
-                showGrid ? 'text-[#4285F4] bg-[#4285F4]/10' : 'text-[#888888] hover:text-white'
-              }`}
-              title="Toggle Background Grid"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
         </div>
 
-        {/* NODE INSPECTOR WITH CUSTOM MODEL & API KEY PER AGENT */}
+        {/* Right Node Detail Inspector Drawer */}
         {selectedNode && (
-          <aside className="w-80 border-l border-[#2D2E30]/70 bg-[#1E1F20] z-20 flex flex-col h-full shadow-2xl">
-            <div className="p-4 border-b border-[#2D2E30] flex items-center justify-between">
+          <aside className="w-80 border-l border-[#2D2E30] bg-[#1E1F20] p-5 space-y-4 shrink-0 overflow-y-auto z-20 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#2D2E30] pb-3">
               <div className="flex items-center space-x-2">
-                <Info className="w-4 h-4 text-[#A8C7FA]" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Agent Inspector & API Key
-                </h3>
+                <div className={`w-7 h-7 rounded-lg ${selectedNode.iconBg} flex items-center justify-center`}>
+                  <Bot className={`w-4 h-4 ${selectedNode.iconColor}`} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">{selectedNode.title}</h4>
+                  <span className="text-[10px] text-[#888888]">{selectedNode.department}</span>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedNodeId(null)}
-                className="p-1 text-[#888888] hover:text-white"
+                className="p-1 rounded-lg text-[#888888] hover:text-white hover:bg-[#2D2E30]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="text-[10px] text-[#888888] uppercase tracking-wider">
-                  Agent Title
+                <label className="text-[10px] text-[#888888] uppercase font-bold tracking-wider block mb-1">
+                  Active Model Runtime
                 </label>
-                <div className="text-sm font-bold text-white mt-0.5">{selectedNode.title}</div>
-                <div className="text-xs text-[#A8C7FA]">{selectedNode.subtitle}</div>
-              </div>
-
-              {/* Swappable AI Model Selector */}
-              {AVAILABLE_MODELS_BY_TYPE[selectedNode.type] && (
-                <div className="space-y-1">
-                  <label className="text-[10px] text-[#888888] uppercase tracking-wider">
-                    Swappable AI Model
-                  </label>
-                  <select
-                    value={selectedNode.model}
-                    onChange={(e) => {
-                      const newModel = e.target.value;
-                      setNodes((prev) =>
-                        prev.map((n) => (n.id === selectedNode.id ? { ...n, model: newModel } : n))
-                      );
-                    }}
-                    className="w-full bg-[#131314] text-xs text-white p-2.5 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-                  >
-                    {AVAILABLE_MODELS_BY_TYPE[selectedNode.type].map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Dedicated API Key for Parallel Execution */}
-              <div className="space-y-1">
-                <label className="text-[10px] text-[#888888] uppercase tracking-wider flex items-center space-x-1">
-                  <Key className="w-3 h-3 text-[#34A853]" />
-                  <span>Agent API Key (Parallel Processing)</span>
-                </label>
-                <input
-                  type="password"
-                  value={selectedNode.apiKey}
+                <select
+                  value={selectedNode.model}
                   onChange={(e) => {
-                    const newKey = e.target.value;
+                    const newModel = e.target.value;
                     setNodes((prev) =>
-                      prev.map((n) => (n.id === selectedNode.id ? { ...n, apiKey: newKey } : n))
+                      prev.map((n) => (n.id === selectedNode.id ? { ...n, model: newModel } : n))
                     );
                   }}
-                  placeholder="Paste model API key for this agent..."
                   className="w-full bg-[#131314] text-xs text-white p-2.5 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
-                />
+                >
+                  {(AVAILABLE_MODELS_BY_TYPE[selectedNode.type] || [selectedNode.model]).map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="text-[10px] text-[#888888] uppercase tracking-wider">
-                  Operational Role
+                <label className="text-[10px] text-[#888888] uppercase font-bold tracking-wider block mb-1">
+                  Operational Mission
                 </label>
-                <div className="p-3 rounded-xl bg-[#131314] text-[#C4C7C5] border border-[#2D2E30] mt-1 leading-relaxed">
+                <p className="text-xs text-[#D8D8D8] bg-[#131314] p-3 rounded-xl border border-[#2D2E30] leading-relaxed">
                   {selectedNode.role}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#888888] uppercase font-bold tracking-wider block mb-1">
+                  Grounded Knowledge Records
+                </label>
+                <div className="bg-[#131314] p-3 rounded-xl border border-[#2D2E30] space-y-1 text-[11px] font-mono text-[#A8C7FA]">
+                  <div>• q3_promotional_calendar.md</div>
+                  <div>• bin_4b_stock_ledger.csv</div>
+                  <div>• statutory_reserve_governance.md</div>
+                  <div>• supplier_contracts_master.json</div>
                 </div>
               </div>
             </div>
