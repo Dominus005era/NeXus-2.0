@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Sparkles,
   ArrowLeft,
@@ -411,6 +411,12 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [zoom, setZoom] = useState<number>(0.72);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [isInteracting, setIsInteracting] = useState<boolean>(false);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+
+  const zoomRef = useRef<number>(zoom);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Dynamic Prompt & Intent State
   const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>(
@@ -538,80 +544,169 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     }
   }, [activeView]);
 
-  // DYNAMIC ANCHOR CALCULATION:
-  // Dynamically computes bezier path connecting any 2 nodes using their real-time coordinates!
-  const getDynamicWirePath = (sourceId: string, targetId: string) => {
-    const s = nodes.find((n) => n.id === sourceId);
-    const t = nodes.find((n) => n.id === targetId);
-    if (!s || !t) return '';
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, NodeData>();
+    for (const node of nodes) {
+      map.set(node.id, node);
+    }
+    return map;
+  }, [nodes]);
 
-    // Choose optimal connection ports based on relative positions
-    const sourceIsLeft = s.x <= t.x;
-    
-    // Source anchor point
-    const p1x = sourceIsLeft ? s.x + s.width : s.x;
-    const p1y = s.y + s.height / 2;
-
-    // Target anchor point
-    const p2x = sourceIsLeft ? t.x : t.x + t.width;
-    const p2y = t.y + t.height / 2;
-
-    // Smooth cubic bezier curvature
-    const dx = Math.abs(p2x - p1x);
-    const dy = Math.abs(p2y - p1y);
-    const curvature = Math.max(60, dx * 0.45 + dy * 0.05);
-
-    const cx1 = sourceIsLeft ? p1x + curvature : p1x - curvature;
-    const cx2 = sourceIsLeft ? p2x - curvature : p2x + curvature;
-
-    return `M ${p1x} ${p1y} C ${cx1} ${p1y}, ${cx2} ${p2y}, ${p2x} ${p2y}`;
+  // Reset entire DAG node positions to pristine state
+  const handleResetLayout = () => {
+    setNodes(initialNodes);
+    setPan({ x: 20, y: 20 });
+    setZoom(0.72);
   };
 
-  // Node Drag Handler (Updates node.x and node.y in real-time)
-  const handleNodePointerDown = (nodeId: string, e: React.PointerEvent) => {
+  // DYNAMIC ANCHOR CALCULATION:
+  // Dynamically computes bezier path connecting any 2 nodes using their real-time coordinates!
+  const getDynamicWirePath = useCallback((sourceId: string, targetId: string) => {
+    const s = nodeMap.get(sourceId);
+    const t = nodeMap.get(targetId);
+    if (!s || !t) return { path: '', midX: 0, midY: 0 };
+
+    const sLeft = s.x;
+    const sRight = s.x + s.width;
+    const sCenterY = s.y + s.height / 2;
+
+    const tLeft = t.x;
+    const tRight = t.x + t.width;
+    const tCenterY = t.y + t.height / 2;
+
+    let p1x: number;
+    let p1y = sCenterY;
+    let p2x: number;
+    let p2y = tCenterY;
+    let cx1: number;
+    let cx2: number;
+
+    if (sRight + 20 <= tLeft) {
+      // S is clearly to the left of T
+      p1x = sRight;
+      p2x = tLeft;
+      const dx = p2x - p1x;
+      const curvature = Math.max(40, Math.min(180, dx * 0.45));
+      cx1 = p1x + curvature;
+      cx2 = p2x - curvature;
+    } else if (tRight + 20 <= sLeft) {
+      // T is clearly to the left of S (reversed)
+      p1x = sLeft;
+      p2x = tRight;
+      const dx = p1x - p2x;
+      const curvature = Math.max(40, Math.min(180, dx * 0.45));
+      cx1 = p1x - curvature;
+      cx2 = p2x + curvature;
+    } else {
+      // Overlapping or vertically stacked - route via outer facing flank
+      const sCenterX = s.x + s.width / 2;
+      const tCenterX = t.x + t.width / 2;
+
+      if (sCenterX <= tCenterX) {
+        // S is slightly left of T: loop on the outer right
+        p1x = sRight;
+        p2x = tRight;
+        const curvature = 65;
+        cx1 = Math.max(p1x, p2x) + curvature;
+        cx2 = Math.max(p1x, p2x) + curvature;
+      } else {
+        // S is slightly right of T: loop on the outer left
+        p1x = sLeft;
+        p2x = tLeft;
+        const curvature = 65;
+        cx1 = Math.min(p1x, p2x) - curvature;
+        cx2 = Math.min(p1x, p2x) - curvature;
+      }
+    }
+
+    const midX = Math.round(0.125 * p1x + 0.375 * cx1 + 0.375 * cx2 + 0.125 * p2x);
+    const midY = Math.round(0.125 * p1y + 0.375 * p1y + 0.375 * p2y + 0.125 * p2y);
+
+    return {
+      path: `M ${p1x} ${p1y} C ${cx1} ${p1y}, ${cx2} ${p2y}, ${p2x} ${p2y}`,
+      midX,
+      midY,
+    };
+  }, [nodeMap]);
+
+  // Node Drag Handler (Ultra-Smooth 120 FPS rAF & Pointer Capture)
+  const handleNodePointerDown = (nodeId: string, e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
+    if (e.button !== 0) return;
+
+    const currentTarget = e.currentTarget;
+    try {
+      currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
+
     setIsInteracting(true);
     const startX = e.clientX;
     const startY = e.clientY;
-    const targetNode = nodes.find((n) => n.id === nodeId);
+    const targetNode = nodeMap.get(nodeId);
     if (!targetNode) return;
 
     const initialX = targetNode.x;
     const initialY = targetNode.y;
     let isDragging = false;
+    let rafId: number | null = null;
+    let latestX = startX;
+    let latestY = startY;
+
+    const updatePosition = () => {
+      rafId = null;
+      const currentZoom = zoomRef.current || 1;
+      const dx = (latestX - startX) / currentZoom;
+      const dy = (latestY - startY) / currentZoom;
+      setNodes((prevNodes) =>
+        prevNodes.map((n) =>
+          n.id === nodeId
+            ? { ...n, x: Math.round(initialX + dx), y: Math.round(initialY + dy) }
+            : n
+        )
+      );
+    };
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      const dx = (moveEvent.clientX - startX) / zoom;
-      const dy = (moveEvent.clientY - startY) / zoom;
+      latestX = moveEvent.clientX;
+      latestY = moveEvent.clientY;
 
-      if (!isDragging && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 3) {
+      if (!isDragging && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > 2) {
         isDragging = true;
+        setDraggingNodeId(nodeId);
       }
 
-      if (isDragging) {
-        setNodes((prevNodes) =>
-          prevNodes.map((n) =>
-            n.id === nodeId ? { ...n, x: Math.round(initialX + dx), y: Math.round(initialY + dy) } : n
-          )
-        );
+      if (isDragging && rafId === null) {
+        rafId = requestAnimationFrame(updatePosition);
       }
     };
 
-    const onPointerUp = () => {
-      setIsInteracting(false);
+    const onPointerUp = (upEvent: PointerEvent) => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        updatePosition();
+      }
+      try {
+        currentTarget.releasePointerCapture(upEvent.pointerId);
+      } catch (_) {}
+
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+
+      setDraggingNodeId(null);
+      setIsInteracting(false);
 
       if (!isDragging) {
         setSelectedNodeId(nodeId);
       }
     };
 
-    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   };
 
-  // Canvas Pan Handler
+  // Canvas Pan Handler with rAF
   const handleCanvasPointerDown = (e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
     if (
@@ -631,20 +726,39 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
     const initialPanX = pan.x;
     const initialPanY = pan.y;
 
+    let panRafId: number | null = null;
+    let latestPanX = startX;
+    let latestPanY = startY;
+
+    const updatePan = () => {
+      panRafId = null;
+      const dx = latestPanX - startX;
+      const dy = latestPanY - startY;
+      setPan({ x: Math.round(initialPanX + dx), y: Math.round(initialPanY + dy) });
+    };
+
     const onPanMove = (moveEvent: PointerEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      setPan({ x: initialPanX + dx, y: initialPanY + dy });
+      latestPanX = moveEvent.clientX;
+      latestPanY = moveEvent.clientY;
+      if (panRafId === null) {
+        panRafId = requestAnimationFrame(updatePan);
+      }
     };
 
     const onPanUp = () => {
+      if (panRafId !== null) {
+        cancelAnimationFrame(panRafId);
+        updatePan();
+      }
       setIsInteracting(false);
       window.removeEventListener('pointermove', onPanMove);
       window.removeEventListener('pointerup', onPanUp);
+      window.removeEventListener('pointercancel', onPanUp);
     };
 
-    window.addEventListener('pointermove', onPanMove);
+    window.addEventListener('pointermove', onPanMove, { passive: true });
     window.addEventListener('pointerup', onPanUp);
+    window.addEventListener('pointercancel', onPanUp);
   };
 
   // Canvas Zoom Handler
@@ -1057,11 +1171,12 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               <ZoomOut className="w-4 h-4" />
             </button>
             <button
-              onClick={() => { setPan({ x: 20, y: 20 }); setZoom(0.72); }}
-              className="p-1.5 rounded-lg text-slate-600 dark:text-[#888888] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30]"
-              title="Reset View"
+              onClick={handleResetLayout}
+              className="p-1.5 rounded-lg text-slate-600 dark:text-[#888888] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30] flex items-center space-x-1"
+              title="Reset Agent Layout & View"
             >
               <RefreshCw className="w-4 h-4" />
+              <span className="text-[10px] font-medium hidden sm:inline">Reset Layout</span>
             </button>
           </div>
 
@@ -1092,25 +1207,65 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                 const isWireRequired = wire.requiredForRoutes.includes(currentRouteType);
                 const isWireActive = isWireRequired && activeStage >= wire.stageStep;
                 const isWireTransmitting = isWireRequired && activeStage === wire.stageStep;
-                const pathD = getDynamicWirePath(wire.sourceId, wire.targetId);
+                const { path: pathD, midX, midY } = getDynamicWirePath(wire.sourceId, wire.targetId);
 
                 if (!pathD) return null;
 
                 return (
                   <g key={wire.id}>
-                    {/* Shadow / Base Path */}
+                    {/* Outer Glow Halo for Active/Transmitting Wires */}
+                    {isWireActive && (
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke={wire.color}
+                        strokeWidth={isWireTransmitting ? '8' : '5'}
+                        strokeOpacity={isWireTransmitting ? '0.25' : '0.12'}
+                        strokeLinecap="round"
+                      />
+                    )}
+
+                    {/* Main Connection Wire */}
                     <path
                       d={pathD}
                       fill="none"
-                      stroke={isWireActive ? wire.color : '#94A3B8'}
+                      stroke={isWireActive ? wire.color : '#64748B'}
                       strokeWidth={isWireTransmitting ? '3.5' : isWireActive ? '2.5' : '1.5'}
-                      strokeOpacity={isWireActive ? (isWireTransmitting ? 0.9 : 0.6) : 0.2}
+                      strokeOpacity={isWireActive ? (isWireTransmitting ? 1.0 : 0.8) : 0.35}
                       strokeDasharray={isWireTransmitting ? '6 4' : 'none'}
+                      strokeLinecap="round"
                       className={isWireTransmitting ? 'flow-wire-animated' : ''}
                     />
 
-                    {/* PHYSICAL TRAVELING PACKET: Animated dot flowing along the exact bezier path */}
-                    {isWireTransmitting && pathD && (
+                    {/* Mid-wire Transmission Label Badge */}
+                    {isWireTransmitting && !draggingNodeId && (
+                      <g transform={`translate(${midX}, ${midY})`} className="pointer-events-none">
+                        <rect
+                          x="-70"
+                          y="-11"
+                          width="140"
+                          height="22"
+                          rx="11"
+                          fill="rgba(15, 23, 42, 0.92)"
+                          stroke={wire.color}
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x="0"
+                          y="3.5"
+                          textAnchor="middle"
+                          fill="#FFFFFF"
+                          fontSize="9"
+                          fontWeight="600"
+                          fontFamily="sans-serif"
+                        >
+                          {wire.label.length > 22 ? wire.label.slice(0, 20) + '…' : wire.label}
+                        </text>
+                      </g>
+                    )}
+
+                    {/* PHYSICAL TRAVELING PACKET: Animated dot flowing along the exact bezier path (bypassed during drag for 120 FPS performance) */}
+                    {isWireTransmitting && pathD && !draggingNodeId && (
                       <g>
                         <circle r="6" fill={wire.color} className="packet-glow">
                           <animateMotion
@@ -1140,6 +1295,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
               const isParticipating = participatingNodeIds.includes(node.id);
               const isNodeActive = activeStage === node.stageNum && isParticipating;
               const hasCompleted = activeStage > node.stageNum && isParticipating;
+              const isDragging = draggingNodeId === node.id;
               const telemetry = activeTelemetryPayload[node.id];
 
               return (
@@ -1149,8 +1305,11 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                   style={{
                     transform: `translate(${node.x}px, ${node.y}px)`,
                     width: `${node.width}px`,
+                    minHeight: `${node.height}px`,
                   }}
-                  className={`node-card absolute rounded-3xl transition-all cursor-pointer select-none ${
+                  className={`node-card absolute rounded-3xl cursor-grab active:cursor-grabbing select-none ${
+                    isDragging ? 'is-dragging shadow-2xl scale-[1.02]' : ''
+                  } ${
                     !isParticipating
                       ? 'bg-slate-100/80 dark:bg-[#1E1F20]/50 border-dashed border-slate-300 dark:border-[#2D2E30] opacity-60'
                       : selectedNodeId === node.id
@@ -1162,7 +1321,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
                 >
                   {/* Left Connection Anchor Port */}
                   <div
-                    className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center ${
+                    className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 flex items-center justify-center pointer-events-none ${
                       isNodeActive
                         ? 'bg-blue-500 border-white shadow-md'
                         : isParticipating
@@ -1176,7 +1335,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
 
                   {/* Right Connection Anchor Port */}
                   <div
-                    className={`absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center ${
+                    className={`absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 flex items-center justify-center pointer-events-none ${
                       isNodeActive
                         ? 'bg-blue-500 border-white shadow-md'
                         : isParticipating
