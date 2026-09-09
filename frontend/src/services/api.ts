@@ -17,6 +17,8 @@ export interface WorkspaceOnboardPayload {
   user_role: string;
   authority_level?: string;
   company_name: string;
+  primary_product?: string;
+  industry?: string;
   company_structure?: string;
   cloud_docs_link?: string;
 }

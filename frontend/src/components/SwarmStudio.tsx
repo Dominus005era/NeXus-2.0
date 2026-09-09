@@ -109,6 +109,8 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const userRole = workspaceConfig?.userRole || 'CEO & Founder';
   const authorityLevel = workspaceConfig?.authorityLevel || 'LEVEL_4_EXECUTIVE';
 
+  const primaryProduct = workspaceConfig?.primaryProduct || 'Primary Catalog Line';
+
   // Dynamic Nodes formulated from company structure
   const initialNodes: NodeData[] = useMemo(() => [
     {
@@ -156,7 +158,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       type: 'sales',
       title: 'Sales Intelligence Agent',
       subtitle: 'Promotions & Demand Forecasting',
-      role: 'Viral Elasticity & Demand Surge Analytics',
+      role: `Demand Surge Analytics for ${primaryProduct}`,
       model: 'Gemini 3.6 Flash (High-Throughput)',
       department: 'Commercial & Sales',
       modelProvider: 'Google',
@@ -175,8 +177,8 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
       id: 'node-inventory',
       type: 'inventory',
       title: 'Supply Chain & Inventory',
-      subtitle: 'Bin 4B Stockout Horizon & Deficit',
-      role: 'Burn Rate & Net Unit Deficit Formulation',
+      subtitle: `${primaryProduct} Stockout Horizon`,
+      role: `Burn Rate & Net Deficit Formulation for ${primaryProduct}`,
       model: 'GPT-4o Mini (Tactical)',
       department: 'Logistics & Warehouse',
       modelProvider: 'OpenAI',
@@ -264,7 +266,7 @@ export const SwarmStudio: React.FC<SwarmStudioProps> = ({
   const [activeStage, setActiveStage] = useState<number>(0);
   const [simulationPhase, setSimulationPhase] = useState<'idle' | 'forward' | 'consultation' | 'solver' | 'return' | 'complete'>('idle');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>('Analyze P100 demand surge (+70%) & formulate split PO');
+  const [activeQueryPrompt, setActiveQueryPrompt] = useState<string>(`Analyze ${primaryProduct} demand surge (+70%) & formulate split PO`);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const wheelTimerRef = useRef<any>(null);

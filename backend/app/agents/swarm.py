@@ -93,11 +93,25 @@ class SwarmOrchestratorEngine:
         effective_role = user_role
         company_name = "TechMart Electronics"
         cloud_link = ""
+        product_name = "P100 UltraGlide Headphones"
 
         if workspace_config:
             effective_role = workspace_config.get("userRole") or workspace_config.get("user_role") or effective_role
             company_name = workspace_config.get("companyName") or workspace_config.get("company_name") or company_name
             cloud_link = workspace_config.get("cloudDocsLink") or workspace_config.get("cloud_docs_link") or ""
+            product_name = workspace_config.get("primaryProduct") or workspace_config.get("primary_product") or product_name
+        else:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.db_models import WorkspaceModel
+                with SessionLocal() as db:
+                    ws = db.query(WorkspaceModel).first()
+                    if ws:
+                        company_name = ws.company_name or company_name
+                        product_name = ws.primary_product or product_name
+                        cloud_link = ws.cloud_docs_link or cloud_link
+            except Exception:
+                pass
 
         resolved_authority = authority_level or RoleBasedAccessController.get_authority_level(effective_role)
 
@@ -106,14 +120,59 @@ class SwarmOrchestratorEngine:
         folder_id = folder_match.group(1) if folder_match else ""
         folder_cite = f" (`{folder_id}`)" if folder_id else ""
 
-        # Step 1: Query Decomposition & Intent Classification
+        # Step 1: Dynamic Entity Extraction from User Prompt
+        # 1a. Dynamic Product Extraction from prompt (e.g. "on Winter Jackets", "for Solar Inverters", "P200 Keyboard")
+        product_patterns = [
+            r"\b(?:on|for|of)\s+([A-Za-z0-9\-]+(?:\s+[A-Za-z0-9\-]+){0,4})(?:\.|\?|\s+within|\s+under|\s+with|\s+across|\s+from|\s+and|\s*$)",
+            r"(?:surge|spike|demand|deficit)\s+(?:\+\d+%\s+)?(?:detected\s+)?(?:on|for)?\s*([A-Za-z0-9\-]+(?:\s+[A-Za-z0-9\-]+){0,4})(?:\.|\?|\s+within|\s+under|\s+with|\s+across|\s+from|\s+and|\s*$)",
+        ]
+        for p in product_patterns:
+            m = re.search(p, prompt, re.IGNORECASE)
+            if m:
+                extracted = m.group(1).strip()
+                # Clean any trailing punctuation
+                extracted = re.sub(r"[\.\,\?\!]+$", "", extracted).strip()
+                if len(extracted) > 2 and extracted.lower() not in [
+                    "high", "creator", "demand", "optimal", "safe", "cash", "split", "supplier", "suppliers", "recent", "current", "urgent", "the", "my"
+                ]:
+                    product_name = extracted
+                    break
+
+        # 1b. Dynamic Surge Extraction (e.g. +70%, 50%, 120%)
+        surge_match = re.search(r"(\+?\d+(?:\.\d+)?)\s*%", prompt)
+        if surge_match:
+            try:
+                surge_multiplier = float(surge_match.group(1).replace("+", ""))
+            except Exception:
+                pass
+
+        # 1c. Dynamic Cash Cap Extraction (e.g. ₹1.80L, 2.50L, 180000, 250000, $50000)
+        safe_cash_cap = 180000.0
+        cash_match = re.search(r"(?:within|cap|budget|ceiling|spend)\s*(?:of)?\s*[₹$]?\s*(\d+(?:[,\.]\d+)?)\s*(l|lakh|k)?", prompt, re.IGNORECASE)
+        if cash_match:
+            val_str = cash_match.group(1).replace(",", "")
+            unit = (cash_match.group(2) or "").lower()
+            try:
+                val = float(val_str)
+                if unit in ["l", "lakh"]:
+                    safe_cash_cap = val * 100000.0
+                elif unit == "k":
+                    safe_cash_cap = val * 1000.0
+                elif val < 1000:
+                    safe_cash_cap = val * 100000.0
+                else:
+                    safe_cash_cap = val
+            except Exception:
+                pass
+
+        # Step 2: Query Decomposition & Intent Classification
         prompt_lower = prompt.lower()
         is_treasury_override = any(w in prompt_lower for w in ["override reserve", "liquidate lock", "spend statutory", "unlock buffer", "bypass reserve"])
-        is_po_split_intent = any(w in prompt_lower for w in ["po split", "allocate", "supplier", "reorder", "replenish", "b vs c", "surge", "headphone", "p100"])
-        is_strategy_intent = any(w in prompt_lower for w in ["strategy", "growth", "scale", "revenue", "50%", "marketing", "boost", "increase sales"])
+        is_po_split_intent = any(w in prompt_lower for w in ["po split", "allocate", "supplier", "reorder", "replenish", "b vs c", "surge", "spike", "stock", "split"])
+        is_strategy_intent = any(w in prompt_lower for w in ["strategy", "growth", "scale", "revenue", "marketing", "boost", "increase sales"])
         is_audit_intent = any(w in prompt_lower for w in ["audit", "reserve", "treasury", "liquidity", "ceiling", "cash cap", "ledger"])
 
-        # Step 2: RBAC Policy Verification
+        # Step 3: RBAC Policy Verification
         rbac_status = "AUTHORIZED"
         rbac_warning = ""
         if is_treasury_override:
@@ -126,22 +185,30 @@ class SwarmOrchestratorEngine:
                     f"> Operating under read-only visibility for Statutory Reserve covenants.\n\n"
                 )
 
-        # Step 3: Domain Agent Analytical Calculations
-        # 3a. Sales Intelligence Agent
+        # Step 4: Domain Agent Analytical Calculations
         base_velocity = 85
         sales_velocity = int(round(base_velocity * (1.0 + surge_multiplier / 100.0)))
         forecast_7d = sales_velocity * 7
 
-        # 3b. Inventory & Supply Chain Agent
+        # Inventory & Supply Chain Agent
         current_stock = 170
         safety_floor = 150
         depletion_horizon_days = round(max(0.1, (current_stock - safety_floor) / sales_velocity), 2)
         deficit_units = max(0, forecast_7d + safety_floor - current_stock)
 
-        # 3c. Treasury & Governance Agent
+        # Dynamic Deficit Override if user explicitly mentioned a quantity (e.g. "reorder 800 units", "deficit of 500 units")
+        unit_match = re.search(r"(\d+)\s*(?:units|u/d|pcs|pieces)", prompt, re.IGNORECASE)
+        if unit_match:
+            try:
+                parsed_units = int(unit_match.group(1))
+                if parsed_units >= 50:
+                    deficit_units = parsed_units
+            except Exception:
+                pass
+
+        # Treasury & Governance Agent
         ledger_cash = 850000.0
         statutory_reserve = 500000.0
-        safe_cash_cap = 180000.0
 
         # Step 4: Decision Engine & Formal SciPy MILP Solver
         ilp_result = self.solver.solve(
@@ -153,38 +220,12 @@ class SwarmOrchestratorEngine:
         # Step 5: Synthesis & Verification by AI Orchestrator
         include_allocation = is_po_split_intent or is_audit_intent or (deficit_units > 0 and not is_strategy_intent)
 
-        if is_strategy_intent:
-            topic_title = "Executive Sales Acceleration & Growth Strategy (+50% Target)"
-            brief_body = (
-                f"#### 1. Strategic Revenue Acceleration Plan\n"
-                f"- **Creator Affiliate & Referral Engine**: Launch a tiered affiliate program offering 12% commission for micro-tech creators, scaling daily order velocity from {sales_velocity} u/d to 215+ u/d.\n"
-                f"- **Product Bundling & Cross-Selling**: Pair P100 UltraGlide Headphones with custom carrying cases, boosting Average Order Value (AOV) by +25%.\n"
-                f"- **B2B Bulk Workspace Accounts**: Target corporate procurement departments and co-working spaces for direct 50+ unit enterprise orders.\n"
-                f"- **Marketplace Prime Expansion**: Deploy fulfillment across regional express hubs for same-day dispatch.\n\n"
-                f"#### 2. Operations & Inventory Scale Readiness\n"
-                f"- **Scaled Velocity Target**: Achieving target requires maintaining a 217 units/day inventory pipeline.\n"
-                f"- **Working Capital Protection**: Maintain the ₹5.00L statutory reserve lock while utilizing Supplier B Net-30 credit terms to fund inventory growth with zero upfront cash depletion."
-            )
-            include_allocation = False
-
-        elif is_audit_intent:
-            topic_title = "Treasury Liquidity & Statutory Reserve Audit"
-            brief_body = (
-                f"#### 1. Treasury Reserve Lock Verification\n"
-                f"- **Ledger Cash Balance**: **₹{ledger_cash:,.2f}** verified across active enterprise accounts.\n"
-                f"- **Statutory Lock Compliance**: **₹{statutory_reserve:,.2f} (100% Protected & Strictly Locked)**.\n"
-                f"- **Immediate Safe Spend Ceiling**: **₹{safe_cash_cap:,.2f}** max cap.\n"
-                f"- **Governance Audit Status**: Fully compliant with statutory liquidity covenants.\n\n"
-                f"#### 2. Warehouse Telemetry Context\n"
-                f"- **Order Velocity**: {sales_velocity} units/day | **Stockout Horizon**: {depletion_horizon_days} days | **Deficit**: {deficit_units} units."
-            )
-
-        elif is_po_split_intent:
-            topic_title = "P100 Demand Spike & Optimal Supplier Split Allocation"
+        if is_po_split_intent:
+            topic_title = f"{product_name} Demand Spike & Optimal Supplier Split Allocation"
             brief_body = (
                 f"#### 1. Demand Velocity & Stockout Risk\n"
-                f"- **Elevated Velocity**: **{sales_velocity} units/day** (+{surge_multiplier}% surge detected).\n"
-                f"- **Current Inventory**: **{current_stock} units** in Bin 4B.\n"
+                f"- **Elevated Velocity**: **{sales_velocity} units/day** (+{surge_multiplier}% surge on {product_name} detected).\n"
+                f"- **Current Inventory**: **{current_stock} units** at Central Fulfillment Node.\n"
                 f"- **Safety Floor Depletion**: Expected in **{depletion_horizon_days} days** without intervention.\n"
                 f"- **7-Day Cumulative Deficit**: **{deficit_units} units** required to restore safety buffer.\n\n"
                 f"#### 2. Liquidity & Statutory Governance\n"
@@ -201,13 +242,39 @@ class SwarmOrchestratorEngine:
             )
             include_allocation = True
 
+        elif is_strategy_intent:
+            topic_title = f"Executive Sales Acceleration & Growth Strategy (+{int(surge_multiplier)}% Target)"
+            brief_body = (
+                f"#### 1. Strategic Revenue Acceleration Plan\n"
+                f"- **Creator Affiliate & Referral Engine**: Launch a tiered affiliate program offering 12% commission for micro-creators, scaling daily order velocity from {sales_velocity} u/d to {int(sales_velocity * 1.5)}+ u/d.\n"
+                f"- **Product Bundling & Cross-Selling**: Pair {product_name} with complementary enterprise accessories, boosting Average Order Value (AOV) by +25%.\n"
+                f"- **B2B Bulk Workspace Accounts**: Target corporate procurement departments and wholesale accounts for direct 50+ unit enterprise orders.\n"
+                f"- **Marketplace Prime Expansion**: Deploy fulfillment across regional express hubs for same-day dispatch.\n\n"
+                f"#### 2. Operations & Inventory Scale Readiness\n"
+                f"- **Scaled Velocity Target**: Achieving target requires maintaining a {int(sales_velocity * 1.5)} units/day inventory pipeline for {product_name}.\n"
+                f"- **Working Capital Protection**: Maintain the ₹{statutory_reserve:,.2f} statutory reserve lock while utilizing Supplier B Net-30 credit terms to fund inventory growth with zero upfront cash depletion."
+            )
+            include_allocation = False
+
+        elif is_audit_intent:
+            topic_title = "Treasury Liquidity & Statutory Reserve Audit"
+            brief_body = (
+                f"#### 1. Treasury Reserve Lock Verification\n"
+                f"- **Ledger Cash Balance**: **₹{ledger_cash:,.2f}** verified across active enterprise accounts.\n"
+                f"- **Statutory Lock Compliance**: **₹{statutory_reserve:,.2f} (100% Protected & Strictly Locked)**.\n"
+                f"- **Immediate Safe Spend Ceiling**: **₹{safe_cash_cap:,.2f}** max cap.\n"
+                f"- **Governance Audit Status**: Fully compliant with statutory liquidity covenants.\n\n"
+                f"#### 2. Warehouse Telemetry Context\n"
+                f"- **Product Focus**: {product_name} | **Order Velocity**: {sales_velocity} units/day | **Stockout Horizon**: {depletion_horizon_days} days | **Deficit**: {deficit_units} units."
+            )
+
         else:
             topic_title = "Nexus Enterprise AI Executive Operational Brief"
             brief_body = (
                 f"#### Enterprise Operational Summary\n"
                 f"Grounded in enterprise records from your registered Google Drive Cloud Folder{folder_cite}:\n\n"
                 f"- **Enterprise Identity**: {company_name} | User: {user_role} ({resolved_authority})\n"
-                f"- **Product Focus**: P100 UltraGlide Headphones ({sales_velocity} units/day velocity).\n"
+                f"- **Product Focus**: {product_name} ({sales_velocity} units/day velocity).\n"
                 f"- **Treasury Liquidity**: ₹{ledger_cash:,.2f} Cash Balance (₹{statutory_reserve:,.2f} Statutory Lock, ₹{safe_cash_cap:,.2f} Safe Cap).\n"
                 f"- **Active Sub-Agents**: Sales Intelligence, Supply Chain Inventory, Treasury Governance, and SciPy MILP Decision Engine."
             )

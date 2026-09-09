@@ -66,31 +66,31 @@ interface ExecutiveChatProps {
   activeView: 'chat' | 'swarm';
 }
 
-// Quick Suggestion Prompts for Gemini Landing View
-const SUGGESTED_PROMPTS = [
+// Dynamic Suggestion Prompts Generator based on Company and Primary Product
+const getSuggestedPrompts = (company: string, product: string) => [
   {
-    title: 'Analyze P100 Demand Surge',
-    subtitle: '+70% promotional spike & supplier split',
+    title: `Analyze ${product} Surge`,
+    subtitle: `+70% promotional spike & supplier split`,
     icon: Flame,
-    prompt: 'Analyze high creator promotional surge (+70%) on P100 Headphones. Formulate optimal supplier split within ₹1.80L cash cap.',
+    prompt: `Analyze high creator promotional surge (+70%) on ${product} for ${company}. Formulate optimal supplier split within ₹1.80L cash cap.`,
   },
   {
     title: 'Audit Statutory Reserves',
-    subtitle: 'Verify ₹5.00L statutory cash lock & spend ceiling',
+    subtitle: `Verify ${company} ₹5.00L statutory cash lock & spend ceiling`,
     icon: ShieldCheck,
-    prompt: 'Audit current treasury liquidity, statutory reserve lock compliance (₹5.00L), and verify maximum safe spend ceiling.',
+    prompt: `Audit ${company} treasury liquidity, statutory reserve lock compliance (₹5.00L), and verify maximum safe spend ceiling.`,
   },
   {
     title: 'Optimize Supplier B vs C POs',
-    subtitle: 'Net-30 credit vs 50% air freight advance',
+    subtitle: `Net-30 credit vs 50% advance allocation for ${product}`,
     icon: Package,
-    prompt: 'Compare Supplier B (QuickLogix Net-30) vs Supplier C (Zenith Air Freight 50% advance) for urgent stock replenishment.',
+    prompt: `Compare Supplier B (QuickLogix Net-30) vs Supplier C (Zenith Air Freight 50% advance) for urgent ${product} replenishment.`,
   },
   {
-    title: 'Stockout Floor Depletion Risk',
-    subtitle: 'Bin 4B inventory velocity & safety stock floor',
+    title: `${product} Stockout Horizon`,
+    subtitle: 'Inventory velocity & safety stock floor',
     icon: AlertTriangle,
-    prompt: 'Calculate exact stockout horizon for Bin 4B inventory based on current 145 units/day order velocity.',
+    prompt: `Calculate exact stockout horizon for ${product} inventory based on elevated daily burn rate.`,
   },
 ];
 
@@ -218,6 +218,12 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
   const userRole = workspaceConfig?.userRole || 'CEO & Founder';
   const authorityLevel = workspaceConfig?.authorityLevel || 'LEVEL_4_EXECUTIVE';
   const companyName = workspaceConfig?.companyName || 'TechMart Electronics';
+  const primaryProduct = workspaceConfig?.primaryProduct || 'P100 Headphones';
+
+  const suggestedPrompts = React.useMemo(
+    () => getSuggestedPrompts(companyName, primaryProduct),
+    [companyName, primaryProduct]
+  );
 
   // Sidebar & Sessions State (Starting completely fresh without dummy chats)
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -731,7 +737,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
 
               {/* QUICK PROMPT SUGGESTION CHIPS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl mt-8">
-                {SUGGESTED_PROMPTS.map((item, idx) => {
+                {suggestedPrompts.map((item, idx) => {
                   const Icon = item.icon;
                   return (
                     <button

@@ -153,6 +153,8 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
     if not workspace:
         workspace = WorkspaceModel(
             company_name=req.company_name,
+            primary_product=req.primary_product or "P100 UltraGlide Headphones",
+            industry=req.industry or "Consumer Technology & Electronics",
             user_name=req.user_name,
             user_role=req.user_role,
             authority_level=authority,
@@ -164,6 +166,8 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
         db.refresh(workspace)
     else:
         workspace.company_name = req.company_name
+        workspace.primary_product = req.primary_product or workspace.primary_product
+        workspace.industry = req.industry or workspace.industry
         workspace.user_name = req.user_name
         workspace.user_role = req.user_role
         workspace.authority_level = authority
@@ -186,7 +190,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
             name="Sales Intelligence Agent",
             department="Commercial & Growth",
             model="Gemini 3.6 Flash (High-Throughput)",
-            role_description="Demand Velocity & Viral Elasticity Forecasting",
+            role_description=f"Demand Surge Analytics for {workspace.primary_product}",
             authority_access=["READ_SALES", "WRITE_FORECAST"]
         ),
         DynamicAgentNode(
@@ -194,7 +198,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
             name="Supply Chain & Inventory Agent",
             department="Logistics & Warehousing",
             model="GPT-4o Mini (Tactical)",
-            role_description="Bin 4B Stockout Horizon & Replenishment Deficit",
+            role_description=f"Stockout Horizon & Deficit for {workspace.primary_product}",
             authority_access=["READ_WAREHOUSE", "FORMULATE_REORDER"]
         ),
         DynamicAgentNode(
@@ -233,6 +237,8 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
         message=f"Enterprise workspace initialized successfully for {req.company_name}.",
         workspace_id=workspace.id,
         company_name=workspace.company_name,
+        primary_product=workspace.primary_product,
+        industry=workspace.industry,
         user_role=workspace.user_role,
         authority_level=authority,
         cloud_docs_registered=req.cloud_docs_link,
@@ -247,6 +253,8 @@ def get_current_workspace(db: Session = Depends(get_db)):
         return {
             "configured": False,
             "company_name": "TechMart Electronics",
+            "primary_product": "P100 UltraGlide Headphones",
+            "industry": "Consumer Technology & Electronics",
             "user_name": "Executive User",
             "user_role": "CEO & Founder",
             "authority_level": "LEVEL_4_EXECUTIVE",
@@ -255,6 +263,8 @@ def get_current_workspace(db: Session = Depends(get_db)):
     return {
         "configured": True,
         "company_name": workspace.company_name,
+        "primary_product": workspace.primary_product or "P100 UltraGlide Headphones",
+        "industry": workspace.industry or "Consumer Technology & Electronics",
         "user_name": workspace.user_name,
         "user_role": workspace.user_role,
         "authority_level": workspace.authority_level,
@@ -373,7 +383,7 @@ def trigger_orchestrator(
         surge_multiplier=simulated_surge_pct
     )
 
-    now_iso = datetime.datetime.utcnow().isoformat() + "Z"
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     event_id = f"EVT-{int(time.time())}"
     decision_id = f"DEC-{int(time.time())}"
 
@@ -522,7 +532,7 @@ def review_decision(req: DecisionActionRequest, db: Session = Depends(get_db)):
         success=True,
         decision_id=req.decision_id,
         action=req.action,
-        timestamp=datetime.datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
         message=f"Purchase order decision {req.decision_id} successfully marked as {req.action}."
     )
 

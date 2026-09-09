@@ -3,17 +3,22 @@ from sqlalchemy import Column, Integer, String, Float, Boolean, Text, DateTime, 
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
+def get_utc_now():
+    return datetime.datetime.now(datetime.timezone.utc)
+
 class WorkspaceModel(Base):
     __tablename__ = "workspaces"
 
     id = Column(Integer, primary_key=True, index=True)
     company_name = Column(String(255), nullable=False, default="Enterprise Workspace")
+    primary_product = Column(String(255), nullable=True, default="P100 UltraGlide Headphones")
+    industry = Column(String(100), nullable=True, default="Consumer Technology & Electronics")
     user_name = Column(String(255), nullable=False, default="Executive User")
     user_role = Column(String(255), nullable=False, default="CEO & Founder")
     authority_level = Column(String(50), nullable=False, default="LEVEL_4_EXECUTIVE")
     cloud_docs_link = Column(String(500), nullable=True)
     company_structure = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
 
     departments = relationship("DepartmentModel", back_populates="workspace", cascade="all, delete-orphan")
 
@@ -26,7 +31,7 @@ class DepartmentModel(Base):
     code = Column(String(50), nullable=False)
     description = Column(String(500), nullable=True)
     agent_type = Column(String(50), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
 
     workspace = relationship("WorkspaceModel", back_populates="departments")
 
@@ -44,7 +49,7 @@ class DecisionAuditModel(Base):
     allocation_plan = Column(JSON, nullable=True)
     reviewer_action = Column(String(50), nullable=False, default="PENDING")  # PENDING, APPROVED, REJECTED
     reviewer_notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)
 
 class ChatMessageRecordModel(Base):
     __tablename__ = "chat_messages"
@@ -55,4 +60,4 @@ class ChatMessageRecordModel(Base):
     content = Column(Text, nullable=False)
     thinking = Column(Text, nullable=True)
     model_used = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_utc_now)

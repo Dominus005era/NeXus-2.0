@@ -59,6 +59,8 @@ class OnboardRequest(BaseModel):
     user_role: str
     authority_level: Optional[str] = "LEVEL_4_EXECUTIVE"
     company_name: str
+    primary_product: Optional[str] = "P100 UltraGlide Headphones"
+    industry: Optional[str] = "Consumer Technology & Electronics"
     company_structure: Optional[str] = None
     cloud_docs_link: Optional[str] = None
 
@@ -75,6 +77,8 @@ class OnboardResponse(BaseModel):
     message: str
     workspace_id: int
     company_name: str
+    primary_product: Optional[str] = None
+    industry: Optional[str] = None
     user_role: str
     authority_level: str
     cloud_docs_registered: Optional[str] = None

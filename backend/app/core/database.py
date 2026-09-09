@@ -29,6 +29,24 @@ def get_db():
     finally:
         db.close()
 
+from sqlalchemy import text
+from app.models import db_models  # noqa: F401
+
 def init_db():
-    from app.models import db_models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    # Auto-migrate columns if local SQLite table was created in an earlier build
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info(workspaces)"))
+            cols = [row[1] for row in result.fetchall()]
+            if cols:
+                if "primary_product" not in cols:
+                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN primary_product VARCHAR(255) DEFAULT 'P100 UltraGlide Headphones'"))
+                if "industry" not in cols:
+                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN industry VARCHAR(100) DEFAULT 'Consumer Technology & Electronics'"))
+                conn.commit()
+    except Exception:
+        pass
+
+# Automatically run initialization and column migrations on import
+init_db()

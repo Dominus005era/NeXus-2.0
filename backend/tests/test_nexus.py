@@ -88,6 +88,35 @@ def test_api_onboarding_and_workspace():
     assert current.status_code == 200
     assert current.json()["company_name"] == "Enterprise Test Corp"
 
+def test_dynamic_product_catalog_and_swarm():
+    """Verify any arbitrary company and product catalog functions dynamically without hardcoded P100."""
+    custom_onboard = {
+        "user_name": "Elena Rostova",
+        "user_role": "VP Operations",
+        "company_name": "Helios CleanEnergy Corp",
+        "industry": "Renewable Energy & Battery Storage",
+        "primary_product": "Titan-800 Industrial Inverters",
+        "cloud_docs_link": "https://drive.google.com/drive/folders/helios-clean-energy"
+    }
+    res = client.post("/api/v1/workspace/onboard", json=custom_onboard)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["company_name"] == "Helios CleanEnergy Corp"
+    assert data["primary_product"] == "Titan-800 Industrial Inverters"
+    assert data["industry"] == "Renewable Energy & Battery Storage"
+
+    # Verify swarm dynamic extraction with this custom product line
+    engine = SwarmOrchestratorEngine()
+    swarm_res = engine.run_swarm(
+        "Surge +65% detected on Titan-800 Industrial Inverters. Formulate supplier split under 250000 cash cap.",
+        user_role="VP Operations"
+    )
+    assert swarm_res["success"] is True
+    # Ensure the executive brief and thinking process reference the dynamic product
+    assert "Titan-800" in swarm_res["executive_brief"] or "Industrial Inverters" in swarm_res["executive_brief"]
+    assert "SciPy HiGHS" in swarm_res["optimization_proof"]["solver_name"]
+
+
 def test_api_decision_action():
     """Verify human-in-the-loop decision approval."""
     res = client.post("/api/v1/decisions/action", json={

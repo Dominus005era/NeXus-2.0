@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe, Lock, Cpu, Layers } from 'lucide-react';
+import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe, Lock, Cpu, Layers, Package } from 'lucide-react';
 import { api } from '../services/api';
 
 export interface WorkspaceConfig {
@@ -7,6 +7,8 @@ export interface WorkspaceConfig {
   userRole: string;
   authorityLevel: string;
   companyName: string;
+  primaryProduct: string;
+  industry: string;
   companyStructure: string;
   cloudDocsLink: string;
 }
@@ -47,6 +49,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   const [userName, setUserName] = useState('');
   const [selectedRoleIndex, setSelectedRoleIndex] = useState<number>(0);
   const [companyName, setCompanyName] = useState('');
+  const [primaryProduct, setPrimaryProduct] = useState('P100 UltraGlide Headphones');
+  const [industry, setIndustry] = useState('Consumer Technology & Electronics');
   const [companyStructure, setCompanyStructure] = useState(
     'CEO -> Swarm Orchestrator\n  ├── Sales Intelligence (Promotional Elasticity)\n  ├── Inventory & Logistics (Bin 4B Stockout Horizon)\n  └── Treasury & Governance (Statutory Reserve Lock)'
   );
@@ -67,6 +71,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
       userRole: chosenRoleObj.role,
       authorityLevel: chosenRoleObj.authority,
       companyName: companyName.trim() || 'TechMart Electronics',
+      primaryProduct: primaryProduct.trim() || 'High-Demand Product Line',
+      industry: industry,
       companyStructure: companyStructure.trim(),
       cloudDocsLink: cloudDocsLink.trim(),
     };
@@ -81,6 +87,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
         user_role: config.userRole,
         authority_level: config.authorityLevel,
         company_name: config.companyName,
+        primary_product: config.primaryProduct,
+        industry: config.industry,
         company_structure: config.companyStructure,
         cloud_docs_link: config.cloudDocsLink,
       });
@@ -162,6 +170,41 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                   placeholder="e.g. TechMart Electronics"
                   className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[#888888] flex items-center space-x-1 mb-1">
+                  <Package className="w-3.5 h-3.5 text-[#4285F4]" />
+                  <span>Primary Product Line / SKU</span>
+                </label>
+                <input
+                  type="text"
+                  value={primaryProduct}
+                  onChange={(e) => setPrimaryProduct(e.target.value)}
+                  placeholder="e.g. P100 Headphones, Solar Inverters..."
+                  className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-[#888888] flex items-center space-x-1 mb-1">
+                  <Building className="w-3.5 h-3.5 text-[#4285F4]" />
+                  <span>Industry / Sector</span>
+                </label>
+                <select
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
+                >
+                  <option value="Consumer Technology & Electronics">Consumer Tech & Electronics</option>
+                  <option value="Fashion, Apparel & Footwear">Fashion & Apparel</option>
+                  <option value="Clean Energy & Industrial Hardware">Clean Energy & Hardware</option>
+                  <option value="Healthcare & Pharmaceuticals">Healthcare & Pharmaceuticals</option>
+                  <option value="Food & Fast-Moving Consumer Goods">Food & Consumer Goods</option>
+                  <option value="Automotive & Aerospace Logistics">Automotive & Logistics</option>
+                </select>
               </div>
             </div>
 
