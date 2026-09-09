@@ -48,6 +48,7 @@ import {
   DollarSign,
   Package
 } from 'lucide-react';
+import { ThemeToggle } from '../context/ThemeContext';
 
 export interface LandingPageProps {
   onGetStarted: () => void;
@@ -429,31 +430,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full flex-1 bg-[#0B0C0E] text-[#E3E3E3] antialiased selection:bg-[#A8C7FA]/30 selection:text-white flex flex-col font-sans overflow-x-hidden">
+    <div className="min-h-screen w-full flex-1 bg-[#F8FAFC] dark:bg-[#0B0C0E] text-slate-900 dark:text-[#E3E3E3] antialiased selection:bg-blue-500/20 dark:selection:bg-[#A8C7FA]/30 selection:text-slate-900 dark:selection:text-white flex flex-col font-sans overflow-x-hidden transition-colors duration-200">
       {/* ================= TOP GOOGLE-STYLE APP BAR ================= */}
-      <header className="sticky top-0 z-50 bg-[#0B0C0E]/90 backdrop-blur-md border-b border-white/[0.08] w-full">
-        <div className="relative flex justify-between items-center w-full px-6 md:px-12 py-4 max-w-7xl mx-auto">
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0B0C0E]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/[0.08] w-full shadow-sm">
+        <div className="relative flex justify-between items-center w-full px-6 md:px-12 py-3.5 max-w-7xl mx-auto">
           {/* Brand Logo Anchor */}
           <div className="flex items-center gap-2.5 group cursor-pointer z-10" onClick={onGetStarted}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center shadow-md shadow-[#1A73E8]/20 group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center shadow-md shadow-[#1A73E8]/20 group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4 text-white group-hover:rotate-12 transition-transform duration-300" />
             </div>
-            <span className="text-xl font-semibold text-white tracking-tight font-headline">
+            <span className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight font-headline">
               Nexus AI
             </span>
-            <span className="hidden sm:inline-block text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#1E1F20] text-[#A8C7FA] border border-white/10 font-semibold">
+            <span className="hidden sm:inline-block text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-[#1E1F20] text-blue-600 dark:text-[#A8C7FA] border border-slate-200 dark:border-white/10 font-semibold">
               v2.5 Frontier
             </span>
           </div>
 
           {/* Navigation Links - Centered */}
-          <nav className="hidden lg:flex items-center gap-7 text-xs font-medium text-[#C4C7C5] absolute left-1/2 -translate-x-1/2">
-            <a href="#hero-demo" className="hover:text-white transition-colors pb-1">Overview</a>
-            <a href="#models" className="hover:text-white transition-colors pb-1">Models</a>
-            <a href="#capabilities" className="hover:text-white transition-colors pb-1">Capabilities</a>
-            <a href="#rbac" className="hover:text-white transition-colors pb-1">RBAC Security</a>
-            <a href="#benchmarks" className="hover:text-white transition-colors pb-1">Benchmarks</a>
-            <a href="#faq" className="hover:text-white transition-colors pb-1">FAQ</a>
+          <nav className="hidden lg:flex items-center gap-7 text-xs font-medium text-slate-600 dark:text-[#C4C7C5] absolute left-1/2 -translate-x-1/2">
+            <a href="#hero-demo" className="hover:text-slate-900 dark:hover:text-white transition-colors pb-1">Overview</a>
+            <a href="#models" className="hover:text-slate-900 dark:hover:text-white transition-colors pb-1">Models</a>
+            <a href="#capabilities" className="hover:text-slate-900 dark:hover:text-white transition-colors pb-1">Capabilities</a>
+            <a href="#rbac" className="hover:text-slate-900 dark:hover:text-white transition-colors pb-1">RBAC Security</a>
+            <a href="#benchmarks" className="hover:text-slate-900 dark:hover:text-white transition-colors pb-1">Benchmarks</a>
+            <a href="#faq" className="hover:text-slate-900 dark:hover:text-white transition-colors pb-1">FAQ</a>
           </nav>
 
           {/* Trailing Icon & Primary Actions */}
@@ -461,12 +462,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {onOpenDeploymentGuide && (
               <button
                 onClick={onOpenDeploymentGuide}
-                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all text-xs font-mono cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all text-xs font-mono cursor-pointer"
               >
                 <span>Free Cloud Deploy</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
+            
+            <ThemeToggle />
+
             <button
               onClick={onGetStarted}
               className="inline-flex items-center justify-center px-5 py-2 rounded-full bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] text-white hover:opacity-95 transition-all text-xs font-semibold shadow-lg shadow-[#1A73E8]/25 cursor-pointer active:scale-95 hover:scale-105"
@@ -494,63 +498,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <span className="text-[#E3E3E3] text-xs font-mono font-medium">Nexus 2.5 Series • Frontier Autonomous Operating System</span>
             </div>
 
-            {/* Main Headline (Gemini Product Page Typography) */}
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-[-0.035em] leading-[1.08] max-w-4xl text-white font-headline">
+            {/* Main Headline */}
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-[-0.035em] leading-[1.08] max-w-4xl text-slate-900 dark:text-white font-headline">
               Operations intelligence <br className="hidden sm:inline" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#A8C7FA] via-[#C2E7FF] to-[#FFFFFF]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-[#A8C7FA] dark:via-[#C2E7FF] dark:to-[#FFFFFF]">
                 with verifiable action.
               </span>
             </h1>
 
             {/* Subheading */}
-            <p className="text-base sm:text-lg text-[#C4C7C5] max-w-2xl leading-relaxed font-normal">
-              Specialized domain agents execute supply chain forecasting, verify statutory cash reserves, and solve multi-tier split purchase orders deterministically via Google OR-Tools integer linear programming.
+            <p className="text-base sm:text-lg text-slate-600 dark:text-[#C4C7C5] max-w-2xl leading-relaxed font-normal">
+              Specialized domain agents execute supply chain forecasting, verify statutory cash reserves, and solve multi-tier split purchase orders deterministically via SciPy HiGHS mixed-integer linear programming.
             </p>
 
             {/* Primary CTA Group */}
             <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
               <button
                 onClick={onGetStarted}
-                className="flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] text-white hover:opacity-95 transition-all font-semibold text-sm shadow-xl shadow-[#1A73E8]/30 group cursor-pointer hover:scale-105 active:scale-95"
+                className="flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-gradient-to-r from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] text-white hover:opacity-95 transition-all font-semibold text-sm shadow-xl shadow-blue-500/25 group cursor-pointer hover:scale-105 active:scale-95"
               >
                 <span>Try Nexus Workspace</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
               <a
                 href="#models"
-                className="px-7 py-3.5 rounded-full bg-[#1E1F20]/80 backdrop-blur-md border border-white/15 hover:border-white/30 text-white hover:bg-[#282A2C] transition-all text-sm font-semibold"
+                className="px-7 py-3.5 rounded-full bg-white/80 dark:bg-[#1E1F20]/80 backdrop-blur-md border border-slate-200 dark:border-white/15 hover:border-slate-300 dark:hover:border-white/30 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-[#282A2C] transition-all text-sm font-semibold shadow-sm"
               >
                 Explore 3 Model Tiers
               </a>
             </div>
 
             {/* Feature Callout Pill */}
-            <div className="pt-2 text-[#747775] text-xs font-mono flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <div className="pt-2 text-slate-500 dark:text-[#747775] text-xs font-mono flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               <span>Full TypeScript typing • Vercel Free SPA • Render FastAPI • Neon Cloud PostgreSQL</span>
             </div>
 
             {/* HERO ARTIFACT: Glassmorphic Interactive Preview & Solver Console */}
-            <div className="w-full max-w-4xl rounded-2xl bg-[#1E1F20]/85 backdrop-blur-xl border border-white/15 shadow-2xl p-4 sm:p-6 text-left overflow-hidden mt-8">
+            <div className="w-full max-w-4xl rounded-2xl bg-white/90 dark:bg-[#1E1F20]/85 backdrop-blur-xl border border-slate-200 dark:border-white/15 shadow-2xl p-4 sm:p-6 text-left overflow-hidden mt-8">
               {/* Terminal / Window Chrome */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 border-b border-white/10 mb-4 bg-[#131314]/80 rounded-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-2.5 border-b border-slate-200 dark:border-white/10 mb-4 bg-slate-50 dark:bg-[#131314]/80 rounded-xl">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
-                  <span className="text-[#747775] font-mono text-[11px] ml-2 hidden md:inline">
+                  <span className="text-slate-500 dark:text-[#747775] font-mono text-[11px] ml-2 hidden md:inline">
                     nexus-cluster-v2.5 • Neon Cloud DB Connected • TTFT: 42ms
                   </span>
                 </div>
 
                 {/* Multi-Tab Switcher */}
-                <div className="flex items-center gap-1 bg-[#1E1F20] p-1 rounded-lg border border-white/10 text-xs font-mono">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#1E1F20] p-1 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-mono">
                   <button
                     onClick={() => setHeroTab('solver')}
                     className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
                       heroTab === 'solver'
-                        ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
-                        : 'text-[#C4C7C5] hover:text-white'
+                        ? 'bg-blue-600 text-white dark:bg-[#A8C7FA] dark:text-[#001E2C] font-semibold shadow-sm'
+                        : 'text-slate-600 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <Sliders className="w-3 h-3" />
@@ -560,8 +564,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     onClick={() => setHeroTab('chat')}
                     className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
                       heroTab === 'chat'
-                        ? 'bg-[#A8C7FA] text-[#001E2C] font-semibold shadow-sm'
-                        : 'text-[#C4C7C5] hover:text-white'
+                        ? 'bg-blue-600 text-white dark:bg-[#A8C7FA] dark:text-[#001E2C] font-semibold shadow-sm'
+                        : 'text-slate-600 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <Bot className="w-3 h-3" />
@@ -596,25 +600,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               {heroTab === 'solver' && (
                 <div className="space-y-4 px-1 pb-2">
                   {/* Slider Control Header */}
-                  <div className="bg-[#131314]/60 p-4 rounded-xl border border-white/10 space-y-3">
+                  <div className="bg-slate-50 dark:bg-[#131314]/60 p-4 rounded-xl border border-slate-200 dark:border-white/10 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <div className="text-xs font-semibold text-white flex items-center gap-2">
-                          <Flame className="w-4 h-4 text-amber-400" />
+                        <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-amber-500" />
                           <span>Simulate Viral Creator Demand Surge (P100 Headphones)</span>
                         </div>
-                        <p className="text-[11px] text-[#747775] mt-0.5">
+                        <p className="text-[11px] text-slate-500 dark:text-[#747775] mt-0.5">
                           Drag slider to evaluate real-time inventory burn rate and optimal supplier split under ₹1,80,000 cash cap.
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 bg-[#282A2C] px-3 py-1 rounded-full border border-white/10 font-mono text-xs">
-                        <span className="text-[#747775]">Surge Multiplier:</span>
-                        <span className="text-[#A8C7FA] font-bold text-sm">+{simSurge}%</span>
+                      <div className="flex items-center gap-2 bg-slate-200 dark:bg-[#282A2C] px-3 py-1 rounded-full border border-slate-300 dark:border-white/10 font-mono text-xs">
+                        <span className="text-slate-600 dark:text-[#747775]">Surge Multiplier:</span>
+                        <span className="text-blue-600 dark:text-[#A8C7FA] font-bold text-sm">+{simSurge}%</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3 pt-1">
-                      <span className="text-[11px] font-mono text-[#747775]">+20%</span>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-[#747775]">+20%</span>
                       <input
                         type="range"
                         min="20"
@@ -622,61 +626,61 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         step="5"
                         value={simSurge}
                         onChange={(e) => setSimSurge(Number(e.target.value))}
-                        className="flex-1 accent-[#A8C7FA] cursor-pointer h-2 bg-[#282A2C] rounded-lg appearance-none"
+                        className="flex-1 accent-[#1A73E8] dark:accent-[#A8C7FA] cursor-pointer h-2 bg-slate-200 dark:bg-[#282A2C] rounded-lg appearance-none"
                       />
-                      <span className="text-[11px] font-mono text-[#747775]">+150%</span>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-[#747775]">+150%</span>
                     </div>
                   </div>
 
                   {/* 4 Dynamic Metric Pill Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-[#282A2C]/60 border border-blue-500/20 rounded-xl p-3 space-y-1">
-                      <div className="text-[10px] font-mono text-blue-400 font-semibold uppercase">Daily Velocity</div>
-                      <div className="text-xl font-bold font-mono text-white">
-                        {simCalculations.velocity} <span className="text-[10px] text-[#747775] font-normal">u/day</span>
+                    <div className="bg-slate-50 dark:bg-[#282A2C]/60 border border-blue-500/20 rounded-xl p-3 space-y-1 shadow-sm">
+                      <div className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-semibold uppercase">Daily Velocity</div>
+                      <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+                        {simCalculations.velocity} <span className="text-[10px] text-slate-500 dark:text-[#747775] font-normal">u/day</span>
                       </div>
-                      <div className="text-[10px] text-[#747775]">Base: 85 u/d</div>
+                      <div className="text-[10px] text-slate-500 dark:text-[#747775]">Base: 85 u/d</div>
                     </div>
 
-                    <div className="bg-[#282A2C]/60 border border-amber-500/20 rounded-xl p-3 space-y-1">
-                      <div className="text-[10px] font-mono text-amber-400 font-semibold uppercase">Stockout Horizon</div>
-                      <div className="text-xl font-bold font-mono text-amber-300">
-                        {simCalculations.horizonDays} <span className="text-[10px] text-[#747775] font-normal">days</span>
+                    <div className="bg-slate-50 dark:bg-[#282A2C]/60 border border-amber-500/20 rounded-xl p-3 space-y-1 shadow-sm">
+                      <div className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold uppercase">Stockout Horizon</div>
+                      <div className="text-xl font-bold font-mono text-amber-600 dark:text-amber-300">
+                        {simCalculations.horizonDays} <span className="text-[10px] text-slate-500 dark:text-[#747775] font-normal">days</span>
                       </div>
-                      <div className="text-[10px] text-rose-400/90 font-medium">Deficit: {simCalculations.deficitUnits} units</div>
+                      <div className="text-[10px] text-rose-500 dark:text-rose-400/90 font-medium">Deficit: {simCalculations.deficitUnits} units</div>
                     </div>
 
-                    <div className="bg-[#282A2C]/60 border border-emerald-500/20 rounded-xl p-3 space-y-1">
-                      <div className="text-[10px] font-mono text-emerald-400 font-semibold uppercase">Supplier B (Net-30)</div>
-                      <div className="text-xl font-bold font-mono text-white">
-                        {simCalculations.supplierBUnits} <span className="text-[10px] text-[#747775] font-normal">units</span>
+                    <div className="bg-slate-50 dark:bg-[#282A2C]/60 border border-emerald-500/20 rounded-xl p-3 space-y-1 shadow-sm">
+                      <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Supplier B (Net-30)</div>
+                      <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+                        {simCalculations.supplierBUnits} <span className="text-[10px] text-slate-500 dark:text-[#747775] font-normal">units</span>
                       </div>
-                      <div className="text-[10px] text-emerald-400">Upfront: ₹0 (Zero Cash)</div>
+                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400">Upfront: ₹0 (Zero Cash)</div>
                     </div>
 
-                    <div className="bg-[#282A2C]/60 border border-purple-500/20 rounded-xl p-3 space-y-1">
-                      <div className="text-[10px] font-mono text-purple-400 font-semibold uppercase">Supplier C (50% Adv)</div>
-                      <div className="text-xl font-bold font-mono text-white">
-                        {simCalculations.supplierCUnits} <span className="text-[10px] text-[#747775] font-normal">units</span>
+                    <div className="bg-slate-50 dark:bg-[#282A2C]/60 border border-purple-500/20 rounded-xl p-3 space-y-1 shadow-sm">
+                      <div className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-semibold uppercase">Supplier C (50% Adv)</div>
+                      <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+                        {simCalculations.supplierCUnits} <span className="text-[10px] text-slate-500 dark:text-[#747775] font-normal">units</span>
                       </div>
-                      <div className="text-[10px] text-purple-300">Upfront: ₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}</div>
+                      <div className="text-[10px] text-purple-600 dark:text-purple-300">Upfront: ₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}</div>
                     </div>
                   </div>
 
                   {/* Solver Decision Ribbon */}
-                  <div className="bg-[#0F0F10] border border-white/10 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+                  <div className="bg-slate-50 dark:bg-[#0F0F10] border border-slate-200 dark:border-white/10 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs shadow-sm">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[#C4C7C5]">ILP Solver Status:</span>
-                      <span className="text-emerald-400 font-semibold">100% Feasible & Verified</span>
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-slate-700 dark:text-[#C4C7C5]">SciPy HiGHS Solver:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">100% Feasible & Verified</span>
                     </div>
                     <div className="flex items-center gap-3 text-[11px]">
-                      <span className="text-[#747775]">
-                        Total Upfront Spend: <strong className="text-white">₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}</strong> / ₹1,80,000 Cap
+                      <span className="text-slate-500 dark:text-[#747775]">
+                        Total Upfront Spend: <strong className="text-slate-900 dark:text-white">₹{Math.round(simCalculations.totalUpfrontCash).toLocaleString()}</strong> / ₹1,80,000 Cap
                       </span>
                       <button
                         onClick={onGetStarted}
-                        className="px-3 py-1 rounded-full bg-[#C2E7FF] text-[#001E2C] font-semibold hover:bg-[#A8C7FA] transition-colors cursor-pointer active:scale-95"
+                        className="px-3.5 py-1 rounded-full bg-blue-600 dark:bg-[#C2E7FF] text-white dark:text-[#001E2C] font-semibold hover:brightness-110 transition-colors cursor-pointer active:scale-95"
                       >
                         Open Full Solver
                       </button>

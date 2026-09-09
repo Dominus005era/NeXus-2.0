@@ -59,6 +59,7 @@ import {
 } from '../services/gemini';
 import { OverviewMetrics, AgentModelConfig } from '../types';
 import { api } from '../services/api';
+import { ThemeToggle } from '../context/ThemeContext';
 
 interface ExecutiveChatProps {
   onBackToLanding: () => void;
@@ -428,18 +429,18 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
       {/* 1. LEFT SIDE PANEL (GEMINI INSPIRED COLLAPSIBLE / EXPANDABLE SIDEBAR)     */}
       {/* ========================================================================= */}
       <aside
-        className={`flex flex-col border-r border-[#2D2E30]/70 bg-[#1E1F20] transition-all duration-300 ease-in-out z-20 ${
+        className={`flex flex-col border-r border-slate-200 dark:border-[#2D2E30]/70 bg-white/95 dark:bg-[#1E1F20] transition-all duration-300 ease-in-out z-20 shadow-sm ${
           sidebarOpen ? 'w-64' : 'w-16'
         }`}
       >
         {/* Top Header of Side Panel */}
-        <div className="flex items-center justify-between h-14 px-3 border-b border-[#2D2E30]/50">
+        <div className="flex items-center justify-between h-14 px-3 border-b border-slate-200 dark:border-[#2D2E30]/50">
           {sidebarOpen ? (
             <div className="flex items-center space-x-2.5">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A8C7FA] flex items-center justify-center shadow-lg shadow-[#1A73E8]/20">
                 <Sparkles className="w-4 h-4 text-white animate-pulse" />
               </div>
-              <span className="font-semibold text-sm tracking-tight text-white font-heading">
+              <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white font-heading">
                 Nexus AI
               </span>
             </div>
@@ -451,7 +452,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
 
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 rounded-lg text-[#999999] hover:text-white hover:bg-[#2D2E30] transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:text-[#999999] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30] transition-colors"
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             {sidebarOpen ? (
@@ -466,11 +467,11 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
         <div className="p-3">
           <button
             onClick={handleCreateNewChat}
-            className={`w-full flex items-center justify-center space-x-2 rounded-full bg-[#2A2B2D] hover:bg-[#35373A] text-white py-2.5 px-4 font-medium text-sm transition-all border border-[#3A3B3E]/60 shadow-sm ${
+            className={`w-full flex items-center justify-center space-x-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-[#2A2B2D] dark:hover:bg-[#35373A] text-slate-800 dark:text-white py-2.5 px-4 font-medium text-sm transition-all border border-slate-200 dark:border-[#3A3B3E]/60 shadow-sm ${
               !sidebarOpen ? 'px-0 justify-center' : ''
             }`}
           >
-            <Plus className="w-4 h-4 text-[#A8C7FA]" />
+            <Plus className="w-4 h-4 text-blue-600 dark:text-[#A8C7FA]" />
             {sidebarOpen && <span>New Operational Chat</span>}
           </button>
         </div>
@@ -479,13 +480,13 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
         {sidebarOpen && (
           <div className="px-3 mb-2">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#888888]" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-[#888888]" />
               <input
                 type="text"
                 placeholder="Search inquiries..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#131314] text-xs text-white placeholder-[#777777] pl-8 pr-3 py-2 rounded-lg border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]/60"
+                className="w-full bg-slate-50 dark:bg-[#131314] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#777777] pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-[#2D2E30] focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -494,14 +495,14 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
         {/* Recent Inquiries List */}
         <div className="flex-1 overflow-y-auto px-2 space-y-1 py-1">
           {sidebarOpen && (
-            <div className="px-2 py-1.5 text-[11px] font-semibold text-[#888888] uppercase tracking-wider">
+            <div className="px-2 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-[#888888] uppercase tracking-wider">
               Recent Inquiries
             </div>
           )}
 
           {filteredSessions.length === 0 ? (
             sidebarOpen && (
-              <div className="px-3 py-6 text-center text-xs text-[#777777] italic">
+              <div className="px-3 py-6 text-center text-xs text-slate-400 dark:text-[#777777] italic">
                 No recent inquiries. Start a new chat above.
               </div>
             )
@@ -512,14 +513,14 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                 <button
                   key={session.id}
                   onClick={() => setActiveSessionId(session.id)}
-                  className={`w-full flex items-center group relative rounded-lg px-2.5 py-2 text-xs transition-colors ${
+                  className={`w-full flex items-center group relative rounded-xl px-2.5 py-2 text-xs transition-colors ${
                     isActive
-                      ? 'bg-[#004A77]/40 text-[#A8C7FA] font-medium border border-[#1A73E8]/40'
-                      : 'text-[#C4C7C5] hover:bg-[#2A2B2D] hover:text-white'
+                      ? 'bg-blue-50 dark:bg-[#004A77]/40 text-blue-700 dark:text-[#A8C7FA] font-medium border border-blue-200 dark:border-[#1A73E8]/40'
+                      : 'text-slate-600 dark:text-[#C4C7C5] hover:bg-slate-100 dark:hover:bg-[#2A2B2D] hover:text-slate-900 dark:hover:text-white'
                   }`}
                   title={session.title}
                 >
-                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#A8C7FA]' : 'text-[#888888]'}`} />
+                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-600 dark:text-[#A8C7FA]' : 'text-slate-400 dark:text-[#888888]'}`} />
                   {sidebarOpen && (
                     <>
                       <span className="ml-2.5 truncate text-left flex-1">
@@ -527,7 +528,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                       </span>
                       <button
                         onClick={(e) => handleDeleteSession(session.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-[#888888] transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 dark:hover:text-red-400 text-slate-400 dark:text-[#888888] transition-opacity"
                         title="Delete chat"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -541,7 +542,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
         </div>
 
         {/* Bottom User Profile Section */}
-        <div className="border-t border-[#2D2E30]/70 p-3 bg-[#18191A]">
+        <div className="border-t border-slate-200 dark:border-[#2D2E30]/70 p-3 bg-slate-50 dark:bg-[#18191A]">
           {sidebarOpen ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2.5 truncate">
@@ -549,13 +550,13 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                   {userName ? userName.charAt(0).toUpperCase() : 'E'}
                 </div>
                 <div className="truncate">
-                  <div className="text-xs font-semibold text-white truncate">{userName}</div>
-                  <div className="text-[10px] text-[#A8C7FA] font-medium truncate">{userRole} • {companyName}</div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">{userName}</div>
+                  <div className="text-[10px] text-blue-600 dark:text-[#A8C7FA] font-medium truncate">{userRole} • {companyName}</div>
                 </div>
               </div>
               <button
                 onClick={() => {}}
-                className="p-1.5 text-[#888888] hover:text-white hover:bg-[#2D2E30] rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-900 dark:text-[#888888] dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#2D2E30] rounded-lg transition-colors"
                 title="Workspace Information"
               >
                 <Settings className="w-4 h-4" />
@@ -565,7 +566,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
             <div className="flex flex-col items-center space-y-3">
               <button
                 onClick={() => {}}
-                className="p-1.5 text-[#888888] hover:text-white hover:bg-[#2D2E30] rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-900 dark:text-[#888888] dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#2D2E30] rounded-lg transition-colors"
                 title="Workspace Information"
               >
                 <Settings className="w-4 h-4" />
@@ -581,25 +582,25 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
       {/* ========================================================================= */}
       {/* 2. MAIN CONTENT AREA (EXECUTIVE HEADER + GEMINI CHAT CONTAINER)           */}
       {/* ========================================================================= */}
-      <main className="flex-1 flex flex-col h-full bg-[#0B0C0E] relative overflow-hidden">
+      <main className="flex-1 flex flex-col h-full bg-[#F8FAFC] dark:bg-[#0B0C0E] relative overflow-hidden transition-colors duration-200">
         {/* EXECUTIVE HEADER BAR (PRESERVED NEXUS 2.0 HEADER) */}
-        <header className="h-14 border-b border-[#2D2E30]/70 bg-[#131314]/90 backdrop-blur-md px-4 flex items-center justify-between z-10 shrink-0">
+        <header className="h-14 border-b border-slate-200 dark:border-[#2D2E30]/70 bg-white/90 dark:bg-[#131314]/90 backdrop-blur-md px-4 flex items-center justify-between z-10 shrink-0 shadow-sm">
           <div className="flex items-center space-x-3">
             <button
               onClick={onBackToLanding}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#1E1F20] hover:bg-[#2A2B2D] text-[#C4C7C5] hover:text-white text-xs font-medium border border-[#2D2E30] transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E1F20] dark:hover:bg-[#2A2B2D] text-slate-700 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white text-xs font-medium border border-slate-200 dark:border-[#2D2E30] transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Landing Page</span>
             </button>
 
             {/* Toggle Switch between Executive Chat & Agent Swarm Studio */}
-            <div className="flex items-center bg-[#1E1F20] p-0.5 rounded-full border border-[#2D2E30]">
+            <div className="flex items-center bg-slate-100 dark:bg-[#1E1F20] p-0.5 rounded-full border border-slate-200 dark:border-[#2D2E30]">
               <button
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                   activeView === 'chat'
                     ? 'bg-[#1A73E8] text-white shadow-md'
-                    : 'text-[#888888] hover:text-white'
+                    : 'text-slate-500 dark:text-[#888888] hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Executive Chat
@@ -609,7 +610,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                   activeView === 'swarm'
                     ? 'bg-[#1A73E8] text-white shadow-md'
-                    : 'text-[#888888] hover:text-white'
+                    : 'text-slate-500 dark:text-[#888888] hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Agent Swarm Studio
@@ -618,23 +619,23 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
           </div>
 
           {/* Model Switcher & Live KPI Badges */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5">
             {/* Google Drive Database Status Badge */}
-            <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-              <Database className="w-3.5 h-3.5 text-[#4285F4]" />
-              <span className="text-[#888888]">Drive DB:</span>
-              <span className="text-[10px] text-[#34A853] font-mono font-semibold flex items-center space-x-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#34A853] animate-pulse inline-block" />
+            <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] text-xs">
+              <Database className="w-3.5 h-3.5 text-blue-500 dark:text-[#4285F4]" />
+              <span className="text-slate-500 dark:text-[#888888]">Drive DB:</span>
+              <span className="text-[10px] text-emerald-600 dark:text-[#34A853] font-mono font-semibold flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
                 <span>Grounded</span>
               </span>
             </div>
 
             {/* Active Role & Authority Badge */}
-            <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#34A853]" />
-              <span className="text-[#888888]">Role:</span>
-              <span className="font-semibold text-white truncate max-w-[130px]">{userRole}</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#34A853]/15 text-[#34A853] font-mono font-bold">
+            <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] text-xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 dark:text-[#34A853]" />
+              <span className="text-slate-500 dark:text-[#888888]">Role:</span>
+              <span className="font-semibold text-slate-800 dark:text-white truncate max-w-[130px]">{userRole}</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-[#34A853]/15 text-emerald-700 dark:text-[#34A853] font-mono font-bold">
                 {authorityLevel}
               </span>
             </div>
@@ -644,7 +645,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="appearance-none bg-[#1E1F20] text-xs font-medium text-[#E3E3E3] border border-[#2D2E30] rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:border-[#4285F4] cursor-pointer"
+                className="appearance-none bg-slate-100 dark:bg-[#1E1F20] text-xs font-medium text-slate-800 dark:text-[#E3E3E3] border border-slate-200 dark:border-[#2D2E30] rounded-xl px-3 py-1.5 pr-8 focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 {GEMINI_MODELS.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -652,33 +653,30 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-[#888888] absolute right-2.5 top-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-[#888888] absolute right-2.5 top-2.5 pointer-events-none" />
             </div>
 
             {/* KPI 1: Cash */}
-            <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-              <span className="text-[#888888]">Cash:</span>
-              <span className="font-semibold text-[#81C995]">₹8,50,000</span>
+            <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] text-xs">
+              <span className="text-slate-500 dark:text-[#888888]">Cash:</span>
+              <span className="font-semibold text-emerald-600 dark:text-[#81C995]">₹8,50,000</span>
             </div>
 
             {/* KPI 2: Safe Cap */}
-            <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
-              <span className="text-[#888888]">Safe Cap:</span>
-              <span className="font-semibold text-[#A8C7FA]">₹1,80,000</span>
+            <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] text-xs">
+              <span className="text-slate-500 dark:text-[#888888]">Safe Cap:</span>
+              <span className="font-semibold text-blue-600 dark:text-[#A8C7FA]">₹1,80,000</span>
             </div>
 
-            {/* KPI 3: Neon DB Status */}
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#1E1F20] border border-[#2D2E30] text-[11px]">
-              <span className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-              <span className="text-[#C4C7C5] font-medium">Neon DB Online</span>
-            </div>
+            {/* Theme Toggle */}
+            <ThemeToggle />
           </div>
         </header>
 
         {/* CHAT DISPLAY BODY */}
         <div className="flex-1 overflow-y-auto relative flex flex-col">
-          {/* Radial Ambient Glow (Gemini Dark Theme Backdrop) */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1A73E8]/10 via-[#0B0C0E]/90 to-[#0B0C0E] pointer-events-none" />
+          {/* Radial Ambient Glow (Subtle in light, atmospheric in dark) */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/5 dark:from-[#1A73E8]/10 via-transparent dark:via-[#0B0C0E]/90 to-transparent dark:to-[#0B0C0E] pointer-events-none" />
 
           {currentMessages.length === 0 ? (
             /* ========================================================================= */
@@ -686,19 +684,19 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
             /* ========================================================================= */
             <div className="flex-1 flex flex-col items-center justify-center px-4 max-w-4xl mx-auto w-full z-10 py-10">
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-[#1E1F20] border border-[#2D2E30] mb-4 shadow-xl shadow-[#1A73E8]/10">
-                  <Sparkles className="w-8 h-8 text-[#A8C7FA] animate-pulse" />
+                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white dark:bg-[#1E1F20] border border-slate-200 dark:border-[#2D2E30] mb-4 shadow-xl shadow-blue-500/10">
+                  <Sparkles className="w-8 h-8 text-blue-500 dark:text-[#A8C7FA] animate-pulse" />
                 </div>
-                <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-white font-heading">
-                  The mic is yours, <span className="bg-gradient-to-r from-[#A8C7FA] via-[#4285F4] to-[#A855F7] bg-clip-text text-transparent font-medium">Rahul</span>
+                <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-slate-900 dark:text-white font-heading">
+                  The mic is yours, <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-[#A8C7FA] dark:via-[#4285F4] dark:to-[#A855F7] bg-clip-text text-transparent font-medium">{userName ? userName.split(' ')[0] : 'Executive'}</span>
                 </h1>
-                <p className="text-[#888888] text-sm mt-2 max-w-md mx-auto">
+                <p className="text-slate-500 dark:text-[#888888] text-sm mt-2 max-w-md mx-auto">
                   What supply chain allocation or liquidity optimization can Nexus assist you with today?
                 </p>
               </div>
 
               {/* CENTER FLOATING GEMINI-STYLE INPUT CAPSULE */}
-              <div className="w-full max-w-2xl bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-3xl p-3 shadow-2xl focus-within:border-[#4285F4] transition-all">
+              <div className="w-full max-w-2xl bg-white dark:bg-[#1E1F20]/90 backdrop-blur-xl border border-slate-200 dark:border-[#3A3B3E] rounded-3xl p-3 shadow-xl focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
                 <textarea
                   rows={2}
                   value={inputPrompt}
@@ -710,26 +708,26 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                     }
                   }}
                   placeholder="Ask Nexus to run demand spike solver, audit statutory reserves, or allocate POs..."
-                  className="w-full bg-transparent text-sm text-white placeholder-[#777777] resize-none focus:outline-none px-3 pt-1"
+                  className="w-full bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#777777] resize-none focus:outline-none px-3 pt-1"
                 />
 
-                <div className="flex items-center justify-between pt-2 px-2 border-t border-[#2D2E30]/40">
+                <div className="flex items-center justify-between pt-2 px-2 border-t border-slate-100 dark:border-[#2D2E30]/40">
                   <div className="flex items-center space-x-2">
                     <button
-                      className="p-2 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+                      className="p-2 rounded-full text-slate-400 dark:text-[#888888] hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30] transition-colors"
                       title="Attach context file"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
-                    <div className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#131314] text-[11px] text-[#A8C7FA] border border-[#2D2E30]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#4285F4]" />
+                    <div className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#131314] text-[11px] text-blue-600 dark:text-[#A8C7FA] border border-slate-200 dark:border-[#2D2E30]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-[#4285F4]" />
                       <span>{GEMINI_MODELS.find((m) => m.id === selectedModel)?.name}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-2">
                     <button
-                      className="p-2 rounded-full text-[#888888] hover:text-white hover:bg-[#2D2E30] transition-colors"
+                      className="p-2 rounded-full text-slate-400 dark:text-[#888888] hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30] transition-colors"
                       title="Voice Input"
                     >
                       <Mic className="w-4 h-4" />
@@ -737,7 +735,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                     <button
                       onClick={() => handleSendPrompt()}
                       disabled={!inputPrompt.trim() || isLoading}
-                      className="p-2 rounded-full bg-[#1A73E8] hover:bg-[#4285F4] disabled:opacity-40 disabled:hover:bg-[#1A73E8] text-white transition-all shadow-md"
+                      className="p-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 disabled:opacity-40 text-white transition-all shadow-md cursor-pointer"
                     >
                       <Send className="w-4 h-4" />
                     </button>
@@ -753,17 +751,17 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                     <button
                       key={idx}
                       onClick={() => handleSendPrompt(item.prompt)}
-                      className="flex items-start p-3.5 rounded-2xl bg-[#1E1F20]/60 hover:bg-[#252629] border border-[#2D2E30] hover:border-[#4285F4]/40 text-left transition-all group"
+                      className="flex items-start p-3.5 rounded-2xl bg-white dark:bg-[#1E1F20]/60 hover:bg-slate-50 dark:hover:bg-[#252629] border border-slate-200 dark:border-[#2D2E30] hover:border-blue-400 dark:hover:border-[#4285F4]/40 text-left transition-all shadow-sm group cursor-pointer"
                     >
-                      <div className="p-2 rounded-xl bg-[#131314] text-[#A8C7FA] group-hover:text-white transition-colors mr-3 shrink-0">
+                      <div className="p-2 rounded-xl bg-blue-50 dark:bg-[#131314] text-blue-600 dark:text-[#A8C7FA] group-hover:text-blue-700 dark:group-hover:text-white transition-colors mr-3 shrink-0">
                         <Icon className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-xs font-semibold text-white group-hover:text-[#A8C7FA] transition-colors flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-[#A8C7FA] transition-colors flex items-center justify-between">
                           <span>{item.title}</span>
-                          <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                          <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-blue-500" />
                         </div>
-                        <div className="text-[11px] text-[#888888] mt-0.5">{item.subtitle}</div>
+                        <div className="text-[11px] text-slate-500 dark:text-[#888888] mt-0.5">{item.subtitle}</div>
                       </div>
                     </button>
                   );
@@ -785,24 +783,24 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                   {/* USER MESSAGE */}
                   {msg.role === 'user' ? (
                     <div className="flex items-start space-x-2 max-w-2xl">
-                      <div className="bg-[#2A2B2D] text-white text-sm px-4 py-3 rounded-2xl rounded-tr-xs border border-[#3A3B3E]/60 shadow-md">
+                      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-[#2A2B2D] dark:to-[#2A2B2D] text-white text-sm px-4 py-3 rounded-2xl rounded-tr-xs border border-blue-500/20 dark:border-[#3A3B3E]/60 shadow-md">
                         {msg.content}
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-xs shrink-0">
-                        R
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
+                        {userName ? userName.charAt(0).toUpperCase() : 'E'}
                       </div>
                     </div>
                   ) : (
                     /* ASSISTANT MESSAGE */
                     <div className="w-full flex items-start space-x-3">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A855F7] flex items-center justify-center text-white shrink-0 shadow-lg shadow-[#1A73E8]/20">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] via-[#4285F4] to-[#A855F7] flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-500/20">
                         <Sparkles className="w-4 h-4" />
                       </div>
 
                       <div className="flex-1 space-y-3 max-w-3xl">
                         {/* Thinking Accordion Step */}
                         {msg.thinking && (
-                          <div className="rounded-xl border border-[#2D2E30] bg-[#1E1F20]/80 overflow-hidden">
+                          <div className="rounded-xl border border-slate-200 dark:border-[#2D2E30] bg-slate-50/80 dark:bg-[#1E1F20]/80 overflow-hidden shadow-sm">
                             <button
                               onClick={() =>
                                 setExpandedThinking((prev) => ({
@@ -810,10 +808,10 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                                   [msg.id]: !prev[msg.id],
                                 }))
                               }
-                              className="w-full px-3 py-2 flex items-center justify-between text-xs text-[#A8C7FA] hover:bg-[#252628] transition-colors"
+                              className="w-full px-3 py-2 flex items-center justify-between text-xs text-blue-600 dark:text-[#A8C7FA] hover:bg-slate-100 dark:hover:bg-[#252628] transition-colors cursor-pointer"
                             >
                               <div className="flex items-center space-x-2">
-                                <Cpu className="w-3.5 h-3.5 text-[#4285F4]" />
+                                <Cpu className="w-3.5 h-3.5 text-blue-500 dark:text-[#4285F4]" />
                                 <span>
                                   Thought for {msg.thinkingTimeSec || 2.18}s • Multi-Agent Consensus Breakdown
                                 </span>
@@ -826,7 +824,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                             </button>
 
                             {expandedThinking[msg.id] && (
-                              <div className="p-3 bg-[#131314] text-[11px] font-mono text-[#C4C7C5] border-t border-[#2D2E30] whitespace-pre-wrap leading-relaxed">
+                              <div className="p-3 bg-white dark:bg-[#131314] text-[11px] font-mono text-slate-700 dark:text-[#C4C7C5] border-t border-slate-200 dark:border-[#2D2E30] whitespace-pre-wrap leading-relaxed">
                                 {msg.thinking}
                               </div>
                             )}
@@ -834,17 +832,17 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                         )}
 
                         {/* Main Response Markdown Container */}
-                        <div className="bg-[#1E1F20] text-sm text-[#E3E3E3] p-5 rounded-2xl border border-[#2D2E30] shadow-xl space-y-3 leading-relaxed">
+                        <div className="bg-white dark:bg-[#1E1F20] text-sm text-slate-800 dark:text-[#E3E3E3] p-5 rounded-2xl border border-slate-200 dark:border-[#2D2E30] shadow-md space-y-3 leading-relaxed">
                           <div>
                             {renderFormattedMarkdown(msg.content)}
                           </div>
 
                           {/* INTERACTIVE PO SPLIT ALLOCATION CARD */}
                           {msg.allocationPlan && (
-                            <div className="mt-4 pt-3 border-t border-[#2D2E30]">
-                              <div className="text-xs font-semibold text-white mb-2 flex items-center justify-between">
+                            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-[#2D2E30]">
+                              <div className="text-xs font-semibold text-slate-900 dark:text-white mb-2 flex items-center justify-between">
                                 <span>Recommended PO Split Allocation</span>
-                                <span className="text-[#81C995] font-mono">
+                                <span className="text-emerald-600 dark:text-[#81C995] font-mono font-bold">
                                   Total Upfront: ₹{msg.totalUpfrontCash?.toLocaleString()}
                                 </span>
                               </div>
@@ -853,19 +851,19 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                                 {msg.allocationPlan.map((po, pIdx) => (
                                   <div
                                     key={pIdx}
-                                    className="p-3 rounded-xl bg-[#131314] border border-[#2D2E30] flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2"
+                                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2"
                                   >
                                     <div>
-                                      <div className="font-semibold text-white">{po.supplier}</div>
-                                      <div className="text-[#888888] text-[11px]">
+                                      <div className="font-semibold text-slate-900 dark:text-white">{po.supplier}</div>
+                                      <div className="text-slate-500 dark:text-[#888888] text-[11px]">
                                         {po.units} units @ ₹{po.unitCost}/unit • {po.paymentTerms}
                                       </div>
                                     </div>
                                     <div className="text-right">
-                                      <div className="text-[#A8C7FA] font-medium">
+                                      <div className="text-blue-600 dark:text-[#A8C7FA] font-medium">
                                         Upfront: ₹{po.upfrontCash.toLocaleString()}
                                       </div>
-                                      <div className="text-[#888888] text-[10px]">Lead Time: {po.leadTime}</div>
+                                      <div className="text-slate-400 dark:text-[#888888] text-[10px]">Lead Time: {po.leadTime}</div>
                                     </div>
                                   </div>
                                 ))}
@@ -875,10 +873,10 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                                 <button
                                   onClick={() => handleExecutePOSplit(msg.id)}
                                   disabled={executedPOs[msg.id]}
-                                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all shadow-md ${
+                                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all shadow-md cursor-pointer ${
                                     executedPOs[msg.id]
-                                      ? 'bg-[#34A853]/20 text-[#81C995] border border-[#34A853]/40'
-                                      : 'bg-[#1A73E8] hover:bg-[#4285F4] text-white'
+                                      ? 'bg-emerald-100 dark:bg-[#34A853]/20 text-emerald-700 dark:text-[#81C995] border border-emerald-300 dark:border-[#34A853]/40'
+                                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white'
                                   }`}
                                 >
                                   {executedPOs[msg.id] ? (
@@ -898,18 +896,18 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                           )}
 
                           {/* Message Action Footer Bar */}
-                          <div className="flex items-center justify-between pt-2 border-t border-[#2D2E30]/40 text-xs text-[#888888]">
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-[#2D2E30]/40 text-xs text-slate-400 dark:text-[#888888]">
                             <div className="text-[11px] font-mono">
                               Model: {msg.modelUsed || selectedModel} • {msg.timestamp}
                             </div>
                             <div className="flex items-center space-x-2">
                               <button
                                 onClick={() => handleCopy(msg.id, msg.content)}
-                                className="p-1 hover:text-white transition-colors"
+                                className="p-1 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
                                 title="Copy response"
                               >
                                 {copiedMsgId === msg.id ? (
-                                  <Check className="w-3.5 h-3.5 text-green-400" />
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
                                 ) : (
                                   <Copy className="w-3.5 h-3.5" />
                                 )}
@@ -928,8 +926,8 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] to-[#A855F7] flex items-center justify-center text-white shrink-0 animate-spin">
                     <Sparkles className="w-4 h-4" />
                   </div>
-                  <div className="bg-[#1E1F20] px-4 py-3 rounded-2xl border border-[#2D2E30] text-xs text-[#A8C7FA] flex items-center space-x-2">
-                    <span className="w-2 h-2 rounded-full bg-[#1A73E8] animate-ping" />
+                  <div className="bg-white dark:bg-[#1E1F20] px-4 py-3 rounded-2xl border border-slate-200 dark:border-[#2D2E30] text-xs text-blue-600 dark:text-[#A8C7FA] flex items-center space-x-2 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
                     <span>Orchestrating multi-agent integer linear programming solver...</span>
                   </div>
                 </div>
@@ -943,7 +941,7 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
         {/* FLOATING BOTTOM INPUT CAPSULE (WHEN MESSAGES ARE ACTIVE) */}
         {currentMessages.length > 0 && (
           <div className="p-4 z-10 shrink-0 max-w-4xl mx-auto w-full">
-            <div className="bg-[#1E1F20]/90 backdrop-blur-xl border border-[#3A3B3E] rounded-3xl p-3 shadow-2xl focus-within:border-[#4285F4] transition-all">
+            <div className="bg-white dark:bg-[#1E1F20]/90 backdrop-blur-xl border border-slate-200 dark:border-[#3A3B3E] rounded-3xl p-3 shadow-xl focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
               <textarea
                 rows={1}
                 value={inputPrompt}
@@ -955,27 +953,30 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
                   }
                 }}
                 placeholder="Ask Nexus to run demand spike solver, audit statutory reserves..."
-                className="w-full bg-transparent text-sm text-white placeholder-[#777777] resize-none focus:outline-none px-3"
+                className="w-full bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#777777] resize-none focus:outline-none px-3"
               />
 
-              <div className="flex items-center justify-between pt-2 px-2 border-t border-[#2D2E30]/40">
+              <div className="flex items-center justify-between pt-2 px-2 border-t border-slate-100 dark:border-[#2D2E30]/40">
                 <div className="flex items-center space-x-2">
-                  <button className="p-1.5 rounded-full text-[#888888] hover:text-white transition-colors">
+                  <button className="p-1.5 rounded-full text-slate-400 dark:text-[#888888] hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30] transition-colors">
                     <Plus className="w-4 h-4" />
                   </button>
-                  <span className="text-[11px] text-[#A8C7FA] bg-[#131314] px-2 py-0.5 rounded-full border border-[#2D2E30]">
+                  <span className="text-[11px] text-blue-600 dark:text-[#A8C7FA] bg-slate-100 dark:bg-[#131314] px-2 py-0.5 rounded-full border border-slate-200 dark:border-[#2D2E30]">
                     {GEMINI_MODELS.find((m) => m.id === selectedModel)?.name}
                   </span>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button className="p-1.5 rounded-full text-[#888888] hover:text-white transition-colors">
+                  <button
+                    className="p-1.5 rounded-full text-slate-400 dark:text-[#888888] hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2D2E30] transition-colors"
+                    title="Voice Input"
+                  >
                     <Mic className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleSendPrompt()}
                     disabled={!inputPrompt.trim() || isLoading}
-                    className="p-2 rounded-full bg-[#1A73E8] hover:bg-[#4285F4] disabled:opacity-40 text-white transition-all shadow-md"
+                    className="p-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 disabled:opacity-40 text-white transition-all shadow-md cursor-pointer"
                   >
                     <Send className="w-4 h-4" />
                   </button>
