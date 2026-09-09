@@ -44,6 +44,8 @@ def init_db():
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN primary_product VARCHAR(255) DEFAULT 'P100 UltraGlide Headphones'"))
                 if "industry" not in cols:
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN industry VARCHAR(100) DEFAULT 'Consumer Technology & Electronics'"))
+                if "database_extracted" not in cols:
+                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN database_extracted TEXT"))
                 conn.commit()
     except Exception:
         pass

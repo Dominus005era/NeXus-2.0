@@ -28,9 +28,13 @@ from app.models.schemas import (
     DecisionActionResponse,
     KnowledgeQueryRequest,
     KnowledgeQueryResponse,
+    DriveDatabaseSummary,
+    DriveProductItem,
+    DriveSupplierItem,
 )
 from app.agents.swarm import SwarmOrchestratorEngine, RoleBasedAccessController
 from app.services.ilp_solver import IntegerLinearProgramSolver
+from app.services.drive_reader import GoogleDriveDatabaseReader
 
 api_router = APIRouter()
 swarm_engine = SwarmOrchestratorEngine()
@@ -75,13 +79,34 @@ def health_check(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 @api_router.get("/overview", response_model=OverviewMetricsResponse)
 def get_overview_metrics(db: Session = Depends(get_db)):
-    return OverviewMetricsResponse(
-        cash_balance=850000.0,
-        safe_procurement_budget=180000.0,
-        revenue_7d=142850.0,
-        critical_stock_risks=1,
-        active_campaigns_count=1,
-        inventory_summary=[
+    workspace = db.query(WorkspaceModel).first()
+
+    cash_bal = 850000.0
+    safe_cap = 180000.0
+    inventory_items = []
+
+    if workspace and workspace.database_extracted and isinstance(workspace.database_extracted, dict):
+        fin = workspace.database_extracted.get("financials", {})
+        cash_bal = fin.get("ledger_cash", cash_bal)
+        safe_cap = fin.get("safe_cash_cap", safe_cap)
+        prods = workspace.database_extracted.get("products", [])
+        for p in prods:
+            cur_stock = p.get("current_stock", 100)
+            safety = p.get("min_safety_stock", 100)
+            reorder = p.get("reorder_point", 200)
+            inventory_items.append(
+                InventoryItemSchema(
+                    product_id=p.get("id", "PRD"),
+                    product_name=p.get("name", "Product"),
+                    current_stock=cur_stock,
+                    min_safety_stock=safety,
+                    reorder_point=reorder,
+                    is_critical=(cur_stock <= safety + 50)
+                )
+            )
+
+    if not inventory_items:
+        inventory_items = [
             InventoryItemSchema(
                 product_id="P100",
                 product_name="UltraGlide Wireless Ergonomic Mouse / Headphones",
@@ -123,6 +148,16 @@ def get_overview_metrics(db: Session = Depends(get_db)):
                 is_critical=False
             ),
         ]
+
+    critical_count = sum(1 for item in inventory_items if item.is_critical)
+
+    return OverviewMetricsResponse(
+        cash_balance=cash_bal,
+        safe_procurement_budget=safe_cap,
+        revenue_7d=142850.0,
+        critical_stock_risks=critical_count,
+        active_campaigns_count=1,
+        inventory_summary=inventory_items
     )
 
 # ---------------------------------------------------------------------------
@@ -148,41 +183,71 @@ def update_agent_config(config: AgentModelConfig):
 def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
     authority = req.authority_level or RoleBasedAccessController.get_authority_level(req.user_role)
 
+    # Ingest Google Drive database
+    drive_data = GoogleDriveDatabaseReader.ingest_drive_database(
+        cloud_docs_link=req.cloud_docs_link or "",
+        company_name=req.company_name,
+        industry=req.industry or "Enterprise Operations",
+        primary_product_hint=req.primary_product
+    )
+
+    resolved_product = req.primary_product
+    if (not resolved_product or resolved_product == "P100 UltraGlide Headphones") and drive_data.get("products"):
+        resolved_product = drive_data["products"][0]["name"]
+    if not resolved_product:
+        resolved_product = "P100 UltraGlide Headphones"
+
     # Persist or update workspace
     workspace = db.query(WorkspaceModel).first()
     if not workspace:
         workspace = WorkspaceModel(
             company_name=req.company_name,
-            primary_product=req.primary_product or "P100 UltraGlide Headphones",
+            primary_product=resolved_product,
             industry=req.industry or "Consumer Technology & Electronics",
             user_name=req.user_name,
             user_role=req.user_role,
             authority_level=authority,
             cloud_docs_link=req.cloud_docs_link,
             company_structure=req.company_structure,
+            database_extracted=drive_data,
         )
         db.add(workspace)
         db.commit()
         db.refresh(workspace)
     else:
         workspace.company_name = req.company_name
-        workspace.primary_product = req.primary_product or workspace.primary_product
+        workspace.primary_product = resolved_product
         workspace.industry = req.industry or workspace.industry
         workspace.user_name = req.user_name
         workspace.user_role = req.user_role
         workspace.authority_level = authority
         workspace.cloud_docs_link = req.cloud_docs_link
         workspace.company_structure = req.company_structure
+        workspace.database_extracted = drive_data
         db.commit()
 
-    # Dynamically generate agent nodes based on enterprise departments
+    # Construct Drive Summary
+    drive_summary = DriveDatabaseSummary(
+        status=drive_data.get("status", "INDEXED"),
+        folder_id=drive_data.get("folder_id", ""),
+        cloud_docs_link=drive_data.get("cloud_docs_link", req.cloud_docs_link or ""),
+        crawled_at=drive_data.get("crawled_at", ""),
+        files_indexed=drive_data.get("files_indexed", 0),
+        products_count=len(drive_data.get("products", [])),
+        suppliers_count=len(drive_data.get("suppliers", [])),
+        products=[DriveProductItem(**p) for p in drive_data.get("products", [])],
+        suppliers=[DriveSupplierItem(**s) for s in drive_data.get("suppliers", [])]
+    )
+
+    # Dynamically generate agent nodes based on enterprise departments and extracted Drive database
+    folder_tag = f"Drive: {drive_summary.folder_id}" if drive_summary.folder_id else "Cloud Ingested"
     dynamic_agents = [
         DynamicAgentNode(
             id="node-orchestrator",
             name="Nexus Swarm Orchestrator",
             department="Executive Office",
             model="Gemini 3.6 Flash (Default)",
-            role_description="Hierarchical Task Planner & Constraint Router",
+            role_description=f"Hierarchical Task Planner & Constraint Router ({folder_tag})",
             authority_access=["READ_ALL", "DISPATCH_TASKS"]
         ),
         DynamicAgentNode(
@@ -190,7 +255,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
             name="Sales Intelligence Agent",
             department="Commercial & Growth",
             model="Gemini 3.6 Flash (High-Throughput)",
-            role_description=f"Demand Surge Analytics for {workspace.primary_product}",
+            role_description=f"Demand Analytics for {workspace.primary_product} ({len(drive_summary.products)} Catalog Items)",
             authority_access=["READ_SALES", "WRITE_FORECAST"]
         ),
         DynamicAgentNode(
@@ -198,7 +263,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
             name="Supply Chain & Inventory Agent",
             department="Logistics & Warehousing",
             model="GPT-4o Mini (Tactical)",
-            role_description=f"Stockout Horizon & Deficit for {workspace.primary_product}",
+            role_description=f"Telemetry & Deficit for {workspace.primary_product} (Source: safety_stock_guidelines.md)",
             authority_access=["READ_WAREHOUSE", "FORMULATE_REORDER"]
         ),
         DynamicAgentNode(
@@ -206,7 +271,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
             name="Treasury & Governance Agent",
             department="Finance & Compliance",
             model="Gemini 1.5 Pro (2M Context)",
-            role_description="Statutory Liquidity Audit & Spend Ceiling Enforcement",
+            role_description="Statutory Liquidity Guard (Source: cash_reserve_governance.md)",
             authority_access=["READ_TREASURY", "ENFORCE_LOCK"]
         ),
         DynamicAgentNode(
@@ -214,13 +279,14 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
             name="SciPy HiGHS Decision Solver",
             department="Operations Optimization",
             model="SciPy HiGHS MILP Engine",
-            role_description="Constrained Mixed-Integer Linear Supplier Split",
+            role_description=f"Deterministic Matrix Split ({len(drive_summary.suppliers)} Drive Vendors)",
             authority_access=["SOLVE_OPTIMIZATION"]
         )
     ]
 
     rbac_permissions = [
         f"Role: {req.user_role} ({authority})",
+        f"Google Drive Database: Connected ({drive_summary.files_indexed} files indexed)",
         "Executive Strategy: Authorized",
         "Cross-Department Consensus: Enabled",
         "Real-Time Telemetry: Active",
@@ -234,7 +300,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
 
     return OnboardResponse(
         success=True,
-        message=f"Enterprise workspace initialized successfully for {req.company_name}.",
+        message=f"Enterprise workspace initialized successfully for {req.company_name}. Extracted {len(drive_summary.products)} products and {len(drive_summary.suppliers)} suppliers from Google Drive database.",
         workspace_id=workspace.id,
         company_name=workspace.company_name,
         primary_product=workspace.primary_product,
@@ -242,6 +308,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
         user_role=workspace.user_role,
         authority_level=authority,
         cloud_docs_registered=req.cloud_docs_link,
+        drive_database=drive_summary,
         dynamic_agents=dynamic_agents,
         rbac_permissions=rbac_permissions
     )
@@ -258,7 +325,8 @@ def get_current_workspace(db: Session = Depends(get_db)):
             "user_name": "Executive User",
             "user_role": "CEO & Founder",
             "authority_level": "LEVEL_4_EXECUTIVE",
-            "cloud_docs_link": ""
+            "cloud_docs_link": "",
+            "database_extracted": None
         }
     return {
         "configured": True,
@@ -269,8 +337,36 @@ def get_current_workspace(db: Session = Depends(get_db)):
         "user_role": workspace.user_role,
         "authority_level": workspace.authority_level,
         "cloud_docs_link": workspace.cloud_docs_link,
+        "database_extracted": workspace.database_extracted,
         "created_at": workspace.created_at.isoformat() if workspace.created_at else None
     }
+
+@api_router.post("/workspace/sync-drive", response_model=DriveDatabaseSummary)
+def sync_drive_database(db: Session = Depends(get_db)):
+    workspace = db.query(WorkspaceModel).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not onboarded yet.")
+
+    drive_data = GoogleDriveDatabaseReader.ingest_drive_database(
+        cloud_docs_link=workspace.cloud_docs_link or "",
+        company_name=workspace.company_name,
+        industry=workspace.industry or "Enterprise Operations",
+        primary_product_hint=workspace.primary_product
+    )
+    workspace.database_extracted = drive_data
+    db.commit()
+
+    return DriveDatabaseSummary(
+        status=drive_data.get("status", "INDEXED"),
+        folder_id=drive_data.get("folder_id", ""),
+        cloud_docs_link=drive_data.get("cloud_docs_link", workspace.cloud_docs_link or ""),
+        crawled_at=drive_data.get("crawled_at", ""),
+        files_indexed=drive_data.get("files_indexed", 0),
+        products_count=len(drive_data.get("products", [])),
+        suppliers_count=len(drive_data.get("suppliers", [])),
+        products=[DriveProductItem(**p) for p in drive_data.get("products", [])],
+        suppliers=[DriveSupplierItem(**s) for s in drive_data.get("suppliers", [])]
+    )
 
 # ---------------------------------------------------------------------------
 # 5. Core Multi-Agent Swarm Execution

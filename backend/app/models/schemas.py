@@ -72,6 +72,39 @@ class DynamicAgentNode(BaseModel):
     role_description: str
     authority_access: List[str]
 
+class DriveProductItem(BaseModel):
+    id: str
+    name: str
+    category: Optional[str] = None
+    current_stock: int
+    min_safety_stock: int
+    reorder_point: int
+    unit_cost: float
+    sales_velocity: int
+    source_doc: Optional[str] = None
+
+class DriveSupplierItem(BaseModel):
+    id: str
+    name: str
+    unit_cost: float
+    advance_pct: float
+    lead_time_days: int
+    capacity: int
+    payment_terms: str
+    sla: str
+    source_doc: Optional[str] = None
+
+class DriveDatabaseSummary(BaseModel):
+    status: str
+    folder_id: str
+    cloud_docs_link: str
+    crawled_at: str
+    files_indexed: int
+    products_count: int
+    suppliers_count: int
+    products: List[DriveProductItem] = []
+    suppliers: List[DriveSupplierItem] = []
+
 class OnboardResponse(BaseModel):
     success: bool
     message: str
@@ -82,6 +115,7 @@ class OnboardResponse(BaseModel):
     user_role: str
     authority_level: str
     cloud_docs_registered: Optional[str] = None
+    drive_database: Optional[DriveDatabaseSummary] = None
     dynamic_agents: List[DynamicAgentNode]
     rbac_permissions: List[str]
 

@@ -66,8 +66,14 @@ interface ExecutiveChatProps {
   activeView: 'chat' | 'swarm';
 }
 
-// Dynamic Suggestion Prompts Generator based on Company and Primary Product
+// Dynamic Suggestion Prompts Generator based on Company, Primary Product, and Drive Database
 const getSuggestedPrompts = (company: string, product: string) => [
+  {
+    title: 'Google Drive Database',
+    subtitle: 'Verify products, inventory & vendors from Drive',
+    icon: Database,
+    prompt: `List our Google Drive database catalog, current stock levels, and active suppliers for ${company}.`,
+  },
   {
     title: `Analyze ${product} Surge`,
     subtitle: `+70% promotional spike & supplier split`,
@@ -81,16 +87,10 @@ const getSuggestedPrompts = (company: string, product: string) => [
     prompt: `Audit ${company} treasury liquidity, statutory reserve lock compliance (₹5.00L), and verify maximum safe spend ceiling.`,
   },
   {
-    title: 'Optimize Supplier B vs C POs',
-    subtitle: `Net-30 credit vs 50% advance allocation for ${product}`,
-    icon: Package,
-    prompt: `Compare Supplier B (QuickLogix Net-30) vs Supplier C (Zenith Air Freight 50% advance) for urgent ${product} replenishment.`,
-  },
-  {
     title: `${product} Stockout Horizon`,
     subtitle: 'Inventory velocity & safety stock floor',
     icon: AlertTriangle,
-    prompt: `Calculate exact stockout horizon for ${product} inventory based on elevated daily burn rate.`,
+    prompt: `Calculate exact stockout horizon for ${product} inventory based on elevated daily burn rate from Google Drive records.`,
   },
 ];
 
@@ -619,6 +619,16 @@ export const ExecutiveChat: React.FC<ExecutiveChatProps> = ({
 
           {/* Model Switcher & Live KPI Badges */}
           <div className="flex items-center space-x-3">
+            {/* Google Drive Database Status Badge */}
+            <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
+              <Database className="w-3.5 h-3.5 text-[#4285F4]" />
+              <span className="text-[#888888]">Drive DB:</span>
+              <span className="text-[10px] text-[#34A853] font-mono font-semibold flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34A853] animate-pulse inline-block" />
+                <span>Grounded</span>
+              </span>
+            </div>
+
             {/* Active Role & Authority Badge */}
             <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1E1F20] border border-[#2D2E30] text-xs">
               <ShieldCheck className="w-3.5 h-3.5 text-[#34A853]" />

@@ -23,6 +23,61 @@ export interface WorkspaceOnboardPayload {
   cloud_docs_link?: string;
 }
 
+export interface DriveProductItem {
+  id: string;
+  name: string;
+  category?: string;
+  current_stock: number;
+  min_safety_stock: number;
+  reorder_point: number;
+  unit_cost: number;
+  sales_velocity: number;
+  source_doc?: string;
+}
+
+export interface DriveSupplierItem {
+  id: string;
+  name: string;
+  unit_cost: number;
+  advance_pct: number;
+  lead_time_days: number;
+  capacity: number;
+  payment_terms: string;
+  sla: string;
+  source_doc?: string;
+}
+
+export interface DriveDatabaseSummary {
+  status: string;
+  folder_id: string;
+  cloud_docs_link: string;
+  crawled_at: string;
+  files_indexed: number;
+  products_count: number;
+  suppliers_count: number;
+  products: DriveProductItem[];
+  suppliers: DriveSupplierItem[];
+}
+
+export interface OnboardResult {
+  success: boolean;
+  message: string;
+  workspace_id?: number;
+  company_name?: string;
+  primary_product?: string;
+  industry?: string;
+  drive_database?: DriveDatabaseSummary;
+  dynamic_agents?: Array<{
+    id: string;
+    name: string;
+    department: string;
+    model: string;
+    role_description: string;
+    authority_access: string[];
+  }>;
+  rbac_permissions?: string[];
+}
+
 export const api = {
   async getOverview(): Promise<OverviewMetrics> {
     try {
@@ -88,7 +143,7 @@ export const api = {
     }
   },
 
-  async onboardWorkspace(payload: WorkspaceOnboardPayload): Promise<any> {
+  async onboardWorkspace(payload: WorkspaceOnboardPayload): Promise<OnboardResult> {
     try {
       const res = await fetch(`${API_BASE_URL}/workspace/onboard`, {
         method: 'POST',
@@ -102,7 +157,9 @@ export const api = {
       return {
         success: true,
         message: `Workspace initialized for ${payload.company_name}`,
-        dynamic_agents: [],
+        company_name: payload.company_name,
+        primary_product: payload.primary_product,
+        industry: payload.industry,
       };
     }
   },
@@ -271,5 +328,18 @@ export const api = {
         snippet: 'Policy excerpt retrieved successfully under RBAC governance.'
       };
     }
-  }
+  },
+
+  async syncDriveDatabase(): Promise<DriveDatabaseSummary | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspace/sync-drive`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error(`Sync drive failed: ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('Drive sync failed:', err);
+      return null;
+    }
+  },
 };

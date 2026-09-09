@@ -136,3 +136,45 @@ def test_api_knowledge_rbac():
     })
     assert res.status_code == 200
     assert res.json()["status"] == "RESTRICTED"
+
+def test_google_drive_database_ingestion_and_grounding():
+    """Verify system crawls and ingests public Google Drive links, extracting catalog and suppliers."""
+    onboard_payload = {
+        "user_name": "Marcus Vance",
+        "user_role": "CEO & Founder",
+        "company_name": "Apex Clean Energy Solutions",
+        "industry": "Renewable Clean Energy",
+        "primary_product": "Apex-Grid Solar Inverter 5000",
+        "cloud_docs_link": "https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ"
+    }
+    res = client.post("/api/v1/workspace/onboard", json=onboard_payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert data["drive_database"] is not None
+    assert data["drive_database"]["folder_id"] == "1aBcDeFgHiJkLmNoPqRsTuVwXyZ"
+    assert data["drive_database"]["products_count"] >= 1
+    assert data["drive_database"]["suppliers_count"] >= 1
+
+    # Verify Swarm query lists and verifies against the Drive database
+    engine = SwarmOrchestratorEngine()
+    inquiry_res = engine.run_swarm("List our Google Drive database catalog and suppliers", user_role="CEO & Founder")
+    assert inquiry_res["success"] is True
+    assert "Google Drive Database" in inquiry_res["executive_brief"]
+    assert "1aBcDeFgHiJkLmNoPqRsTuVwXyZ" in inquiry_res["executive_brief"]
+
+    # Verify overview metrics reflects the Drive database
+    ov = client.get("/api/v1/overview")
+    assert ov.status_code == 200
+    ov_data = ov.json()
+    assert len(ov_data["inventory_summary"]) >= 1
+
+def test_sync_drive_endpoint():
+    """Verify /api/v1/workspace/sync-drive re-syncs database with Google Drive link."""
+    res = client.post("/api/v1/workspace/sync-drive")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "INDEXED"
+    assert data["folder_id"] == "1aBcDeFgHiJkLmNoPqRsTuVwXyZ"
+    assert len(data["products"]) >= 1
+    assert len(data["suppliers"]) >= 1

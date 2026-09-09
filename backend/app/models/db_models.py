@@ -18,6 +18,7 @@ class WorkspaceModel(Base):
     authority_level = Column(String(50), nullable=False, default="LEVEL_4_EXECUTIVE")
     cloud_docs_link = Column(String(500), nullable=True)
     company_structure = Column(Text, nullable=True)
+    database_extracted = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=get_utc_now)
 
     departments = relationship("DepartmentModel", back_populates="workspace", cascade="all, delete-orphan")
