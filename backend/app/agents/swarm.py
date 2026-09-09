@@ -21,11 +21,16 @@ class SwarmOrchestratorEngine:
 
         start_time = time.time()
 
-        cloud_link = "https://drive.google.com/drive/folders/1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc?usp=sharing"
-        company_name = "TechMart Electronics"
+        cloud_link = ""
+        company_name = "Enterprise Workspace"
         if workspace_config:
             cloud_link = workspace_config.get("cloud_docs_link", cloud_link)
             company_name = workspace_config.get("company_name", company_name)
+
+        import re
+        folder_id_match = re.search(r"folders/([a-zA-Z0-9_-]+)", cloud_link) if cloud_link else None
+        folder_id_str = f" (`{folder_id_match.group(1)}`)" if folder_id_match else ""
+        folder_id_log = folder_id_match.group(1) if folder_id_match else "dynamic"
 
         # 1. Sales Agent Analysis (Powered by Dedicated Sales Key)
         base_velocity = 85
@@ -115,7 +120,7 @@ class SwarmOrchestratorEngine:
             topic_title = "Nexus Enterprise AI Executive Assistant Brief"
             focus_section = (
                 f"#### Enterprise Operational Summary\n"
-                f"Grounded in enterprise records from your registered Google Drive Cloud Folder (`1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc`):\n\n"
+                f"Grounded in enterprise records from your registered Google Drive Cloud Folder{folder_id_str}:\n\n"
                 f"- **Product Focus**: P100 UltraGlide Headphones ({sales_velocity} units/day order velocity).\n"
                 f"- **Treasury Liquidity**: ₹8,50,000 Cash Balance (₹5,00,000 Statutory Lock, ₹1,80,000 Safe Cap).\n"
                 f"- **Sub-Agents Online**: Sales Intelligence, Supply Chain Inventory, Treasury Governance, and OR-Tools ILP Solver."
@@ -123,7 +128,7 @@ class SwarmOrchestratorEngine:
             include_allocation = False
 
         thinking_process = (
-            f"1. [ORCHESTRATOR AGENT] (Key: {settings.SWARM_ORCHESTRATOR_API_KEY[:10]}...) Parsed query topic: \"{topic_title}\" from Google Drive folder ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc.\n"
+            f"1. [ORCHESTRATOR AGENT] (Key: {settings.SWARM_ORCHESTRATOR_API_KEY[:10]}...) Parsed query topic: \"{topic_title}\" from Google Drive folder: {folder_id_log}.\n"
             f"2. [SALES INTELLIGENCE AGENT] (Key: {settings.SALES_INTELLIGENCE_API_KEY[:12]}...) Order velocity: {sales_velocity} units/day (+{surge_multiplier}% surge).\n"
             f"3. [SUPPLY CHAIN & INVENTORY AGENT] (Key: {settings.INVENTORY_SUPPLY_API_KEY[:12]}...) Stock ({current_stock} u) reaches safety floor in {depletion_horizon_days} days. Reorder deficit: {deficit_units} units.\n"
             f"4. [TREASURY & GOVERNANCE AGENT] (Key: {settings.TREASURY_FINANCE_API_KEY[:10]}...) Audited ₹8.50L ledger cash with ₹5.00L statutory lock. Safe spend ceiling: ₹1.80L.\n"
@@ -132,7 +137,7 @@ class SwarmOrchestratorEngine:
 
         executive_brief = (
             f"### {topic_title}\n\n"
-            f"Based on multi-agent analysis grounded in your registered **Google Drive Cloud Folder** (`1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc`), here is the verified operational analysis:\n\n"
+            f"Based on multi-agent analysis grounded in your registered **Google Drive Cloud Folder**{folder_id_str}, here is the verified operational analysis:\n\n"
             f"{focus_section}"
         )
 

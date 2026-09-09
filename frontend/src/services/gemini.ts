@@ -71,8 +71,8 @@ export class GeminiService {
     const activeKey = customApiKey || this.apiKey;
 
     // Get workspace config for Google Drive shared link
-    let driveLink = 'https://drive.google.com/drive/folders/1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc?usp=sharing';
-    let companyName = 'TechMart Electronics';
+    let driveLink = '';
+    let companyName = 'Enterprise Workspace';
     const savedConfig = localStorage.getItem('nexus_workspace_config');
     if (savedConfig) {
       try {
@@ -82,12 +82,17 @@ export class GeminiService {
       } catch (e) {}
     }
 
+    const folderMatch = driveLink ? driveLink.match(/folders\/([a-zA-Z0-9_-]+)/) : null;
+    const folderId = folderMatch ? folderMatch[1] : '';
+    const folderIdRef = folderId ? ` (Shared Folder ID: ${folderId})` : '';
+    const folderCiteText = folderId ? ` (\`${folderId}\`)` : '';
+
     const systemInstructionText = `You are Nexus 2.0 Executive AI Operations Orchestrator for ${companyName}.
-You assist the CEO (Rahul) in multi-agent supply chain orchestration, inventory stockout risk assessment, financial liquidity verification, and cloud documentation retrieval.
+You assist the CEO in multi-agent supply chain orchestration, inventory stockout risk assessment, financial liquidity verification, and cloud documentation retrieval.
 
 CONNECTED ENTERPRISE CLOUD DATABASE:
-- Registered Google Drive Shared Folder Link: ${driveLink}
-- Verified Cloud Folder: "Tech" (Shared Folder ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc)
+- Registered Google Drive Shared Folder Link: ${driveLink || 'User Cloud Database'}
+- Verified Cloud Folder${folderIdRef}
 - Ground Truth Cloud Documents Indexed:
   * "AI-Driven Unified Data Platform Specification"
   * "TechGeeks SIH 2026 Presentation deck & Architecture"
@@ -194,7 +199,7 @@ When answering:
 
       return {
         text: generatedText,
-        thinking: `1. [CLOUD DRIVE AGENT] Fetched folder metadata from Google Drive "Tech" folder (ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc).\n2. [SALES AGENT] Order velocity verified at 144 u/d (+70% promotional surge).\n3. [INVENTORY AGENT] Bin 4B stock (170 units) will deplete safety floor in 0.14 days. Reorder deficit: 988 units.\n4. [FINANCE AGENT] Verified ₹8.50L ledger cash with ₹5.00L protected reserve lock. Safe spend ceiling: ₹1.80L.\n5. [OR-TOOLS SOLVER] Allocated: 400 u (QuickLogix Net-30, ₹0 Upfront) + 400 u (Zenith 50% Adv, ₹87,300 Upfront). Total upfront: ₹87,300 <= ₹1,80,000 Cap. Feasibility: 100%.`,
+        thinking: `1. [CLOUD DRIVE AGENT] Fetched folder metadata from registered Google Drive Cloud Folder${folderIdRef}.\n2. [SALES AGENT] Order velocity verified at 144 u/d (+70% promotional surge).\n3. [INVENTORY AGENT] Bin 4B stock (170 units) will deplete safety floor in 0.14 days. Reorder deficit: 988 units.\n4. [FINANCE AGENT] Verified ₹8.50L ledger cash with ₹5.00L protected reserve lock. Safe spend ceiling: ₹1.80L.\n5. [OR-TOOLS SOLVER] Allocated: 400 u (QuickLogix Net-30, ₹0 Upfront) + 400 u (Zenith 50% Adv, ₹87,300 Upfront). Total upfront: ₹87,300 <= ₹1,80,000 Cap. Feasibility: 100%.`,
         thinkingTimeSec: thinkingTimeSec > 0.5 ? thinkingTimeSec : 2.18,
         totalUpfrontCash: isSolverQuery ? 87300 : 0,
         totalUnits: isSolverQuery ? 800 : 0,
@@ -229,7 +234,7 @@ When answering:
       const promptLower = prompt.toLowerCase();
 
       let topicTitle = "Nexus Enterprise AI Executive Assistant Brief";
-      let focusSection = `#### Enterprise Operational Summary\nGrounded in enterprise records from your registered Google Drive Cloud Folder (\`1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc\`):\n\n- **Product Focus**: P100 UltraGlide Headphones (144 units/day order velocity).\n- **Treasury Liquidity**: ₹8,50,000 Cash Balance (₹5,00,000 Statutory Lock, ₹1,80,000 Safe Cap).\n- **Sub-Agents Online**: Sales Intelligence, Supply Chain Inventory, Treasury Governance, and OR-Tools ILP Solver.`;
+      let focusSection = `#### Enterprise Operational Summary\nGrounded in enterprise records from your registered Google Drive Cloud Folder${folderCiteText}:\n\n- **Product Focus**: P100 UltraGlide Headphones (144 units/day order velocity).\n- **Treasury Liquidity**: ₹8,50,000 Cash Balance (₹5,00,000 Statutory Lock, ₹1,80,000 Safe Cap).\n- **Sub-Agents Online**: Sales Intelligence, Supply Chain Inventory, Treasury Governance, and OR-Tools ILP Solver.`;
       let isSolverQuery = false;
 
       if (promptLower.includes("strateg") || promptLower.includes("increase") || promptLower.includes("scale") || promptLower.includes("growth") || promptLower.includes("marketing") || promptLower.includes("50%")) {
@@ -251,8 +256,8 @@ When answering:
       }
 
       return {
-        text: `### ${topicTitle}\n\nBased on multi-agent analysis grounded in your registered **Google Drive Cloud Folder** (\`1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc\`), here is the verified analysis:\n\n${focusSection}`,
-        thinking: `1. [CLOUD DRIVE AGENT] Fetched folder metadata from Google Drive "Tech" folder (ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc).\n2. [SALES AGENT] Order velocity verified at 144 u/d (+70% promotional surge).\n3. [INVENTORY AGENT] Bin 4B stock (170 units) will deplete safety floor in 0.14 days. Reorder deficit: 988 units.\n4. [FINANCE AGENT] Verified ₹8.50L ledger cash with ₹5.00L protected reserve lock. Safe spend ceiling: ₹1.80L.\n5. [OR-TOOLS SOLVER] Allocated: 400 u (QuickLogix Net-30, ₹0 Upfront) + 400 u (Zenith 50% Adv, ₹87,300 Upfront). Total upfront: ₹87,300 <= ₹1,80,000 Cap. Feasibility: 100%.`,
+        text: `### ${topicTitle}\n\nBased on multi-agent analysis grounded in your registered **Google Drive Cloud Folder**${folderCiteText}, here is the verified analysis:\n\n${focusSection}`,
+        thinking: `1. [CLOUD DRIVE AGENT] Fetched folder metadata from registered Google Drive Cloud Folder${folderIdRef}.\n2. [SALES AGENT] Order velocity verified at 144 u/d (+70% promotional surge).\n3. [INVENTORY AGENT] Bin 4B stock (170 units) will deplete safety floor in 0.14 days. Reorder deficit: 988 units.\n4. [FINANCE AGENT] Verified ₹8.50L ledger cash with ₹5.00L protected reserve lock. Safe spend ceiling: ₹1.80L.\n5. [OR-TOOLS SOLVER] Allocated: 400 u (QuickLogix Net-30, ₹0 Upfront) + 400 u (Zenith 50% Adv, ₹87,300 Upfront). Total upfront: ₹87,300 <= ₹1,80,000 Cap. Feasibility: 100%.`,
         thinkingTimeSec: 2.18,
         totalUpfrontCash: isSolverQuery ? 87300 : 0,
         totalUnits: isSolverQuery ? 800 : 0,

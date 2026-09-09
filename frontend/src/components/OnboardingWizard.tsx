@@ -15,20 +15,24 @@ interface OnboardingWizardProps {
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const [step, setStep] = useState<number>(1);
-  const [userName, setUserName] = useState('Rahul Singh');
-  const [userRole, setUserRole] = useState('CEO & Founder');
-  const [companyName, setCompanyName] = useState('TechMart Electronics');
-  const [companyStructure, setCompanyStructure] = useState(
-    `CEO (Rahul) -> Swarm Orchestrator\n  ├── Sales Intelligence (Promotions & Velocity)\n  ├── Inventory & Supply Chain (Bin 4B & Safety Stock)\n  └── Treasury & Governance (Statutory Reserve & Cash Cap)`
-  );
-  const [cloudDocsLink, setCloudDocsLink] = useState('https://drive.google.com/drive/folders/1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc?usp=sharing');
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [companyStructure, setCompanyStructure] = useState('');
+  const [cloudDocsLink, setCloudDocsLink] = useState('');
+
+  const extractFolderId = (url: string) => {
+    const match = url.match(/folders\/([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : null;
+  };
+  const activeFolderId = extractFolderId(cloudDocsLink);
 
   const handleFinish = () => {
     const config: WorkspaceConfig = {
-      userName: userName.trim() || 'Rahul Singh',
-      userRole: userRole.trim() || 'CEO',
+      userName: userName.trim() || 'Executive User',
+      userRole: userRole.trim() || 'CEO & Founder',
       companyName: companyName.trim() || 'TechMart Electronics',
-      companyStructure: companyStructure.trim(),
+      companyStructure: companyStructure.trim() || `CEO -> Swarm Orchestrator\n  ├── Sales Intelligence\n  ├── Inventory & Supply Chain\n  └── Treasury & Governance`,
       cloudDocsLink: cloudDocsLink.trim(),
     };
     localStorage.setItem('nexus_workspace_config', JSON.stringify(config));
@@ -86,6 +90,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 type="text"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
+                placeholder="e.g. Rahul Singh"
                 className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
               />
             </div>
@@ -100,6 +105,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                   type="text"
                   value={userRole}
                   onChange={(e) => setUserRole(e.target.value)}
+                  placeholder="e.g. CEO & Founder"
                   className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
                 />
               </div>
@@ -113,6 +119,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. TechMart Electronics"
                   className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
                 />
               </div>
@@ -133,6 +140,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
               rows={5}
               value={companyStructure}
               onChange={(e) => setCompanyStructure(e.target.value)}
+              placeholder="e.g. CEO -> Swarm Orchestrator&#10;  ├── Sales Intelligence&#10;  ├── Inventory & Supply Chain&#10;  └── Treasury & Governance"
               className="w-full bg-[#131314] text-xs font-mono text-[#C4C7C5] p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4] resize-none leading-relaxed"
             />
           </div>
@@ -157,13 +165,22 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 type="text"
                 value={cloudDocsLink}
                 onChange={(e) => setCloudDocsLink(e.target.value)}
-                placeholder="https://drive.google.com/drive/folders/..."
+                placeholder="https://drive.google.com/drive/folders/your_folder_id"
                 className="w-full bg-[#131314] text-xs text-white p-3 rounded-xl border border-[#2D2E30] focus:outline-none focus:border-[#4285F4]"
               />
-              <div className="text-[10px] text-[#34A853] mt-2 flex items-center space-x-1">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>Google Drive Shared Link Active (Tech Folder ID: 1D8_pTP908E-N5CYrxtavhaJzDcBs3gQc)</span>
-              </div>
+              {cloudDocsLink.trim() ? (
+                <div className="text-[10px] text-[#34A853] mt-2 flex items-center space-x-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>
+                    Google Drive Shared Link Active {activeFolderId ? `(Folder ID: ${activeFolderId})` : ''}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-[10px] text-[#888888] mt-2 flex items-center space-x-1">
+                  <ShieldCheck className="w-3 h-3 text-[#A8C7FA]" />
+                  <span>Enter your shared Google Drive folder link to connect enterprise data.</span>
+                </div>
+              )}
             </div>
           </div>
         )}
