@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe, Lock, Cpu, Layers, Package } from 'lucide-react';
-import { api } from '../services/api';
+import { Sparkles, ArrowRight, Building, User, Database, CheckCircle2, ShieldCheck, Globe, Lock, Cpu, Layers, Package, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { api, DriveDatabaseSummary, DriveFileRecord } from '../services/api';
 
 export interface WorkspaceConfig {
   userName: string;
@@ -56,6 +56,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   );
   const [cloudDocsLink, setCloudDocsLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewSummary, setPreviewSummary] = useState<DriveDatabaseSummary | null>(null);
 
   const extractFolderId = (url: string) => {
     const match = url.match(/folders\/([a-zA-Z0-9_-]+)/);
@@ -63,10 +66,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   };
   const activeFolderId = extractFolderId(cloudDocsLink);
 
-  const handleFinish = async () => {
-    setIsSubmitting(true);
+  const buildConfig = (): WorkspaceConfig => {
     const chosenRoleObj = ROLES_LIST[selectedRoleIndex];
-    const config: WorkspaceConfig = {
+    return {
       userName: userName.trim() || 'Executive User',
       userRole: chosenRoleObj.role,
       authorityLevel: chosenRoleObj.authority,
@@ -76,6 +78,36 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
       companyStructure: companyStructure.trim(),
       cloudDocsLink: cloudDocsLink.trim(),
     };
+  };
+
+  const handlePreview = async () => {
+    setIsPreviewing(true);
+    setPreviewError(null);
+    setPreviewSummary(null);
+    const config = buildConfig();
+    try {
+      const summary = await api.previewWorkspace({
+        company_name: config.companyName,
+        primary_product: config.primaryProduct,
+        industry: config.industry,
+        cloud_docs_link: config.cloudDocsLink,
+      });
+      if (!summary) {
+        setPreviewError('Could not reach the Drive preview service. Check the link and try again.');
+        return;
+      }
+      setPreviewSummary(summary);
+      setStep(4);
+    } catch (err: any) {
+      setPreviewError(err?.message || 'Failed to preview Drive folder.');
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const handleFinish = async () => {
+    setIsSubmitting(true);
+    const config = buildConfig();
 
     // Save to local storage for instant access
     localStorage.setItem('nexus_workspace_config', JSON.stringify(config));
@@ -114,13 +146,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 Enterprise Setup Wizard
               </h2>
               <p className="text-xs text-slate-500 dark:text-[#888888]">
-                Step {step} of 3 • Autonomous Operating System Initialization
+                Step {step} of 4 • Autonomous Operating System Initialization
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-1.5">
-            {[1, 2, 3].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
                 className={`w-2.5 h-2.5 rounded-full transition-all ${
@@ -317,6 +349,84 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 </div>
               </div>
             </div>
+
+            {previewError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-transparent flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-rose-700 dark:text-rose-300">{previewError}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 4: REVIEW DISCOVERED FILES & EXTRACTED ENTITIES */}
+        {step === 4 && previewSummary && (
+          <div className="space-y-4">
+            <div className="text-xs text-blue-600 dark:text-[#A8C7FA] font-semibold uppercase tracking-wider flex items-center justify-between">
+              <span>4. Review Drive Ingestion</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                previewSummary.status === 'CONNECTED'
+                  ? 'text-emerald-700 dark:text-[#34A853] bg-emerald-50 dark:bg-[#34A853]/10 border-emerald-200 dark:border-transparent'
+                  : previewSummary.status === 'PARTIAL'
+                  ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-transparent'
+                  : 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-transparent'
+              }`}>
+                {previewSummary.status}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-center">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">{previewSummary.files_indexed}</div>
+                <div className="text-[9px] text-slate-500 dark:text-[#888888]">Files Scanned</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-center">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">{previewSummary.products_count}</div>
+                <div className="text-[9px] text-slate-500 dark:text-[#888888]">Products</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#131314] border border-slate-200 dark:border-[#2D2E30] text-center">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">{previewSummary.suppliers_count}</div>
+                <div className="text-[9px] text-slate-500 dark:text-[#888888]">Suppliers</div>
+              </div>
+            </div>
+
+            {previewSummary.files && previewSummary.files.length > 0 && (
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-[#2D2E30] bg-slate-50 dark:bg-[#131314] p-2 space-y-1">
+                {previewSummary.files.map((file: DriveFileRecord) => (
+                  <div key={file.id} className="flex items-center justify-between text-[10px] p-1.5 rounded-lg bg-white dark:bg-[#1E1F20] border border-slate-100 dark:border-[#2D2E30]">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <FileText className="w-3.5 h-3.5 text-blue-500 dark:text-[#4285F4] shrink-0" />
+                      <span className="truncate text-slate-700 dark:text-[#C4C7C5]">{file.name}</span>
+                    </div>
+                    <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${
+                      file.status === 'parsed'
+                        ? 'bg-emerald-50 dark:bg-[#34A853]/10 text-emerald-600 dark:text-[#34A853]'
+                        : file.status === 'failed'
+                        ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                        : 'bg-slate-100 dark:bg-[#2D2E30] text-slate-500 dark:text-[#888888]'
+                    }`}>
+                      {file.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {previewSummary.errors && previewSummary.errors.length > 0 && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-transparent space-y-1">
+                <div className="flex items-center space-x-1 text-[11px] font-semibold text-rose-700 dark:text-rose-400">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Extraction Notes</span>
+                </div>
+                {previewSummary.errors.map((err, idx) => (
+                  <div key={idx} className="text-[10px] text-rose-600 dark:text-rose-300">• {err}</div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-[10px] text-slate-500 dark:text-[#888888]">
+              Review the discovered files above. Click <strong>Launch Operating System</strong> to create your isolated workspace.
+            </p>
           </div>
         )}
 
@@ -340,6 +450,24 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
             >
               <span>Next Step</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : step === 3 ? (
+            <button
+              onClick={handlePreview}
+              disabled={isPreviewing || !activeFolderId}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-semibold text-white flex items-center space-x-1.5 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isPreviewing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Scanning Drive...</span>
+                </>
+              ) : (
+                <>
+                  <span>Review Extracted Data</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           ) : (
             <button

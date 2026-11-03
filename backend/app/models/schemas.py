@@ -64,6 +64,13 @@ class OnboardRequest(BaseModel):
     company_structure: Optional[str] = None
     cloud_docs_link: Optional[str] = None
 
+
+class WorkspacePreviewRequest(BaseModel):
+    company_name: str
+    primary_product: Optional[str] = "P100 UltraGlide Headphones"
+    industry: Optional[str] = "Consumer Technology & Electronics"
+    cloud_docs_link: Optional[str] = None
+
 class DynamicAgentNode(BaseModel):
     id: str
     name: str
@@ -94,6 +101,21 @@ class DriveSupplierItem(BaseModel):
     sla: str
     source_doc: Optional[str] = None
 
+class DriveFileRecord(BaseModel):
+    id: str
+    name: str
+    mime_type: str
+    status: str  # scanned, parsed, skipped, failed
+    detail: Optional[str] = None
+    size: Optional[int] = None
+    modified_time: Optional[str] = None
+    source_doc: Optional[str] = None
+
+class DriveFinancials(BaseModel):
+    ledger_cash: Optional[float] = None
+    statutory_reserve: Optional[float] = None
+    safe_cash_cap: Optional[float] = None
+
 class DriveDatabaseSummary(BaseModel):
     status: str
     folder_id: str
@@ -104,11 +126,17 @@ class DriveDatabaseSummary(BaseModel):
     suppliers_count: int
     products: List[DriveProductItem] = []
     suppliers: List[DriveSupplierItem] = []
+    files: List[DriveFileRecord] = []
+    financials: Optional[DriveFinancials] = None
+    manifest_used: bool = False
+    extraction_confidence: Optional[str] = None
+    errors: List[str] = []
 
 class OnboardResponse(BaseModel):
     success: bool
     message: str
     workspace_id: int
+    client_token: Optional[str] = None
     company_name: str
     primary_product: Optional[str] = None
     industry: Optional[str] = None

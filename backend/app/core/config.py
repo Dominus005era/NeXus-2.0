@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Database Configuration (Defaults to local SQLite, compatible with PostgreSQL / Neon)
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./storage/nexus_enterprise.db")
 
+    # Google Drive API key for reading public/shared company folders
+    GOOGLE_DRIVE_API_KEY: str = os.getenv("GOOGLE_DRIVE_API_KEY", "")
+
     # LLM API Keys - Loaded securely from environment variables (No hardcoded fallback secrets)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -19,6 +22,13 @@ class Settings(BaseSettings):
     SALES_INTELLIGENCE_API_KEY: str = os.getenv("SALES_INTELLIGENCE_API_KEY", "")
     INVENTORY_SUPPLY_API_KEY: str = os.getenv("INVENTORY_SUPPLY_API_KEY", "")
     TREASURY_FINANCE_API_KEY: str = os.getenv("TREASURY_FINANCE_API_KEY", "")
+
+    # Drive ingestion safety limits
+    DRIVE_MAX_FILE_SIZE_BYTES: int = int(os.getenv("DRIVE_MAX_FILE_SIZE_BYTES", "20_971_520"))  # 20 MB
+    DRIVE_MAX_TOTAL_SIZE_BYTES: int = int(os.getenv("DRIVE_MAX_TOTAL_SIZE_BYTES", "104_857_600"))  # 100 MB
+    DRIVE_MAX_FILES: int = int(os.getenv("DRIVE_MAX_FILES", "200"))
+    DRIVE_REQUEST_TIMEOUT_SECONDS: int = int(os.getenv("DRIVE_REQUEST_TIMEOUT_SECONDS", "30"))
+    DRIVE_CACHE_TTL_SECONDS: int = int(os.getenv("DRIVE_CACHE_TTL_SECONDS", "0"))  # 0 = no server cache
 
     # CORS Whitelist
     CORS_ORIGINS: str = os.getenv(

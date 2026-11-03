@@ -46,6 +46,10 @@ def init_db():
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN industry VARCHAR(100) DEFAULT 'Consumer Technology & Electronics'"))
                 if "database_extracted" not in cols:
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN database_extracted TEXT"))
+                if "client_token" not in cols:
+                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN client_token VARCHAR(64)"))
+                if "last_synced_at" not in cols:
+                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN last_synced_at DATETIME"))
                 conn.commit()
     except Exception:
         pass

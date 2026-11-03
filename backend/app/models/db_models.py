@@ -10,6 +10,7 @@ class WorkspaceModel(Base):
     __tablename__ = "workspaces"
 
     id = Column(Integer, primary_key=True, index=True)
+    client_token = Column(String(64), unique=True, index=True, nullable=True)
     company_name = Column(String(255), nullable=False, default="Enterprise Workspace")
     primary_product = Column(String(255), nullable=True, default="P100 UltraGlide Headphones")
     industry = Column(String(100), nullable=True, default="Consumer Technology & Electronics")
@@ -19,6 +20,7 @@ class WorkspaceModel(Base):
     cloud_docs_link = Column(String(500), nullable=True)
     company_structure = Column(Text, nullable=True)
     database_extracted = Column(JSON, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_utc_now)
 
     departments = relationship("DepartmentModel", back_populates="workspace", cascade="all, delete-orphan")

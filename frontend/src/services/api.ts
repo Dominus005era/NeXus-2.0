@@ -12,6 +12,34 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (isLocalhost ? 'http://localhost:8000/api/v1' : 'https://nexus-2-0-p7gy.onrender.com/api/v1');
 
+const WORKSPACE_TOKEN_KEY = 'nexus_workspace_token';
+
+function getWorkspaceToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(WORKSPACE_TOKEN_KEY);
+}
+
+function setWorkspaceToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(WORKSPACE_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(WORKSPACE_TOKEN_KEY);
+  }
+}
+
+function authHeaders(contentType = false): HeadersInit {
+  const headers: HeadersInit = {};
+  if (contentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const token = getWorkspaceToken();
+  if (token) {
+    headers['X-Workspace-Token'] = token;
+  }
+  return headers;
+}
+
 export interface WorkspaceOnboardPayload {
   user_name: string;
   user_role: string;
@@ -47,6 +75,23 @@ export interface DriveSupplierItem {
   source_doc?: string;
 }
 
+export interface DriveFileRecord {
+  id: string;
+  name: string;
+  mime_type: string;
+  status: 'scanned' | 'parsed' | 'skipped' | 'failed';
+  detail?: string;
+  size?: number;
+  modified_time?: string;
+  source_doc?: string;
+}
+
+export interface DriveFinancials {
+  ledger_cash?: number;
+  statutory_reserve?: number;
+  safe_cash_cap?: number;
+}
+
 export interface DriveDatabaseSummary {
   status: string;
   folder_id: string;
@@ -57,12 +102,25 @@ export interface DriveDatabaseSummary {
   suppliers_count: number;
   products: DriveProductItem[];
   suppliers: DriveSupplierItem[];
+  files?: DriveFileRecord[];
+  financials?: DriveFinancials;
+  manifest_used?: boolean;
+  extraction_confidence?: string | null;
+  errors?: string[];
+}
+
+export interface WorkspacePreviewPayload {
+  company_name: string;
+  primary_product?: string;
+  industry?: string;
+  cloud_docs_link?: string;
 }
 
 export interface OnboardResult {
   success: boolean;
   message: string;
   workspace_id?: number;
+  client_token?: string;
   company_name?: string;
   primary_product?: string;
   industry?: string;
@@ -81,7 +139,9 @@ export interface OnboardResult {
 export const api = {
   async getOverview(): Promise<OverviewMetrics> {
     try {
-      const res = await fetch(`${API_BASE_URL}/overview`);
+      const res = await fetch(`${API_BASE_URL}/overview`, {
+        headers: authHeaders(),
+      });
       if (!res.ok) throw new Error(`Overview API error: ${res.status}`);
       return await res.json();
     } catch (err) {
@@ -147,11 +207,15 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/workspace/onboard`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(true),
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Onboard failed: ${res.status}`);
-      return await res.json();
+      const data: OnboardResult = await res.json();
+      if (data.client_token) {
+        setWorkspaceToken(data.client_token);
+      }
+      return data;
     } catch (err) {
       console.warn('Backend onboarding fallback:', err);
       return {
@@ -164,11 +228,32 @@ export const api = {
     }
   },
 
+  async previewWorkspace(payload: WorkspacePreviewPayload): Promise<DriveDatabaseSummary | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspace/preview`, {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Preview failed: ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('Drive preview failed:', err);
+      return null;
+    }
+  },
+
   async getCurrentWorkspace(): Promise<any> {
     try {
-      const res = await fetch(`${API_BASE_URL}/workspace/current`);
+      const res = await fetch(`${API_BASE_URL}/workspace/current`, {
+        headers: authHeaders(),
+      });
       if (!res.ok) throw new Error('Workspace current fetch failed');
-      return await res.json();
+      const data = await res.json();
+      if (data.client_token) {
+        setWorkspaceToken(data.client_token);
+      }
+      return data;
     } catch {
       return null;
     }
@@ -178,7 +263,7 @@ export const api = {
     try {
       const res = await fetch(
         `${API_BASE_URL}/orchestrator/trigger?product_id=${encodeURIComponent(productId)}&trigger_event=${encodeURIComponent(triggerEvent)}&simulated_surge_pct=${surgePct}`,
-        { method: 'POST' }
+        { method: 'POST', headers: authHeaders() }
       );
       if (res.ok) {
         return await res.json();
@@ -334,6 +419,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/workspace/sync-drive`, {
         method: 'POST',
+        headers: authHeaders(),
       });
       if (!res.ok) throw new Error(`Sync drive failed: ${res.status}`);
       return await res.json();

@@ -1,10 +1,12 @@
 import datetime
+import secrets
 import time
 import uuid
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import Any, Dict, Optional
+from fastapi import APIRouter, Header, HTTPException, Depends, Query, Request
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.db_models import (
     WorkspaceModel,
@@ -18,6 +20,7 @@ from app.models.schemas import (
     ChatCompletionRequest,
     OnboardRequest,
     OnboardResponse,
+    WorkspacePreviewRequest,
     DynamicAgentNode,
     OverviewMetricsResponse,
     InventoryItemSchema,
@@ -38,6 +41,54 @@ from app.services.drive_reader import GoogleDriveDatabaseReader
 
 api_router = APIRouter()
 swarm_engine = SwarmOrchestratorEngine()
+
+
+def get_workspace_by_token(db: Session, client_token: Optional[str]) -> Optional[WorkspaceModel]:
+    if not client_token:
+        return None
+    return db.query(WorkspaceModel).filter(WorkspaceModel.client_token == client_token).first()
+
+
+def _generate_client_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def _is_cache_stale(workspace: WorkspaceModel) -> bool:
+    if settings.DRIVE_CACHE_TTL_SECONDS <= 0 or workspace.last_synced_at is None:
+        return True
+    age = (datetime.datetime.now(datetime.timezone.utc) - workspace.last_synced_at).total_seconds()
+    return age > settings.DRIVE_CACHE_TTL_SECONDS
+
+
+def _drive_summary_from_data(drive_data: Dict[str, Any]) -> DriveDatabaseSummary:
+    return DriveDatabaseSummary(
+        status=drive_data.get("status", "UNKNOWN"),
+        folder_id=drive_data.get("folder_id", ""),
+        cloud_docs_link=drive_data.get("cloud_docs_link", ""),
+        crawled_at=drive_data.get("crawled_at", ""),
+        files_indexed=drive_data.get("files_indexed", 0),
+        products_count=len(drive_data.get("products", [])),
+        suppliers_count=len(drive_data.get("suppliers", [])),
+        products=[DriveProductItem(**p) for p in drive_data.get("products", [])],
+        suppliers=[DriveSupplierItem(**s) for s in drive_data.get("suppliers", [])],
+        files=drive_data.get("files", []),
+        financials=drive_data.get("financials"),
+        manifest_used=drive_data.get("manifest_used", False),
+        extraction_confidence=drive_data.get("extraction_confidence"),
+        errors=drive_data.get("errors", []),
+    )
+
+
+def _workspace_config_for_swarm(workspace: Optional[WorkspaceModel]) -> Optional[Dict[str, Any]]:
+    if not workspace:
+        return None
+    return {
+        "user_role": workspace.user_role,
+        "company_name": workspace.company_name,
+        "primary_product": workspace.primary_product,
+        "cloud_docs_link": workspace.cloud_docs_link,
+        "database_extracted": workspace.database_extracted,
+    }
 
 # In-memory configuration cache with persistent default
 ACTIVE_MODEL_CONFIG = AgentModelConfig()
@@ -78,8 +129,11 @@ def health_check(db: Session = Depends(get_db)):
 # 2. Executive Overview Metrics
 # ---------------------------------------------------------------------------
 @api_router.get("/overview", response_model=OverviewMetricsResponse)
-def get_overview_metrics(db: Session = Depends(get_db)):
-    workspace = db.query(WorkspaceModel).first()
+def get_overview_metrics(
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
+):
+    workspace = get_workspace_by_token(db, x_workspace_token) or db.query(WorkspaceModel).first()
 
     cash_bal = 850000.0
     safe_cap = 180000.0
@@ -180,7 +234,11 @@ def update_agent_config(config: AgentModelConfig):
 # 4. Workspace Onboarding & Dynamic Agent Instantiation
 # ---------------------------------------------------------------------------
 @api_router.post("/workspace/onboard", response_model=OnboardResponse)
-def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
+def onboard_workspace(
+    req: OnboardRequest,
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
+):
     authority = req.authority_level or RoleBasedAccessController.get_authority_level(req.user_role)
 
     # Ingest Google Drive database
@@ -197,24 +255,9 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
     if not resolved_product:
         resolved_product = "P100 UltraGlide Headphones"
 
-    # Persist or update workspace
-    workspace = db.query(WorkspaceModel).first()
-    if not workspace:
-        workspace = WorkspaceModel(
-            company_name=req.company_name,
-            primary_product=resolved_product,
-            industry=req.industry or "Consumer Technology & Electronics",
-            user_name=req.user_name,
-            user_role=req.user_role,
-            authority_level=authority,
-            cloud_docs_link=req.cloud_docs_link,
-            company_structure=req.company_structure,
-            database_extracted=drive_data,
-        )
-        db.add(workspace)
-        db.commit()
-        db.refresh(workspace)
-    else:
+    # Token-aware create or update (no global workspace overwrite)
+    workspace = get_workspace_by_token(db, x_workspace_token)
+    if workspace:
         workspace.company_name = req.company_name
         workspace.primary_product = resolved_product
         workspace.industry = req.industry or workspace.industry
@@ -224,20 +267,27 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
         workspace.cloud_docs_link = req.cloud_docs_link
         workspace.company_structure = req.company_structure
         workspace.database_extracted = drive_data
+        workspace.last_synced_at = datetime.datetime.now(datetime.timezone.utc)
         db.commit()
+    else:
+        workspace = WorkspaceModel(
+            client_token=_generate_client_token(),
+            company_name=req.company_name,
+            primary_product=resolved_product,
+            industry=req.industry or "Consumer Technology & Electronics",
+            user_name=req.user_name,
+            user_role=req.user_role,
+            authority_level=authority,
+            cloud_docs_link=req.cloud_docs_link,
+            company_structure=req.company_structure,
+            database_extracted=drive_data,
+            last_synced_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+        db.add(workspace)
+        db.commit()
+        db.refresh(workspace)
 
-    # Construct Drive Summary
-    drive_summary = DriveDatabaseSummary(
-        status=drive_data.get("status", "INDEXED"),
-        folder_id=drive_data.get("folder_id", ""),
-        cloud_docs_link=drive_data.get("cloud_docs_link", req.cloud_docs_link or ""),
-        crawled_at=drive_data.get("crawled_at", ""),
-        files_indexed=drive_data.get("files_indexed", 0),
-        products_count=len(drive_data.get("products", [])),
-        suppliers_count=len(drive_data.get("suppliers", [])),
-        products=[DriveProductItem(**p) for p in drive_data.get("products", [])],
-        suppliers=[DriveSupplierItem(**s) for s in drive_data.get("suppliers", [])]
-    )
+    drive_summary = _drive_summary_from_data(drive_data)
 
     # Dynamically generate agent nodes based on enterprise departments and extracted Drive database
     folder_tag = f"Drive: {drive_summary.folder_id}" if drive_summary.folder_id else "Cloud Ingested"
@@ -286,7 +336,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
 
     rbac_permissions = [
         f"Role: {req.user_role} ({authority})",
-        f"Google Drive Database: Connected ({drive_summary.files_indexed} files indexed)",
+        f"Google Drive Database: {drive_summary.status} ({drive_summary.files_indexed} files indexed)",
         "Executive Strategy: Authorized",
         "Cross-Department Consensus: Enabled",
         "Real-Time Telemetry: Active",
@@ -302,6 +352,7 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
         success=True,
         message=f"Enterprise workspace initialized successfully for {req.company_name}. Extracted {len(drive_summary.products)} products and {len(drive_summary.suppliers)} suppliers from Google Drive database.",
         workspace_id=workspace.id,
+        client_token=workspace.client_token,
         company_name=workspace.company_name,
         primary_product=workspace.primary_product,
         industry=workspace.industry,
@@ -313,9 +364,27 @@ def onboard_workspace(req: OnboardRequest, db: Session = Depends(get_db)):
         rbac_permissions=rbac_permissions
     )
 
+@api_router.post("/workspace/preview", response_model=DriveDatabaseSummary)
+def preview_workspace_drive(req: WorkspacePreviewRequest):
+    """
+    Non-persistent Drive ingestion preview. Returns discovered files and
+    extracted entities so the user can review before creating a workspace.
+    """
+    drive_data = GoogleDriveDatabaseReader.ingest_drive_database(
+        cloud_docs_link=req.cloud_docs_link or "",
+        company_name=req.company_name,
+        industry=req.industry or "Enterprise Operations",
+        primary_product_hint=req.primary_product
+    )
+    return _drive_summary_from_data(drive_data)
+
+
 @api_router.get("/workspace/current")
-def get_current_workspace(db: Session = Depends(get_db)):
-    workspace = db.query(WorkspaceModel).first()
+def get_current_workspace(
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
+):
+    workspace = get_workspace_by_token(db, x_workspace_token)
     if not workspace:
         return {
             "configured": False,
@@ -338,14 +407,24 @@ def get_current_workspace(db: Session = Depends(get_db)):
         "authority_level": workspace.authority_level,
         "cloud_docs_link": workspace.cloud_docs_link,
         "database_extracted": workspace.database_extracted,
+        "client_token": workspace.client_token,
         "created_at": workspace.created_at.isoformat() if workspace.created_at else None
     }
 
 @api_router.post("/workspace/sync-drive", response_model=DriveDatabaseSummary)
-def sync_drive_database(db: Session = Depends(get_db)):
-    workspace = db.query(WorkspaceModel).first()
+def sync_drive_database(
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
+):
+    workspace = get_workspace_by_token(db, x_workspace_token)
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not onboarded yet.")
+
+    # Respect cache TTL unless explicitly syncing
+    if not _is_cache_stale(workspace):
+        cached = workspace.database_extracted
+        if cached and isinstance(cached, dict):
+            return _drive_summary_from_data(cached)
 
     drive_data = GoogleDriveDatabaseReader.ingest_drive_database(
         cloud_docs_link=workspace.cloud_docs_link or "",
@@ -354,32 +433,30 @@ def sync_drive_database(db: Session = Depends(get_db)):
         primary_product_hint=workspace.primary_product
     )
     workspace.database_extracted = drive_data
+    workspace.last_synced_at = datetime.datetime.now(datetime.timezone.utc)
     db.commit()
 
-    return DriveDatabaseSummary(
-        status=drive_data.get("status", "INDEXED"),
-        folder_id=drive_data.get("folder_id", ""),
-        cloud_docs_link=drive_data.get("cloud_docs_link", workspace.cloud_docs_link or ""),
-        crawled_at=drive_data.get("crawled_at", ""),
-        files_indexed=drive_data.get("files_indexed", 0),
-        products_count=len(drive_data.get("products", [])),
-        suppliers_count=len(drive_data.get("suppliers", [])),
-        products=[DriveProductItem(**p) for p in drive_data.get("products", [])],
-        suppliers=[DriveSupplierItem(**s) for s in drive_data.get("suppliers", [])]
-    )
+    return _drive_summary_from_data(drive_data)
 
 # ---------------------------------------------------------------------------
 # 5. Core Multi-Agent Swarm Execution
 # ---------------------------------------------------------------------------
 @api_router.post("/swarm/run", response_model=SwarmRunResponse)
-def run_swarm_pipeline(req: SwarmRunRequest, db: Session = Depends(get_db)):
+def run_swarm_pipeline(
+    req: SwarmRunRequest,
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
+):
+    workspace = get_workspace_by_token(db, x_workspace_token)
+    workspace_config = req.workspace_config or _workspace_config_for_swarm(workspace)
+
     try:
         res = swarm_engine.run_swarm(
             prompt=req.prompt,
             surge_multiplier=req.surge_multiplier or 70.0,
             user_role=req.user_role or "CEO & Founder",
             authority_level=req.authority_level,
-            workspace_config=req.workspace_config,
+            workspace_config=workspace_config,
             model_id=req.model_id or "gemini-3.6-flash"
         )
 
@@ -412,13 +489,20 @@ def run_swarm_pipeline(req: SwarmRunRequest, db: Session = Depends(get_db)):
 # 6. Executive Chat Gateway
 # ---------------------------------------------------------------------------
 @api_router.post("/chat/completions")
-def chat_completions(req: ChatCompletionRequest, db: Session = Depends(get_db)):
+def chat_completions(
+    req: ChatCompletionRequest,
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
+):
+    workspace = get_workspace_by_token(db, x_workspace_token)
+    workspace_config = req.workspace_config or _workspace_config_for_swarm(workspace)
+
     try:
         res = swarm_engine.run_swarm(
             prompt=req.prompt,
             user_role=req.user_role or "CEO & Founder",
             authority_level=req.authority_level,
-            workspace_config=req.workspace_config,
+            workspace_config=workspace_config,
             model_id=req.model_id or "gemini-3.6-flash"
         )
 
@@ -468,15 +552,21 @@ def trigger_orchestrator(
     product_id: str = Query("P100"),
     trigger_event: str = Query("VIRAL_DEMAND_SPIKE_P100"),
     simulated_surge_pct: float = Query(70.0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_workspace_token: Optional[str] = Header(None),
 ):
     """
     Direct event trigger endpoint conforming to frontend api.triggerOrchestrator contract.
+    Resolves workspace by token so each tenant sees its own data.
     """
+    workspace = get_workspace_by_token(db, x_workspace_token) or db.query(WorkspaceModel).first()
+    workspace_config = _workspace_config_for_swarm(workspace)
+
     prompt = f"Demand surge of {simulated_surge_pct}% detected for {product_id} ({trigger_event}). Solve optimal supplier split within ₹1.80L safe cash ceiling."
     swarm_res = swarm_engine.run_swarm(
         prompt=prompt,
-        surge_multiplier=simulated_surge_pct
+        surge_multiplier=simulated_surge_pct,
+        workspace_config=workspace_config,
     )
 
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -516,6 +606,11 @@ def trigger_orchestrator(
 
     calculated_deficit = swarm_res.get("total_units", 0)
     current_velocity = int(round(85 * (1 + simulated_surge_pct / 100)))
+
+    fin = (workspace_config or {}).get("database_extracted", {}).get("financials", {}) if workspace_config else {}
+    ledger_cash = fin.get("ledger_cash", 850000.0)
+    statutory_buffer = fin.get("statutory_reserve", 500000.0)
+    safe_cash_cap = fin.get("safe_cash_cap", 180000.0)
 
     return {
         "event_id": event_id,
@@ -562,16 +657,16 @@ def trigger_orchestrator(
         },
         "finance_evidence": {
             "agent": "FinanceAgent",
-            "total_cash_balance": 850000.0,
-            "statutory_buffer": 500000.0,
-            "unallocated_free_cash": 350000.0,
-            "max_procurement_budget": 180000.0,
+            "total_cash_balance": ledger_cash,
+            "statutory_buffer": statutory_buffer,
+            "unallocated_free_cash": round(ledger_cash - statutory_buffer, 2),
+            "max_procurement_budget": safe_cash_cap,
             "accounts_payable": 120000.0,
             "accounts_receivable": 310000.0,
             "preferred_payment_terms": "NET_30",
             "rationale": [
-                "Statutory operating liquidity of ₹5.00 Lakh strictly locked and protected.",
-                "Safe immediate cash spend ceiling allocated at ₹1.80 Lakh.",
+                f"Statutory operating liquidity of ₹{statutory_buffer:,.2f} strictly locked and protected.",
+                f"Safe immediate cash spend ceiling allocated at ₹{safe_cash_cap:,.2f}.",
                 "Approved Net-30 credit facility with QuickLogix (Supplier B) utilized for capital protection."
             ]
         },
@@ -591,7 +686,7 @@ def trigger_orchestrator(
             "optimization_explanation": swarm_res.get("optimization_proof", {}).get("solver_name", "SciPy HiGHS MILP") + ": Formally proved optimal split allocation.",
             "tradeoffs_identified": [
                 "Utilized Net-30 credit to avoid depleting upfront cash reserves.",
-                "Kept upfront cash safely below strict ₹1.80L liquid cash ceiling.",
+                "Kept upfront cash safely below strict safe cash ceiling.",
                 "Filtered out 14-day sea freight supplier to guarantee 2-3 day replenishment."
             ],
             "allocation_plan": allocation_list
