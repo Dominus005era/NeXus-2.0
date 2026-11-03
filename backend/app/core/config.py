@@ -10,6 +10,14 @@ class Settings(BaseSettings):
     # Database Configuration (Defaults to local SQLite, compatible with PostgreSQL / Neon)
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./storage/nexus_enterprise.db")
 
+    # Supabase Auth / Database
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
+    SUPABASE_DB_URL: str = os.getenv("SUPABASE_DB_URL", "")
+    NEXUS_AUTH_DISABLED: bool = os.getenv("NEXUS_AUTH_DISABLED", "false").lower() in ("1", "true", "yes")
+
     # Google Drive API key for reading public/shared company folders
     GOOGLE_DRIVE_API_KEY: str = os.getenv("GOOGLE_DRIVE_API_KEY", "")
 
@@ -41,6 +49,14 @@ class Settings(BaseSettings):
         if not self.CORS_ORIGINS or self.CORS_ORIGINS == "*":
             return ["*"]
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def supabase_configured(self) -> bool:
+        return bool(self.SUPABASE_URL and self.SUPABASE_ANON_KEY)
+
+    @property
+    def supabase_base_url(self) -> str:
+        return self.SUPABASE_URL.rstrip("/")
 
     class Config:
         case_sensitive = True

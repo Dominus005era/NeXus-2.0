@@ -136,7 +136,6 @@ class OnboardResponse(BaseModel):
     success: bool
     message: str
     workspace_id: int
-    client_token: Optional[str] = None
     company_name: str
     primary_product: Optional[str] = None
     industry: Optional[str] = None

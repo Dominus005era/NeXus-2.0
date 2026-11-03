@@ -10,7 +10,7 @@ class WorkspaceModel(Base):
     __tablename__ = "workspaces"
 
     id = Column(Integer, primary_key=True, index=True)
-    client_token = Column(String(64), unique=True, index=True, nullable=True)
+    owner_id = Column(String(36), unique=True, index=True, nullable=True)
     company_name = Column(String(255), nullable=False, default="Enterprise Workspace")
     primary_product = Column(String(255), nullable=True, default="P100 UltraGlide Headphones")
     industry = Column(String(100), nullable=True, default="Consumer Technology & Electronics")
@@ -42,6 +42,7 @@ class DecisionAuditModel(Base):
     __tablename__ = "decision_audits"
 
     id = Column(String(100), primary_key=True, index=True)
+    owner_id = Column(String(36), index=True, nullable=True)
     product_id = Column(String(50), nullable=False, default="P100")
     trigger_event = Column(String(255), nullable=False)
     deficit_units = Column(Integer, nullable=False)
@@ -58,6 +59,7 @@ class ChatMessageRecordModel(Base):
     __tablename__ = "chat_messages"
 
     id = Column(String(100), primary_key=True, index=True)
+    owner_id = Column(String(36), index=True, nullable=True)
     session_id = Column(String(100), index=True, nullable=False)
     role = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)

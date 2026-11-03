@@ -102,19 +102,6 @@ class SwarmOrchestratorEngine:
             cloud_link = workspace_config.get("cloudDocsLink") or workspace_config.get("cloud_docs_link") or ""
             product_name = workspace_config.get("primaryProduct") or workspace_config.get("primary_product") or product_name
             drive_db = workspace_config.get("database_extracted") or workspace_config.get("drive_database")
-        else:
-            try:
-                from app.core.database import SessionLocal
-                from app.models.db_models import WorkspaceModel
-                with SessionLocal() as db:
-                    ws = db.query(WorkspaceModel).first()
-                    if ws:
-                        company_name = ws.company_name or company_name
-                        product_name = ws.primary_product or product_name
-                        cloud_link = ws.cloud_docs_link or cloud_link
-                        drive_db = ws.database_extracted or drive_db
-            except Exception:
-                pass
 
         resolved_authority = authority_level or RoleBasedAccessController.get_authority_level(effective_role)
 

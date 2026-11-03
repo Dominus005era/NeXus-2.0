@@ -7,7 +7,7 @@ from app.core.config import settings
 storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "storage")
 os.makedirs(storage_dir, exist_ok=True)
 
-db_url = settings.DATABASE_URL
+db_url = settings.SUPABASE_DB_URL or settings.DATABASE_URL
 # Handle SQLite connect args
 connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
 
@@ -34,6 +34,9 @@ from app.models import db_models  # noqa: F401
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    if not db_url.startswith("sqlite"):
+        # Supabase/Postgres schemas are managed by supabase/migrations.
+        return
     # Auto-migrate columns if local SQLite table was created in an earlier build
     try:
         with engine.connect() as conn:
@@ -46,11 +49,18 @@ def init_db():
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN industry VARCHAR(100) DEFAULT 'Consumer Technology & Electronics'"))
                 if "database_extracted" not in cols:
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN database_extracted TEXT"))
-                if "client_token" not in cols:
-                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN client_token VARCHAR(64)"))
                 if "last_synced_at" not in cols:
                     conn.execute(text("ALTER TABLE workspaces ADD COLUMN last_synced_at DATETIME"))
+                if "owner_id" not in cols:
+                    conn.execute(text("ALTER TABLE workspaces ADD COLUMN owner_id VARCHAR(36)"))
                 conn.commit()
+
+            for table in ("decision_audits", "chat_messages"):
+                result = conn.execute(text(f"PRAGMA table_info({table})"))
+                table_cols = [row[1] for row in result.fetchall()]
+                if table_cols and "owner_id" not in table_cols:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN owner_id VARCHAR(36)"))
+            conn.commit()
     except Exception:
         pass
 

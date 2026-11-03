@@ -1,11 +1,11 @@
 import datetime
-import secrets
 import time
 import uuid
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Header, HTTPException, Depends, Query, Request
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.auth import AuthenticatedUser, get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.db_models import (
@@ -43,14 +43,10 @@ api_router = APIRouter()
 swarm_engine = SwarmOrchestratorEngine()
 
 
-def get_workspace_by_token(db: Session, client_token: Optional[str]) -> Optional[WorkspaceModel]:
-    if not client_token:
+def get_workspace_for_user(db: Session, owner_id: Optional[str]) -> Optional[WorkspaceModel]:
+    if not owner_id:
         return None
-    return db.query(WorkspaceModel).filter(WorkspaceModel.client_token == client_token).first()
-
-
-def _generate_client_token() -> str:
-    return secrets.token_urlsafe(32)
+    return db.query(WorkspaceModel).filter(WorkspaceModel.owner_id == owner_id).first()
 
 
 def _is_cache_stale(workspace: WorkspaceModel) -> bool:
@@ -131,9 +127,9 @@ def health_check(db: Session = Depends(get_db)):
 @api_router.get("/overview", response_model=OverviewMetricsResponse)
 def get_overview_metrics(
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
-    workspace = get_workspace_by_token(db, x_workspace_token) or db.query(WorkspaceModel).first()
+    workspace = get_workspace_for_user(db, user.id)
 
     cash_bal = 850000.0
     safe_cap = 180000.0
@@ -225,7 +221,10 @@ def get_agent_config():
     )
 
 @api_router.post("/agents/config")
-def update_agent_config(config: AgentModelConfig):
+def update_agent_config(
+    config: AgentModelConfig,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     global ACTIVE_MODEL_CONFIG
     ACTIVE_MODEL_CONFIG = config
     return {"success": True, "message": "Agent model configurations updated", "active_config": ACTIVE_MODEL_CONFIG}
@@ -237,7 +236,7 @@ def update_agent_config(config: AgentModelConfig):
 def onboard_workspace(
     req: OnboardRequest,
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     authority = req.authority_level or RoleBasedAccessController.get_authority_level(req.user_role)
 
@@ -255,8 +254,8 @@ def onboard_workspace(
     if not resolved_product:
         resolved_product = "P100 UltraGlide Headphones"
 
-    # Token-aware create or update (no global workspace overwrite)
-    workspace = get_workspace_by_token(db, x_workspace_token)
+    # Each authenticated Supabase user owns exactly one workspace
+    workspace = get_workspace_for_user(db, user.id)
     if workspace:
         workspace.company_name = req.company_name
         workspace.primary_product = resolved_product
@@ -271,7 +270,7 @@ def onboard_workspace(
         db.commit()
     else:
         workspace = WorkspaceModel(
-            client_token=_generate_client_token(),
+            owner_id=user.id,
             company_name=req.company_name,
             primary_product=resolved_product,
             industry=req.industry or "Consumer Technology & Electronics",
@@ -352,7 +351,6 @@ def onboard_workspace(
         success=True,
         message=f"Enterprise workspace initialized successfully for {req.company_name}. Extracted {len(drive_summary.products)} products and {len(drive_summary.suppliers)} suppliers from Google Drive database.",
         workspace_id=workspace.id,
-        client_token=workspace.client_token,
         company_name=workspace.company_name,
         primary_product=workspace.primary_product,
         industry=workspace.industry,
@@ -365,7 +363,10 @@ def onboard_workspace(
     )
 
 @api_router.post("/workspace/preview", response_model=DriveDatabaseSummary)
-def preview_workspace_drive(req: WorkspacePreviewRequest):
+def preview_workspace_drive(
+    req: WorkspacePreviewRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Non-persistent Drive ingestion preview. Returns discovered files and
     extracted entities so the user can review before creating a workspace.
@@ -382,9 +383,9 @@ def preview_workspace_drive(req: WorkspacePreviewRequest):
 @api_router.get("/workspace/current")
 def get_current_workspace(
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
-    workspace = get_workspace_by_token(db, x_workspace_token)
+    workspace = get_workspace_for_user(db, user.id)
     if not workspace:
         return {
             "configured": False,
@@ -407,16 +408,15 @@ def get_current_workspace(
         "authority_level": workspace.authority_level,
         "cloud_docs_link": workspace.cloud_docs_link,
         "database_extracted": workspace.database_extracted,
-        "client_token": workspace.client_token,
         "created_at": workspace.created_at.isoformat() if workspace.created_at else None
     }
 
 @api_router.post("/workspace/sync-drive", response_model=DriveDatabaseSummary)
 def sync_drive_database(
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
-    workspace = get_workspace_by_token(db, x_workspace_token)
+    workspace = get_workspace_for_user(db, user.id)
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not onboarded yet.")
 
@@ -445,10 +445,10 @@ def sync_drive_database(
 def run_swarm_pipeline(
     req: SwarmRunRequest,
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
-    workspace = get_workspace_by_token(db, x_workspace_token)
-    workspace_config = req.workspace_config or _workspace_config_for_swarm(workspace)
+    workspace = get_workspace_for_user(db, user.id)
+    workspace_config = _workspace_config_for_swarm(workspace) or req.workspace_config
 
     try:
         res = swarm_engine.run_swarm(
@@ -465,6 +465,7 @@ def run_swarm_pipeline(
             audit_id = f"DEC-{int(time.time())}-{uuid.uuid4().hex[:4]}"
             audit = DecisionAuditModel(
                 id=audit_id,
+                owner_id=user.id,
                 product_id="P100",
                 trigger_event=req.prompt[:250],
                 deficit_units=res.get("total_units", 0),
@@ -492,10 +493,10 @@ def run_swarm_pipeline(
 def chat_completions(
     req: ChatCompletionRequest,
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
-    workspace = get_workspace_by_token(db, x_workspace_token)
-    workspace_config = req.workspace_config or _workspace_config_for_swarm(workspace)
+    workspace = get_workspace_for_user(db, user.id)
+    workspace_config = _workspace_config_for_swarm(workspace) or req.workspace_config
 
     try:
         res = swarm_engine.run_swarm(
@@ -511,6 +512,7 @@ def chat_completions(
         try:
             db.add(ChatMessageRecordModel(
                 id=f"msg-{uuid.uuid4().hex}",
+                owner_id=user.id,
                 session_id=session_id,
                 role="user",
                 content=req.prompt,
@@ -518,6 +520,7 @@ def chat_completions(
             ))
             db.add(ChatMessageRecordModel(
                 id=f"msg-{uuid.uuid4().hex}",
+                owner_id=user.id,
                 session_id=session_id,
                 role="assistant",
                 content=res["executive_brief"],
@@ -553,13 +556,13 @@ def trigger_orchestrator(
     trigger_event: str = Query("VIRAL_DEMAND_SPIKE_P100"),
     simulated_surge_pct: float = Query(70.0),
     db: Session = Depends(get_db),
-    x_workspace_token: Optional[str] = Header(None),
+    user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Direct event trigger endpoint conforming to frontend api.triggerOrchestrator contract.
-    Resolves workspace by token so each tenant sees its own data.
+    Resolves workspace by authenticated Supabase user so each tenant sees its own data.
     """
-    workspace = get_workspace_by_token(db, x_workspace_token) or db.query(WorkspaceModel).first()
+    workspace = get_workspace_for_user(db, user.id)
     workspace_config = _workspace_config_for_swarm(workspace)
 
     prompt = f"Demand surge of {simulated_surge_pct}% detected for {product_id} ({trigger_event}). Solve optimal supplier split within ₹1.80L safe cash ceiling."
@@ -591,6 +594,7 @@ def trigger_orchestrator(
     try:
         db.add(DecisionAuditModel(
             id=decision_id,
+            owner_id=user.id,
             product_id=product_id,
             trigger_event=trigger_event,
             deficit_units=swarm_res.get("total_units", 0),
@@ -698,9 +702,15 @@ def trigger_orchestrator(
 # 8. Human-In-The-Loop Decision Actions (Approve / Reject / Modify)
 # ---------------------------------------------------------------------------
 @api_router.post("/decisions/action", response_model=DecisionActionResponse)
-def review_decision(req: DecisionActionRequest, db: Session = Depends(get_db)):
+def review_decision(
+    req: DecisionActionRequest,
+    db: Session = Depends(get_db),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     decision = db.query(DecisionAuditModel).filter(DecisionAuditModel.id == req.decision_id).first()
     if decision:
+        if decision.owner_id != user.id:
+            raise HTTPException(status_code=404, detail="Decision not found.")
         decision.reviewer_action = req.action
         decision.reviewer_notes = req.reviewer_notes
         db.commit()
@@ -708,6 +718,7 @@ def review_decision(req: DecisionActionRequest, db: Session = Depends(get_db)):
         # Create record if not pre-existing
         decision = DecisionAuditModel(
             id=req.decision_id,
+            owner_id=user.id,
             product_id="P100",
             trigger_event="Manual Review Trigger",
             deficit_units=845,
@@ -731,7 +742,10 @@ def review_decision(req: DecisionActionRequest, db: Session = Depends(get_db)):
 # 9. RBAC-Governed Department Knowledge Query
 # ---------------------------------------------------------------------------
 @api_router.post("/knowledge/query", response_model=KnowledgeQueryResponse)
-def query_knowledge(req: KnowledgeQueryRequest):
+def query_knowledge(
+    req: KnowledgeQueryRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
     dept = req.department.lower()
     agent = req.requesting_agent.lower()
 
