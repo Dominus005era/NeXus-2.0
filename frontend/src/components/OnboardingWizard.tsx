@@ -54,7 +54,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   const [companyStructure, setCompanyStructure] = useState(
     'CEO -> Swarm Orchestrator\n  ├── Sales Intelligence (Promotional Elasticity)\n  ├── Inventory & Logistics (Bin 4B Stockout Horizon)\n  └── Treasury & Governance (Statutory Reserve Lock)'
   );
-  const [cloudDocsLink, setCloudDocsLink] = useState('https://drive.google.com/drive/folders/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs7');
+  const [cloudDocsLink, setCloudDocsLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const extractFolderId = (url: string) => {
