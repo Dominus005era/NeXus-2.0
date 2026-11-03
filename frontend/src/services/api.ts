@@ -4,6 +4,7 @@ import {
   AgentModelConfig,
   AvailableModel,
 } from '../types';
+import { getAccessToken } from './supabase';
 
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
@@ -12,32 +13,16 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (isLocalhost ? 'http://localhost:8000/api/v1' : 'https://nexus-2-0-p7gy.onrender.com/api/v1');
 
-const WORKSPACE_TOKEN_KEY = 'nexus_workspace_token';
-
-function getWorkspaceToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(WORKSPACE_TOKEN_KEY);
-}
-
-function setWorkspaceToken(token: string | null) {
-  if (typeof window === 'undefined') return;
+async function apiFetch(url: string, init: RequestInit = {}, json = false): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (json) {
+    headers.set('Content-Type', 'application/json');
+  }
+  const token = await getAccessToken();
   if (token) {
-    localStorage.setItem(WORKSPACE_TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(WORKSPACE_TOKEN_KEY);
+    headers.set('Authorization', `Bearer ${token}`);
   }
-}
-
-function authHeaders(contentType = false): HeadersInit {
-  const headers: HeadersInit = {};
-  if (contentType) {
-    headers['Content-Type'] = 'application/json';
-  }
-  const token = getWorkspaceToken();
-  if (token) {
-    headers['X-Workspace-Token'] = token;
-  }
-  return headers;
+  return fetch(url, { ...init, headers });
 }
 
 export interface WorkspaceOnboardPayload {
@@ -120,7 +105,6 @@ export interface OnboardResult {
   success: boolean;
   message: string;
   workspace_id?: number;
-  client_token?: string;
   company_name?: string;
   primary_product?: string;
   industry?: string;
@@ -139,9 +123,7 @@ export interface OnboardResult {
 export const api = {
   async getOverview(): Promise<OverviewMetrics> {
     try {
-      const res = await fetch(`${API_BASE_URL}/overview`, {
-        headers: authHeaders(),
-      });
+      const res = await apiFetch(`${API_BASE_URL}/overview`);
       if (!res.ok) throw new Error(`Overview API error: ${res.status}`);
       return await res.json();
     } catch (err) {
@@ -192,11 +174,10 @@ export const api = {
 
   async updateModelConfig(config: AgentModelConfig): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE_URL}/agents/config`, {
+      const res = await apiFetch(`${API_BASE_URL}/agents/config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
-      });
+      }, true);
       return res.ok;
     } catch {
       return false;
@@ -205,36 +186,38 @@ export const api = {
 
   async onboardWorkspace(payload: WorkspaceOnboardPayload): Promise<OnboardResult> {
     try {
-      const res = await fetch(`${API_BASE_URL}/workspace/onboard`, {
+      const res = await apiFetch(`${API_BASE_URL}/workspace/onboard`, {
         method: 'POST',
-        headers: authHeaders(true),
         body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`Onboard failed: ${res.status}`);
-      const data: OnboardResult = await res.json();
-      if (data.client_token) {
-        setWorkspaceToken(data.client_token);
+      }, true);
+      if (!res.ok) {
+        let message = `Onboarding failed (HTTP ${res.status}).`;
+        try {
+          const body = await res.json();
+          if (body?.detail) message = String(body.detail);
+        } catch {
+          // response body was not JSON
+        }
+        if (res.status === 401 || res.status === 403) {
+          message = 'Your session is no longer valid. Sign out and sign in again.';
+        }
+        return { success: false, message };
       }
-      return data;
-    } catch (err) {
-      console.warn('Backend onboarding fallback:', err);
+      return await res.json();
+    } catch (err: any) {
       return {
-        success: true,
-        message: `Workspace initialized for ${payload.company_name}`,
-        company_name: payload.company_name,
-        primary_product: payload.primary_product,
-        industry: payload.industry,
+        success: false,
+        message: err?.message || 'Could not reach the Nexus backend. Your workspace was not saved.',
       };
     }
   },
 
   async previewWorkspace(payload: WorkspacePreviewPayload): Promise<DriveDatabaseSummary | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/workspace/preview`, {
+      const res = await apiFetch(`${API_BASE_URL}/workspace/preview`, {
         method: 'POST',
-        headers: authHeaders(true),
         body: JSON.stringify(payload),
-      });
+      }, true);
       if (!res.ok) throw new Error(`Preview failed: ${res.status}`);
       return await res.json();
     } catch (err) {
@@ -245,15 +228,9 @@ export const api = {
 
   async getCurrentWorkspace(): Promise<any> {
     try {
-      const res = await fetch(`${API_BASE_URL}/workspace/current`, {
-        headers: authHeaders(),
-      });
+      const res = await apiFetch(`${API_BASE_URL}/workspace/current`);
       if (!res.ok) throw new Error('Workspace current fetch failed');
-      const data = await res.json();
-      if (data.client_token) {
-        setWorkspaceToken(data.client_token);
-      }
-      return data;
+      return await res.json();
     } catch {
       return null;
     }
@@ -261,9 +238,9 @@ export const api = {
 
   async triggerOrchestrator(productId = 'P100', triggerEvent = 'VIRAL_DEMAND_SPIKE_P100', surgePct = 70): Promise<OrchestratorResponse> {
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_BASE_URL}/orchestrator/trigger?product_id=${encodeURIComponent(productId)}&trigger_event=${encodeURIComponent(triggerEvent)}&simulated_surge_pct=${surgePct}`,
-        { method: 'POST', headers: authHeaders() }
+        { method: 'POST' }
       );
       if (res.ok) {
         return await res.json();
@@ -380,11 +357,10 @@ export const api = {
 
   async reviewDecision(decisionId: string, action: 'APPROVED' | 'REJECTED' | 'MODIFIED', notes?: string) {
     try {
-      const res = await fetch(`${API_BASE_URL}/decisions/action`, {
+      const res = await apiFetch(`${API_BASE_URL}/decisions/action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision_id: decisionId, action, reviewer_notes: notes }),
-      });
+      }, true);
       return await res.json();
     } catch {
       return { success: true, decision_id: decisionId, action };
@@ -393,16 +369,15 @@ export const api = {
 
   async queryKnowledge(agent: string, dept: string, query: string, crossReason?: string) {
     try {
-      const res = await fetch(`${API_BASE_URL}/knowledge/query`, {
+      const res = await apiFetch(`${API_BASE_URL}/knowledge/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           requesting_agent: agent,
           department: dept,
           query_text: query,
           cross_domain_reason: crossReason,
         }),
-      });
+      }, true);
       return await res.json();
     } catch {
       return {
@@ -417,9 +392,8 @@ export const api = {
 
   async syncDriveDatabase(): Promise<DriveDatabaseSummary | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/workspace/sync-drive`, {
+      const res = await apiFetch(`${API_BASE_URL}/workspace/sync-drive`, {
         method: 'POST',
-        headers: authHeaders(),
       });
       if (!res.ok) throw new Error(`Sync drive failed: ${res.status}`);
       return await res.json();

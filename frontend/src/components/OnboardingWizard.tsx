@@ -58,6 +58,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [previewSummary, setPreviewSummary] = useState<DriveDatabaseSummary | null>(null);
 
   const extractFolderId = (url: string) => {
@@ -107,14 +108,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
 
   const handleFinish = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
     const config = buildConfig();
 
-    // Save to local storage for instant access
-    localStorage.setItem('nexus_workspace_config', JSON.stringify(config));
-
-    // Register with backend persistence
+    // The backend is the source of truth: only cache after the workspace is persisted
     try {
-      await api.onboardWorkspace({
+      const result = await api.onboardWorkspace({
         user_name: config.userName,
         user_role: config.userRole,
         authority_level: config.authorityLevel,
@@ -124,11 +123,16 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
         company_structure: config.companyStructure,
         cloud_docs_link: config.cloudDocsLink,
       });
-    } catch (err) {
-      console.warn('Backend onboard sync non-blocking error:', err);
+      if (!result?.success) {
+        setSubmitError(result?.message || 'Workspace could not be created. Please try again.');
+        return;
+      }
+      localStorage.setItem('nexus_workspace_config', JSON.stringify(config));
+      onComplete(config);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Workspace could not be created. Please try again.');
     } finally {
       setIsSubmitting(false);
-      onComplete(config);
     }
   };
 
@@ -427,6 +431,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
             <p className="text-[10px] text-slate-500 dark:text-[#888888]">
               Review the discovered files above. Click <strong>Launch Operating System</strong> to create your isolated workspace.
             </p>
+          </div>
+        )}
+
+        {submitError && (
+          <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-transparent p-3 text-[11px] text-rose-700 dark:text-rose-300 flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>{submitError}</span>
           </div>
         )}
 
