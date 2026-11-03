@@ -450,3 +450,40 @@ def test_auth_fails_closed_without_supabase_config(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         asyncio.run(auth_module.get_current_user(authorization="Bearer any-token"))
     assert exc.value.status_code == 503
+
+
+def test_swarm_and_chat_streaming_sse():
+    """Verify Server-Sent Events (SSE) streaming for real-time multi-agent reasoning."""
+    _current_owner["id"] = "test-owner-stream"
+
+    # Test /swarm/stream
+    with client.stream(
+        "POST",
+        "/api/v1/swarm/stream",
+        json={"prompt": "Surge +70% on P100. Solve optimal split.", "surge_multiplier": 70.0}
+    ) as response:
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+        events = []
+        for line in response.iter_lines():
+            if line.startswith("data: "):
+                events.append(line)
+        assert len(events) >= 5
+        assert any("Nexus Swarm Orchestrator" in ev for ev in events)
+        assert any("complete" in ev for ev in events)
+
+    # Test /chat/stream
+    with client.stream(
+        "POST",
+        "/api/v1/chat/stream",
+        json={"prompt": "What is our current cash cap and inventory status?"}
+    ) as chat_res:
+        assert chat_res.status_code == 200
+        assert "text/event-stream" in chat_res.headers["content-type"]
+        chat_events = []
+        for line in chat_res.iter_lines():
+            if line.startswith("data: "):
+                chat_events.append(line)
+        assert len(chat_events) >= 5
+        assert any("complete" in ev for ev in chat_events)
+

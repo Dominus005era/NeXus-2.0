@@ -52,6 +52,8 @@ import { ThemeToggle } from '../context/ThemeContext';
 
 export interface LandingPageProps {
   onGetStarted: () => void;
+  onSignIn?: () => void;
+  isAuthenticated?: boolean;
   onOpenDeploymentGuide?: () => void;
   onSelectModel?: (modelId: string, targetView: 'chat' | 'flow') => void;
 }
@@ -235,6 +237,8 @@ const FAQS_DATA: FaqItem[] = [
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onGetStarted,
+  onSignIn,
+  isAuthenticated = false,
   onOpenDeploymentGuide,
   onSelectModel,
 }) => {
@@ -435,7 +439,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0B0C0E]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/[0.08] w-full shadow-sm">
         <div className="relative flex justify-between items-center w-full px-6 md:px-12 py-3.5 max-w-7xl mx-auto">
           {/* Brand Logo Anchor */}
-          <div className="flex items-center gap-2.5 group cursor-pointer z-10" onClick={onGetStarted}>
+          <div className="flex items-center gap-2.5 group cursor-pointer z-10" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#1A73E8] to-[#A8C7FA] flex items-center justify-center shadow-md shadow-[#1A73E8]/20 group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4 text-white group-hover:rotate-12 transition-transform duration-300" />
             </div>
@@ -470,6 +474,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             )}
             
             <ThemeToggle />
+
+            {onSignIn && (
+              <button
+                onClick={onSignIn}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 text-slate-700 dark:text-[#C4C7C5] hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20 bg-white/60 dark:bg-white/5 transition-all text-xs font-semibold cursor-pointer"
+              >
+                {isAuthenticated ? 'Open Workspace' : 'Sign In'}
+              </button>
+            )}
 
             <button
               onClick={onGetStarted}

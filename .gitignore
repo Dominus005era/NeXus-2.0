@@ -30,7 +30,8 @@ wheels/
 *.egg
 
 # Database & Logs
-storage/db/
+storage/
+backend/storage/
 *.db
 *.sqlite3
 *.log

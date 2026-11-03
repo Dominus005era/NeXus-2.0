@@ -1,0 +1,522 @@
+export interface NodeData {
+  id: string;
+  type: 'ceo' | 'orchestrator' | 'sales' | 'inventory' | 'finance' | 'solver' | 'db';
+  title: string;
+  subtitle: string;
+  role: string;
+  model: string;
+  department: string;
+  modelProvider: 'Google' | 'OpenAI' | 'Nexus Formal' | 'Neon' | 'Executive';
+  latency: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  iconBg: string;
+  iconColor: string;
+  borderColor: string;
+  accentGlow: string;
+  stageNum: number;
+}
+
+export interface DynamicPipelineStep {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  label: string;
+  color: string;
+  stepType: 'dispatch' | 'decompose' | 'consult' | 'peer_consult' | 'solve' | 'deliver';
+  sourceThought?: string;
+  targetThought: string;
+  telemetryBadge?: string;
+}
+
+export interface SwarmScenario {
+  id: string;
+  title: string;
+  badge: string;
+  badgeColor: string;
+  prompt: string;
+  description: string;
+  steps: DynamicPipelineStep[];
+  participatingNodeIds: string[];
+}
+
+export const AVAILABLE_MODELS_BY_TYPE: Record<string, string[]> = {
+  orchestrator: ['Gemini 3.6 Flash (Default)', 'Gemini 3.8 Flash (Turbo)', 'Gemini 2.5 Pro', 'GPT-4o'],
+  sales: ['Gemini 3.6 Flash (High-Throughput)', 'GPT-4o Mini', 'Gemini 3.8 Flash'],
+  inventory: ['GPT-4o Mini (Tactical)', 'Gemini 3.6 Flash', 'Claude 3.5 Sonnet'],
+  finance: ['Gemini 1.5 Pro (2M Context)', 'Gemini 2.5 Pro', 'GPT-4o (Audit)'],
+  solver: ['SciPy HiGHS MILP Engine (Exact)', 'Google OR-Tools ILP v9.8', 'Nexus 3.1 Deep Think'],
+  db: ['SQLite / Neon Postgres (SQLAlchemy)', 'Google Drive Cloud Docs API', 'Supabase Realtime'],
+};
+
+export const RANDOM_ENTERPRISE_COMMANDS = [
+  {
+    prompt: 'Audit cross-border supplier tariffs and import duties across active vendor contracts.',
+    scenarioType: 'dual_governance' as const,
+  },
+  {
+    prompt: 'Formulate weekend flash-sale discount ceiling without degrading minimum gross margin.',
+    scenarioType: 'single_sales' as const,
+  },
+  {
+    prompt: 'Analyze critical component shortage on assembly line and negotiate expedited emergency supplier allocation.',
+    scenarioType: 'emergency_stockout' as const,
+  },
+  {
+    prompt: 'Stress-test 30-day corporate burn rate against worst-case creator promotional dropoff.',
+    scenarioType: 'collab_surge_milp' as const,
+  },
+  {
+    prompt: 'Evaluate automated warehouse robotics picking throughput and bin replenishment cycles.',
+    scenarioType: 'emergency_stockout' as const,
+  },
+  {
+    prompt: 'Model customer acquisition velocity vs fulfillment SLA guarantees for tier-1 distribution hubs.',
+    scenarioType: 'single_sales' as const,
+  }
+];
+
+export const getInitialNodes = (
+  userName: string,
+  userRole: string,
+  authorityLevel: string,
+  companyName: string,
+  primaryProduct: string
+): NodeData[] => [
+  {
+    id: 'node-ceo',
+    type: 'ceo',
+    title: 'Executive Directive',
+    subtitle: `${userName} (${userRole})`,
+    role: `Business Executive Authority (${authorityLevel})`,
+    model: 'Operational Directive Stream',
+    department: 'Executive Governance',
+    modelProvider: 'Executive',
+    latency: '< 1ms',
+    x: 60,
+    y: 280,
+    width: 290,
+    height: 200,
+    iconBg: 'bg-[#A8C7FA]/10 dark:bg-[#A8C7FA]/10',
+    iconColor: 'text-blue-600 dark:text-[#A8C7FA]',
+    borderColor: 'border-blue-400 dark:border-[#A8C7FA]/40',
+    accentGlow: 'rgba(66, 133, 244, 0.2)',
+    stageNum: 1,
+  },
+  {
+    id: 'node-orchestrator',
+    type: 'orchestrator',
+    title: 'Nexus Swarm Orchestrator',
+    subtitle: 'Hierarchical Task & Constraint Router',
+    role: 'Prompt Decomposer, Agent Router & Solution Verifier',
+    model: 'Gemini 3.6 Flash (Default)',
+    department: 'AI Operations Command',
+    modelProvider: 'Google',
+    latency: '3.8ms',
+    x: 430,
+    y: 250,
+    width: 320,
+    height: 240,
+    iconBg: 'bg-blue-500/10 dark:bg-[#A8C7FA]/20',
+    iconColor: 'text-blue-600 dark:text-[#A8C7FA]',
+    borderColor: 'border-blue-500 dark:border-[#A8C7FA]',
+    accentGlow: 'rgba(66, 133, 244, 0.35)',
+    stageNum: 2,
+  },
+  {
+    id: 'node-sales',
+    type: 'sales',
+    title: 'Sales Intelligence Agent',
+    subtitle: 'Promotions & Demand Forecasting',
+    role: `Demand Surge Analytics for ${primaryProduct}`,
+    model: 'Gemini 3.6 Flash (High-Throughput)',
+    department: 'Commercial & Sales',
+    modelProvider: 'Google',
+    latency: '5.4ms',
+    x: 880,
+    y: 50,
+    width: 300,
+    height: 200,
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-500 dark:text-blue-400',
+    borderColor: 'border-blue-500/50',
+    accentGlow: 'rgba(59, 130, 246, 0.25)',
+    stageNum: 3,
+  },
+  {
+    id: 'node-inventory',
+    type: 'inventory',
+    title: 'Supply Chain & Inventory',
+    subtitle: `${primaryProduct} Stockout Horizon`,
+    role: `Burn Rate & Net Deficit Formulation for ${primaryProduct}`,
+    model: 'GPT-4o Mini (Tactical)',
+    department: 'Logistics & Warehouse',
+    modelProvider: 'OpenAI',
+    latency: '4.9ms',
+    x: 880,
+    y: 290,
+    width: 300,
+    height: 200,
+    iconBg: 'bg-amber-500/10',
+    iconColor: 'text-amber-500 dark:text-amber-400',
+    borderColor: 'border-amber-500/50',
+    accentGlow: 'rgba(245, 158, 11, 0.25)',
+    stageNum: 3,
+  },
+  {
+    id: 'node-finance',
+    type: 'finance',
+    title: 'Treasury & Governance',
+    subtitle: 'Statutory Reserve & Safe Cash Cap',
+    role: 'Ledger Audit & Spend Ceiling Guard',
+    model: 'Gemini 1.5 Pro (2M Context)',
+    department: 'Treasury & Compliance',
+    modelProvider: 'Google',
+    latency: '6.1ms',
+    x: 880,
+    y: 530,
+    width: 300,
+    height: 200,
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-500 dark:text-emerald-400',
+    borderColor: 'border-emerald-500/50',
+    accentGlow: 'rgba(34, 197, 94, 0.25)',
+    stageNum: 3,
+  },
+  {
+    id: 'node-db',
+    type: 'db',
+    title: 'Enterprise DB & Cloud Docs',
+    subtitle: `${companyName} Data Store`,
+    role: 'SQLAlchemy Persistence & Google Drive RAG',
+    model: 'SQLite / Neon Postgres (SQLAlchemy)',
+    department: 'Enterprise Data Layer',
+    modelProvider: 'Neon',
+    latency: '1.2ms',
+    x: 880,
+    y: 770,
+    width: 300,
+    height: 200,
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-500 dark:text-purple-400',
+    borderColor: 'border-purple-500/50',
+    accentGlow: 'rgba(168, 85, 247, 0.25)',
+    stageNum: 2,
+  },
+  {
+    id: 'node-solver',
+    type: 'solver',
+    title: 'SciPy HiGHS Decision Solver',
+    subtitle: 'Deterministic MILP Optimization',
+    role: 'Mixed-Integer Linear Supplier Split Formulation',
+    model: 'SciPy HiGHS MILP Engine (Exact)',
+    department: 'Operations Optimization',
+    modelProvider: 'Nexus Formal',
+    latency: '3.9ms',
+    x: 1310,
+    y: 250,
+    width: 320,
+    height: 245,
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-500 dark:text-purple-400',
+    borderColor: 'border-purple-500/60',
+    accentGlow: 'rgba(168, 85, 247, 0.3)',
+    stageNum: 4,
+  },
+];
+
+export const getScenarios = (companyName: string, primaryProduct: string): SwarmScenario[] => [
+  {
+    id: 'collab_surge_milp',
+    title: 'Collaborative Swarm (Peer Consultation)',
+    badge: 'Multi-Agent + Peer Consult',
+    badgeColor: 'border-blue-400 bg-blue-500/10 text-blue-600 dark:text-[#A8C7FA]',
+    prompt: `Analyze sudden demand surge (+70%) on ${primaryProduct}, consult inventory & finance covenants, and formulate optimal supplier PO split within liquidity cap.`,
+    description: 'Executive directive flows to Orchestrator -> Sales -> Peer consults Inventory -> Peer consults Finance -> SciPy Solver proves optimal integer split -> Delivered to Executive.',
+    participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-sales', 'node-inventory', 'node-finance', 'node-solver'],
+    steps: [
+      {
+        id: 'step-1-ceo-to-orchestrator',
+        sourceId: 'node-ceo',
+        targetId: 'node-orchestrator',
+        label: '1. Executive Directive Dispatch',
+        color: '#4285F4',
+        stepType: 'dispatch',
+        sourceThought: 'Executive dispatched urgent growth & replenishment mandate.',
+        targetThought: `Decomposing directive: Requires Sales surge forecast, Warehouse stock verification, and Statutory spend limits for ${primaryProduct}.`,
+        telemetryBadge: 'Directive: Formulate surge PO split',
+      },
+      {
+        id: 'step-2-orchestrator-to-sales',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-sales',
+        label: '2. Task: Sales Velocity Analytics',
+        color: '#3B82F6',
+        stepType: 'consult',
+        sourceThought: 'Orchestrator delegating commercial analytics to Sales Agent.',
+        targetThought: `Promo surge modeling complete: Daily velocity elevated to 145 u/d (+70%). 7-day projected demand = 1,015 units.`,
+        telemetryBadge: 'Sales: Velocity 145 u/d (+70%)',
+      },
+      {
+        id: 'step-3-sales-to-inventory-peer',
+        sourceId: 'node-sales',
+        targetId: 'node-inventory',
+        label: '3. Peer Consult: Request Bin Stock',
+        color: '#F59E0B',
+        stepType: 'peer_consult',
+        sourceThought: 'Sales Agent querying Supply Chain Agent for buffer stock...',
+        targetThought: `Warehouse Bin-4B audited: 170 units on hand (Safety floor: 150u). Net deficit = 960 units urgently needed!`,
+        telemetryBadge: 'Inventory: Net Deficit 960 units',
+      },
+      {
+        id: 'step-4-inventory-to-finance-peer',
+        sourceId: 'node-inventory',
+        targetId: 'node-finance',
+        label: '4. Peer Consult: Check Cash Ceiling',
+        color: '#10B981',
+        stepType: 'peer_consult',
+        sourceThought: 'Inventory Agent consulting Treasury for maximum upfront cash disbursement...',
+        targetThought: `Treasury covenant check: ₹5.00L statutory reserve locked. Upfront cash disbursement capped at ₹1.80L.`,
+        telemetryBadge: 'Finance: ₹1.80L Spend Cap Approved',
+      },
+      {
+        id: 'step-5-finance-to-solver',
+        sourceId: 'node-finance',
+        targetId: 'node-solver',
+        label: '5. Submit Multi-Agent Constraints to MILP',
+        color: '#A855F7',
+        stepType: 'solve',
+        sourceThought: 'Passing demand objective (1,015u), deficit constraint (960u), and ₹1.80L cash cap to Decision Solver.',
+        targetThought: `SciPy HiGHS Solver: Min Cost s.t. 960u deficit & ₹1.80L cap -> Optimal: 160u (Beta) + 800u (Gamma) = ₹1,74,600. Solved in 3.9ms!`,
+        telemetryBadge: 'HiGHS: 160u Beta + 800u Gamma (Feasible)',
+      },
+      {
+        id: 'step-6-solver-to-orchestrator',
+        sourceId: 'node-solver',
+        targetId: 'node-orchestrator',
+        label: '6. Mathematical Proof Verification',
+        color: '#4285F4',
+        stepType: 'solve',
+        sourceThought: 'Transmitting exact integer solution proof to Swarm Orchestrator.',
+        targetThought: `Proof verified against statutory liquidity reserve. Formatting executive synthesis brief.`,
+        telemetryBadge: 'Orchestrator: Solution verified',
+      },
+      {
+        id: 'step-7-orchestrator-to-ceo',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-ceo',
+        label: '7. Final Verified Brief Delivery',
+        color: '#10B981',
+        stepType: 'deliver',
+        sourceThought: 'Delivering verified multi-agent procurement brief to Executive.',
+        targetThought: `Executive Directive Fulfilled: Optimal 2-supplier PO split verified and ready for board dispatch.`,
+        telemetryBadge: 'Executive: Brief Received & Verified',
+      },
+    ],
+  },
+  {
+    id: 'single_sales',
+    title: 'Single-Agent Direct Flow (Sales Only)',
+    badge: 'Single-Agent Direct',
+    badgeColor: 'border-blue-400 bg-blue-500/10 text-blue-600 dark:text-[#A8C7FA]',
+    prompt: `Project quarterly regional sales run-rate and creator campaign velocity for ${primaryProduct}.`,
+    description: 'Orchestrator identifies task only requires Commercial Sales Agent. Other agents remain idle with zero lines.',
+    participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-sales', 'node-solver'],
+    steps: [
+      {
+        id: 'step-1-ceo-to-orchestrator',
+        sourceId: 'node-ceo',
+        targetId: 'node-orchestrator',
+        label: '1. Executive Directive Dispatch',
+        color: '#4285F4',
+        stepType: 'dispatch',
+        targetThought: `Prompt decomposed: Commercial forecast inquiry. Routing directly to Sales Intelligence Agent.`,
+        telemetryBadge: 'Executive: Sales velocity forecast requested',
+      },
+      {
+        id: 'step-2-orchestrator-to-sales',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-sales',
+        label: '2. Direct Commercial Routing',
+        color: '#3B82F6',
+        stepType: 'consult',
+        targetThought: `Sales velocity curve calculated: Projected quarterly run-rate = 4,200 units across regional tier-1 channels.`,
+        telemetryBadge: 'Sales: 4,200 units quarterly forecast',
+      },
+      {
+        id: 'step-3-sales-to-solver',
+        sourceId: 'node-sales',
+        targetId: 'node-solver',
+        label: '3. Statistical Bounds Validation',
+        color: '#A855F7',
+        stepType: 'solve',
+        targetThought: `Deterministic confidence interval computed: 95% certainty bounds [3,950u - 4,450u]. No constraint violations.`,
+        telemetryBadge: 'Solver: Statistical confidence verified',
+      },
+      {
+        id: 'step-4-solver-to-orchestrator',
+        sourceId: 'node-solver',
+        targetId: 'node-orchestrator',
+        label: '4. Return Validated Commercial Forecast',
+        color: '#4285F4',
+        stepType: 'solve',
+        targetThought: `Synthesizing executive commercial brief with confidence metrics.`,
+        telemetryBadge: 'Orchestrator: Forecast approved',
+      },
+      {
+        id: 'step-5-orchestrator-to-ceo',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-ceo',
+        label: '5. Deliver Executive Sales Report',
+        color: '#10B981',
+        stepType: 'deliver',
+        targetThought: `Commercial report delivered to Executive: Projected revenue growth +32% YoY.`,
+        telemetryBadge: 'Executive: Commercial report delivered',
+      },
+    ],
+  },
+  {
+    id: 'dual_governance',
+    title: 'Dual-Agent Governance (DB + Treasury)',
+    badge: 'Dual-Agent Audit',
+    badgeColor: 'border-emerald-400 bg-emerald-500/10 text-emerald-600 dark:text-[#34A853]',
+    prompt: `Audit statutory liquidity covenants and SEBI reserve compliance against connected cloud records for ${companyName}.`,
+    description: 'Orchestrator activates Enterprise DB and Treasury Agent. DB streams bank records directly to Treasury via peer consultation.',
+    participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-db', 'node-finance', 'node-solver'],
+    steps: [
+      {
+        id: 'step-1-ceo-to-orchestrator',
+        sourceId: 'node-ceo',
+        targetId: 'node-orchestrator',
+        label: '1. Compliance Directive Dispatch',
+        color: '#4285F4',
+        stepType: 'dispatch',
+        targetThought: `Decomposing directive: Requires cloud ledger extraction from DB and Treasury statutory audit.`,
+        telemetryBadge: 'Executive: Statutory covenant audit initiated',
+      },
+      {
+        id: 'step-2-orchestrator-to-db',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-db',
+        label: '2. Query Cloud Ledger & Escrow Records',
+        color: '#10B981',
+        stepType: 'consult',
+        targetThought: `Google Drive RAG: Extracted verified bank statements, escrow balances, and statutory reserve agreements.`,
+        telemetryBadge: 'DB: Escrow ledger extracted',
+      },
+      {
+        id: 'step-3-db-to-finance-peer',
+        sourceId: 'node-db',
+        targetId: 'node-finance',
+        label: '3. Peer Channel: Stream Records to Treasury',
+        color: '#10B981',
+        stepType: 'peer_consult',
+        targetThought: `Auditing statutory accounts: ₹5.00L statutory lock confirmed 100% intact. Operational buffer = ₹1.80L.`,
+        telemetryBadge: 'Finance: ₹5.00L Lock Confirmed',
+      },
+      {
+        id: 'step-4-finance-to-solver',
+        sourceId: 'node-finance',
+        targetId: 'node-solver',
+        label: '4. Prove Covenant Compliance',
+        color: '#A855F7',
+        stepType: 'solve',
+        targetThought: `HiGHS Solver verified: 0 covenant violations. Solvency coverage ratio = 2.45x (exceeds SEBI statutory threshold).`,
+        telemetryBadge: 'Solver: Solvency ratio 2.45x compliant',
+      },
+      {
+        id: 'step-5-solver-to-orchestrator',
+        sourceId: 'node-solver',
+        targetId: 'node-orchestrator',
+        label: '5. Compliance Certificate Delivered',
+        color: '#4285F4',
+        stepType: 'solve',
+        targetThought: `Audit verification complete. Assembling formal governance certificate.`,
+        telemetryBadge: 'Orchestrator: Audit certificate approved',
+      },
+      {
+        id: 'step-6-orchestrator-to-ceo',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-ceo',
+        label: '6. Deliver Governance Brief',
+        color: '#10B981',
+        stepType: 'deliver',
+        targetThought: `Governance certification delivered to Executive. Company in 100% regulatory compliance.`,
+        telemetryBadge: 'Executive: Compliance certified',
+      },
+    ],
+  },
+  {
+    id: 'emergency_stockout',
+    title: 'Emergency Stockout (Inventory ↔ Finance)',
+    badge: 'Emergency Mitigation',
+    badgeColor: 'border-amber-400 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    prompt: `Warehouse safety stock floor breached for ${primaryProduct}. Formulate emergency restocking authorization.`,
+    description: 'Inventory Agent detects critical safety stock breach, peer-consults Finance Agent for emergency PO funding.',
+    participatingNodeIds: ['node-ceo', 'node-orchestrator', 'node-inventory', 'node-finance', 'node-solver'],
+    steps: [
+      {
+        id: 'step-1-ceo-to-orchestrator',
+        sourceId: 'node-ceo',
+        targetId: 'node-orchestrator',
+        label: '1. Emergency Directive Dispatch',
+        color: '#4285F4',
+        stepType: 'dispatch',
+        targetThought: `Emergency stockout directive received. Routing priority task to Supply Chain & Inventory Agent.`,
+        telemetryBadge: 'Executive: Stockout emergency declared',
+      },
+      {
+        id: 'step-2-orchestrator-to-inventory',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-inventory',
+        label: '2. Task: Audit Safety Stock Floor',
+        color: '#F59E0B',
+        stepType: 'consult',
+        targetThought: `Critical stock alert: Stock dropped below 150u threshold (Current: 170u). Stockout horizon is under 3.5 hours!`,
+        telemetryBadge: 'Inventory: Stockout in 3.5 hours!',
+      },
+      {
+        id: 'step-3-inventory-to-finance-peer',
+        sourceId: 'node-inventory',
+        targetId: 'node-finance',
+        label: '3. Peer Consult: Request Emergency PO Budget',
+        color: '#10B981',
+        stepType: 'peer_consult',
+        targetThought: `Emergency PO funding evaluated: Authorized expedited emergency tranche of ₹1.25L from operational reserves.`,
+        telemetryBadge: 'Finance: Authorized emergency ₹1.25L',
+      },
+      {
+        id: 'step-4-finance-to-solver',
+        sourceId: 'node-finance',
+        targetId: 'node-solver',
+        label: '4. Solve Minimum Lead Time Restock',
+        color: '#A855F7',
+        stepType: 'solve',
+        targetThought: `HiGHS Solved: 300 units from Supplier Beta (3-day delivery). Total cost = ₹1.19L. Lead time minimized!`,
+        telemetryBadge: 'Solver: 300u expedited via Beta',
+      },
+      {
+        id: 'step-5-solver-to-orchestrator',
+        sourceId: 'node-solver',
+        targetId: 'node-orchestrator',
+        label: '5. Emergency Mitigation Proof',
+        color: '#4285F4',
+        stepType: 'solve',
+        targetThought: `Restocking allocation feasible. Packaging immediate action dispatch.`,
+        telemetryBadge: 'Orchestrator: Mitigation plan proved',
+      },
+      {
+        id: 'step-6-orchestrator-to-ceo',
+        sourceId: 'node-orchestrator',
+        targetId: 'node-ceo',
+        label: '6. Deliver Emergency Restock Action',
+        color: '#10B981',
+        stepType: 'deliver',
+        targetThought: `Emergency purchase order ready for signature. Warehouse floor restored in 3 days.`,
+        telemetryBadge: 'Executive: Restock PO ready for cosign',
+      },
+    ],
+  },
+];

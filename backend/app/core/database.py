@@ -3,11 +3,25 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
-# Ensure storage directory exists
-storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "storage")
+backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+storage_dir = os.path.join(backend_root, "storage")
 os.makedirs(storage_dir, exist_ok=True)
 
 db_url = settings.SUPABASE_DB_URL or settings.DATABASE_URL
+# Automatically resolve relative SQLite paths to backend_root/storage so working directory doesn't matter
+if db_url.startswith("sqlite:///") and ":memory:" not in db_url:
+    raw_path = db_url.replace("sqlite:///", "")
+    if not os.path.isabs(raw_path):
+        clean_rel = raw_path.lstrip("./").lstrip(".\\")
+        if clean_rel.startswith("storage"):
+            abs_db_path = os.path.join(backend_root, clean_rel)
+        else:
+            abs_db_path = os.path.join(backend_root, "storage", os.path.basename(clean_rel))
+    else:
+        abs_db_path = raw_path
+    os.makedirs(os.path.dirname(abs_db_path), exist_ok=True)
+    db_url = f"sqlite:///{abs_db_path.replace(chr(92), '/')}"
+
 # Handle SQLite connect args
 connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
 
